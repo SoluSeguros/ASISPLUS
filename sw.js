@@ -11,7 +11,6 @@ const CACHE = 'casos-cache-' + APP_VERSION;
 
 const ASSETS = [
   './asisplus.html',
-  './verificacion.html', // redirección de compatibilidad → asisplus.html
   './manifest.json',
   './css/styles.css',
   './js/version.js',
