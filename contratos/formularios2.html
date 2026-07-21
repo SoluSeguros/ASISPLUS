@@ -947,7 +947,7 @@ button:disabled {
 </head>
 <body>
 <div style="background:#0a2242;color:#cdd9ea;padding:8px 16px;display:flex;gap:14px;align-items:center;font:600 0.86rem/'Manrope',sans-serif;position:sticky;top:0;z-index:1100;">
-  <a id="lnkVolverApp" href="../verificacion.html" style="color:#fff;text-decoration:none;font-weight:800;">🏠 Asistencias</a>
+  <a id="lnkVolverApp" href="../asisplus.html" style="color:#fff;text-decoration:none;font-weight:800;">🏠 Asistencias</a>
   <span style="opacity:.5;">›</span>
   <span>📑 Módulo de contratos</span>
   <a href="casos.html" style="margin-left:auto;color:#9fc2ff;text-decoration:none;font-weight:800;">📂 Casos guardados →</a>
@@ -1889,8 +1889,8 @@ function prellenarDesdeCaso() {
 
   // Enlace de "volver al caso" (deep-link a la app de asistencias).
   const urlCaso = casoOrigenRef
-    ? `../verificacion.html?caso=${encodeURIComponent(casoOrigenRef)}`
-    : "../verificacion.html";
+    ? `../asisplus.html?caso=${encodeURIComponent(casoOrigenRef)}`
+    : "../asisplus.html";
   const lnkApp = document.getElementById("lnkVolverApp");
   if (lnkApp && casoOrigenRef) {
     lnkApp.href = urlCaso;

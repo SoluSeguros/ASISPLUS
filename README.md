@@ -24,7 +24,7 @@ vanilla** (sin framework ni build) con backend en **Supabase**.
 ## Estructura
 
 ```
-verificacion.html      Página principal (SPA)
+asisplus.html      Página principal (SPA)
 js/                    Lógica de la aplicación (scripts con carga diferida)
 css/styles.css         Estilos
 icons/                 Iconos e imágenes de la PWA
@@ -47,7 +47,7 @@ Al ser archivos estáticos, basta servir la carpeta con cualquier servidor HTTP:
 
 ```bash
 python -m http.server 8000
-# luego abrir http://127.0.0.1:8000/verificacion.html
+# luego abrir http://127.0.0.1:8000/asisplus.html
 ```
 
 ---

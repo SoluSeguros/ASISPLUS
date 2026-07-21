@@ -2,7 +2,7 @@
   "name": "ASIS PLUS — Gestión de Asistencias",
   "short_name": "ASIS PLUS",
   "description": "Sistema de gestión de casos de asistencia (siniestros), terceros y parque automotor.",
-  "start_url": "./verificacion.html",
+  "start_url": "./asisplus.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",

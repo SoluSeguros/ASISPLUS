@@ -10,7 +10,8 @@ importScripts('./js/version.js');
 const CACHE = 'casos-cache-' + APP_VERSION;
 
 const ASSETS = [
-  './verificacion.html',
+  './asisplus.html',
+  './verificacion.html', // redirección de compatibilidad → asisplus.html
   './manifest.json',
   './css/styles.css',
   './js/version.js',
@@ -89,6 +90,6 @@ self.addEventListener('fetch', event => {
         caches.open(CACHE).then(c => c.put(req, copia)).catch(() => {});
         return res;
       })
-      .catch(() => caches.match(req).then(m => m || caches.match('./verificacion.html')))
+      .catch(() => caches.match(req).then(m => m || caches.match('./asisplus.html')))
   );
 });
