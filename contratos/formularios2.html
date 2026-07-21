@@ -1,0 +1,3090 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Soluasistencia - Contratos</title>
+
+<!-- PWA -->
+<link rel="manifest" href="../manifest.json">
+<meta name="theme-color" content="#1d4f9a">
+<meta name="application-name" content="Solucontratos">
+<meta name="description" content="Asistente para diligenciar, firmar y descargar contratos legales.">
+
+<!-- iOS PWA -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Solucontratos">
+<link rel="apple-touch-icon" href="icon-192.svg">
+
+<!-- Iconos -->
+<link rel="icon" type="image/svg+xml" sizes="any" href="icon-192.svg">
+<link rel="shortcut icon" href="icon-192.svg">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --bg: #081a33;
+  --bg-2: #0b2345;
+  --card: #ffffff;
+  --ink: #0f172a;
+  --muted: #475569;
+  --line: #dbe7f7;
+  --brand: #123a78;
+  --brand-2: #1d4f9a;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Manrope", sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 10% 8%, rgba(79, 126, 208, 0.24), transparent 38%),
+    radial-gradient(circle at 90% 88%, rgba(44, 95, 179, 0.24), transparent 42%),
+    linear-gradient(135deg, var(--bg), var(--bg-2));
+}
+
+html,
+body {
+  min-height: 100%;
+  overflow-x: hidden;
+}
+
+.app {
+  max-width: 1380px;
+  margin: 0 auto;
+  padding: 24px;
+  display: grid;
+  grid-template-columns: 460px 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 18px 44px rgba(4, 16, 35, 0.35);
+}
+
+.panel {
+  padding: 20px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 2.35rem;
+  line-height: 1.04;
+  letter-spacing: -0.01em;
+  color: #0b2a55;
+}
+
+.sub {
+  margin: 10px 0 18px;
+  color: var(--muted);
+  font-size: 1rem;
+}
+
+.stepper {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.step-dot {
+  border: 1px solid #d6bea4;
+  background: #f9efe3;
+  border-radius: 10px;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #7b6757;
+  padding: 8px 6px;
+}
+
+.step-dot.active {
+  background: #203145;
+  border-color: #203145;
+  color: #fff;
+}
+
+.step-panel { display: none; }
+.step-panel.active { display: block; }
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+label {
+  display: block;
+  margin: 10px 0 6px;
+  font-size: 0.83rem;
+  font-weight: 800;
+  color: #3b4757;
+}
+
+input, select {
+  width: 100%;
+  border: 1px solid #d2bba2;
+  border-radius: 11px;
+  padding: 12px;
+  min-height: 48px;
+  background: #fff;
+  font: inherit;
+  font-size: 16px;
+}
+
+input:focus, select:focus {
+  outline: none;
+  border-color: var(--brand-2);
+  box-shadow: 0 0 0 3px rgba(31, 111, 102, 0.18);
+}
+
+.sig-box {
+  margin-top: 10px;
+  border: 2px dashed #c8af95;
+  border-radius: 11px;
+  background: #fff;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.sig-box.firmado {
+  border-color: #1e8c4f;
+  border-style: solid;
+  background: #f3fbf6;
+}
+.sig-box.pendiente {
+  border-color: #d54a1c;
+  background: #fff4ee;
+  box-shadow: 0 0 0 3px rgba(213, 74, 28, 0.08);
+}
+.firma-aviso {
+  margin: 14px 0 4px;
+  padding: 10px 14px;
+  background: #fff4e8;
+  border: 1px solid #e2a456;
+  border-radius: 10px;
+  color: #7c4a2d;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+.orden-aviso {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  background: #eaf4ff;
+  border: 1px solid #88b0dc;
+  border-radius: 10px;
+  color: #0b2a55;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+.orden-aviso strong { color: #0b2a55; }
+.orden-aviso ul { color: #1f3556; }
+.firma-estado {
+  margin: 4px 0 12px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #d54a1c;
+}
+.firma-estado.ok {
+  color: #1e8c4f;
+}
+
+canvas {
+  width: 100%;
+  height: 150px;
+  display: block;
+  border-radius: 11px;
+  touch-action: none;
+}
+
+.btn-row {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+button {
+  border: 0;
+  border-radius: 10px;
+  padding: 11px 14px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.btn-main { background: linear-gradient(135deg, #cb5722, #a13a13); color: #fff; }
+.btn-alt { background: linear-gradient(135deg, #2a8077, #225f59); color: #fff; }
+.btn-soft { background: #f1e2d1; color: #66452f; }
+
+.state {
+  min-height: 19px;
+  margin-top: 8px;
+  font-size: 0.87rem;
+  color: #7a3114;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  margin-top: 8px;
+}
+
+.auth-box {
+  border: 1px solid #e1c8af;
+  background: #fff;
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.auth-title {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.auth-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.auth-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.auth-panel {
+  border: 1px solid #ecd8c2;
+  border-radius: 10px;
+  background: #fffaf5;
+  padding: 12px;
+}
+
+.auth-panel h4 {
+  margin: 0 0 10px;
+  font-size: 0.98rem;
+}
+
+.auth-panel input {
+  min-height: 52px;
+}
+
+.auth-actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.auth-status {
+  margin-top: 8px;
+  font-size: 0.82rem;
+  color: #334155;
+}
+
+.auth-message {
+  margin-top: 8px;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  border-radius: 8px;
+  padding: 8px 10px;
+  border: 1px solid #e6c7ab;
+  background: #fff4e8;
+  color: #7a3114;
+}
+
+.auth-message.ok {
+  border-color: #bfe3ce;
+  background: #edf9f2;
+  color: #1f6d43;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.login-only-note {
+  margin-top: 10px;
+  font-size: 0.86rem;
+  color: #7c4a2d;
+  background: #fff4e8;
+  border: 1px solid #ecc9aa;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.contract-switch {
+  margin-bottom: 12px;
+  border: 1px solid #cfe0f7;
+  background: #f7fbff;
+  border-radius: 10px;
+  padding: 10px;
+  display: block;
+}
+
+.contract-switch h4 {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+}
+
+.mobile-preview-toggle {
+  display: none;
+}
+
+/* ====== NUEVO SISTEMA DE MODALES (v2) ====== */
+.sc-modal-host {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2147483647;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px 16px;
+  background-color: #0a1428;
+  background-color: rgba(8, 16, 35, 0.95);
+  overflow-y: auto;
+}
+
+.sc-modal-host[hidden] {
+  display: none !important;
+}
+
+.sc-modal-box {
+  position: relative;
+  margin: 30px auto;
+  width: min(600px, 100%);
+  background-color: #ffffff;
+  color: #0f172a;
+  border-radius: 14px;
+  border: 2px solid #1d4f9a;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.85);
+  padding: 22px 20px;
+  font-family: "Manrope", sans-serif;
+}
+
+.sc-modal-box h3 {
+  margin: 0 0 14px;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #0b2a55;
+}
+
+.sc-modal-summary {
+  background-color: #f3f7ff;
+  border: 1px solid #cfdef5;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: #122444;
+}
+
+.sc-modal-summary p {
+  margin: 0 0 6px;
+}
+
+.sc-modal-summary p:last-child {
+  margin-bottom: 0;
+}
+
+.sc-modal-actions {
+  margin-top: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.sc-modal-actions button {
+  border: 0;
+  border-radius: 10px;
+  padding: 11px 16px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  flex: 1 1 180px;
+}
+
+.sc-btn-primary {
+  background: linear-gradient(135deg, #1e4f99, #133a72);
+  color: #fff;
+}
+
+.sc-btn-secondary {
+  background: #e9f1ff;
+  color: #103566;
+}
+
+.sc-loading-bar {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: #e6eefb;
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+.sc-loading-bar > span {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(135deg, #1f4b92, #2a67c0);
+  transition: width .28s ease;
+}
+
+.sc-loading-text {
+  margin: 0 0 6px;
+  color: #3d5272;
+  font-size: 0.95rem;
+}
+
+.sc-loading-progress {
+  margin: 6px 0 0;
+  color: #163b73;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+body.sc-modal-open {
+  overflow: hidden;
+  height: 100vh;
+}
+
+@media (max-width: 480px) {
+  .sc-modal-box {
+    width: 100%;
+    padding: 18px 14px;
+    margin: 16px auto;
+  }
+  .sc-modal-actions button {
+    flex: 1 1 100%;
+  }
+}
+
+.page {
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  background: #fff;
+  padding: 10mm 14mm 10mm;
+  box-shadow: inset 0 0 0 1px #e8e8e8;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: visible;
+}
+
+.doc-header { margin-bottom: 7mm; }
+.doc-logo { width: 230px; height: auto; display: block; }
+.doc-watermark {
+  position: absolute;
+  width: 78%;
+  height: auto;
+  left: 50%;
+  top: 150mm;
+  transform: translateX(-50%);
+  opacity: 0.18;
+  pointer-events: none;
+  z-index: 1;
+}
+
+auto-space { letter-spacing: 0.01em; }
+
+.doc-body {
+  flex: 1;
+  position: relative;
+  z-index: 2;
+}
+
+h2 {
+  margin: 0 0 8mm;
+  font-family: Arial, sans-serif;
+  font-size: 16pt;
+  text-align: center;
+}
+
+.doc-texto p {
+  margin: 0 0 5.2mm;
+  font-family: Arial, sans-serif;
+  font-size: 10.3pt;
+  line-height: 1.65;
+  text-align: justify;
+  text-align-last: left;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  word-spacing: -0.02em;
+}
+
+.line {
+  display: inline-block;
+  border-bottom: 1px solid #111;
+  line-height: 1.65;
+  padding: 0 3px;
+  margin: 0 1px;
+  vertical-align: baseline;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  text-align: left;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.firma {
+  margin-top: 5mm;
+  font-family: Arial, sans-serif;
+  font-size: 10.3pt;
+}
+
+#firmaImg, #firmaConductorImg {
+  display: block;
+  width: 160px;
+  min-height: 28px;
+}
+
+#firmaImg:not([src]),
+#firmaImg[src=""],
+#firmaConductorImg:not([src]),
+#firmaConductorImg[src=""] {
+  visibility: hidden;
+}
+
+.firma-linea {
+  width: 78mm;
+  border-top: 1px solid #1f1f1f;
+  margin: 6mm 0 2mm;
+}
+
+.firma-rol { margin: 4mm 0 6mm; }
+
+.doc-footer {
+  margin-top: auto;
+  padding-top: 3mm;
+  border-top: 1px solid #9db2cf;
+  z-index: 2;
+}
+
+.footer-fallback {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: #8d8d8d;
+  font-size: 8.6pt;
+}
+
+.footer-fallback strong { font-size: 9.4pt; }
+
+@media (max-width: 1080px) {
+  .app { grid-template-columns: 1fr; }
+  .page {
+    width: 100%;
+    height: auto;
+    min-height: 1180px;
+  }
+}
+
+@media (max-width: 430px) {
+  body {
+    background: #f0dfcb;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .app {
+    padding: 10px 10px calc(14px + env(safe-area-inset-bottom));
+    gap: 10px;
+  }
+  .panel { padding: 14px; border-radius: 14px; }
+  h1 { font-size: 1.55rem; }
+  .sub { font-size: 0.88rem; }
+  .grid-2 { grid-template-columns: 1fr; }
+  .auth-grid { grid-template-columns: 1fr; }
+  .stepper {
+    grid-template-columns: repeat(4, minmax(102px, 1fr));
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+  .step-dot {
+    white-space: nowrap;
+    font-size: 0.72rem;
+    padding: 7px 5px;
+  }
+  label {
+    font-size: 0.8rem;
+    margin-top: 8px;
+  }
+  input, select {
+    min-height: 50px;
+    padding: 12px;
+    border-radius: 10px;
+  }
+  canvas {
+    height: 132px;
+  }
+  button { flex: 1 1 100%; }
+  .mobile-preview-toggle {
+    display: block;
+  }
+  .preview-card {
+    display: none;
+  }
+  .preview-card.show {
+    display: block;
+  }
+  .page {
+    width: 100%;
+    height: auto;
+    min-height: 900px;
+    padding: 12px;
+  }
+  .doc-logo { width: 106px; }
+}
+
+/* ---- Navy Web Redesign Overrides ---- */
+body {
+  background:
+    radial-gradient(circle at 12% 8%, rgba(71, 123, 216, 0.22), transparent 36%),
+    radial-gradient(circle at 86% 90%, rgba(40, 89, 170, 0.22), transparent 38%),
+    linear-gradient(135deg, #081a33, #0a2242) !important;
+}
+
+.app {
+  max-width: 1420px !important;
+  padding: 26px !important;
+  grid-template-columns: 470px 1fr !important;
+  gap: 20px !important;
+  align-items: start;
+}
+
+.card {
+  border: 1px solid #d8e5f8 !important;
+  border-radius: 18px !important;
+  box-shadow: 0 18px 44px rgba(5, 18, 42, 0.34) !important;
+}
+
+.panel {
+  padding: 22px !important;
+}
+
+h1 {
+  color: #0f2f60 !important;
+  font-size: 2.35rem !important;
+}
+
+.sub {
+  color: #4b5d77 !important;
+  font-size: 1rem !important;
+}
+
+.step-dot {
+  border-color: #bdd3f4 !important;
+  background: #edf4ff !important;
+  color: #28436b !important;
+}
+
+.step-dot.active {
+  background: linear-gradient(135deg, #174589, #113669) !important;
+  border-color: #113669 !important;
+  color: #fff !important;
+}
+
+input, select {
+  border: 1px solid #c8daf3 !important;
+}
+
+input:focus, select:focus {
+  border-color: #1e4e97 !important;
+  box-shadow: 0 0 0 3px rgba(30, 78, 151, 0.16) !important;
+}
+
+.btn-main {
+  background: linear-gradient(135deg, #1e4f99, #133a72) !important;
+}
+
+.btn-alt {
+  background: linear-gradient(135deg, #2a67c0, #194b97) !important;
+}
+
+.btn-soft {
+  background: #e9f1ff !important;
+  color: #103566 !important;
+}
+
+.auth-box {
+  border: 1px solid #cfdef5 !important;
+  overflow: hidden;
+}
+
+.auth-panel {
+  border: 1px solid #d8e6fa !important;
+  background: #f5f9ff !important;
+}
+
+.auth-message,
+.login-only-note {
+  border-color: #c8dcfa !important;
+  background: #edf5ff !important;
+  color: #123a72 !important;
+}
+
+.app.auth-locked {
+  grid-template-columns: minmax(420px, 680px) !important;
+  justify-content: center;
+}
+
+.app.auth-locked .preview-card {
+  display: none !important;
+}
+
+@media (max-width: 430px) {
+  body {
+    background: linear-gradient(180deg, #081a33, #0b2446) !important;
+  }
+}
+
+/* ---- Responsive Fixes (Tablet + Mobile) ---- */
+@media (max-width: 1024px) {
+  .app {
+    grid-template-columns: 1fr !important;
+    max-width: 960px !important;
+    padding: 16px !important;
+    gap: 14px !important;
+  }
+
+  .panel {
+    padding: 16px !important;
+  }
+
+  .preview-card {
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .page {
+    width: 100%;
+    min-height: 980px;
+    height: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .app.auth-locked {
+    grid-template-columns: 1fr !important;
+    justify-content: stretch !important;
+  }
+
+  h1 {
+    font-size: 1.95rem !important;
+    line-height: 1.08;
+  }
+
+  .sub {
+    font-size: 0.92rem !important;
+    margin-bottom: 14px;
+  }
+
+  .auth-grid,
+  .grid-2 {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .auth-panel {
+    padding: 10px !important;
+  }
+
+  .auth-actions > button {
+    flex: 1 1 100%;
+    min-height: 48px;
+  }
+
+  .stepper {
+    grid-template-columns: repeat(4, minmax(110px, 1fr));
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+  }
+
+  .step-dot {
+    white-space: nowrap;
+  }
+
+  .btn-row {
+    gap: 10px;
+  }
+
+  .btn-row > button {
+    flex: 1 1 calc(50% - 10px);
+    min-height: 46px;
+  }
+
+  input,
+  select {
+    min-height: 50px;
+    font-size: 16px;
+  }
+
+  canvas {
+    height: 170px;
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    background: linear-gradient(180deg, #081a33, #0b2446) !important;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .app {
+    padding: 10px 10px calc(14px + env(safe-area-inset-bottom)) !important;
+    gap: 10px !important;
+  }
+
+  .card {
+    border-radius: 14px !important;
+  }
+
+.panel {
+    padding: 12px !important;
+  }
+
+  .auth-row {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-box {
+    padding: 10px !important;
+  }
+
+  .auth-panel h4 {
+    font-size: 0.9rem;
+  }
+
+  h1 {
+    font-size: 1.7rem !important;
+  }
+
+  label {
+    font-size: 0.82rem;
+    margin-top: 8px;
+  }
+
+  .btn-row > button {
+    flex: 1 1 100%;
+    min-height: 48px;
+  }
+
+  .mobile-preview-toggle {
+    display: block;
+  }
+
+  .preview-card {
+    display: none;
+  }
+
+  .preview-card.show {
+    display: block;
+  }
+
+  .page {
+    min-height: 900px;
+    padding: 12px;
+  }
+
+  .doc-logo {
+    width: 102px;
+  }
+
+  .loading-modal,
+  .modal {
+    width: 96vw;
+    max-height: 88vh;
+    padding: 12px;
+  }
+}
+
+button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.pdf-capture-mode .preview-card {
+  display: block !important;
+  position: fixed !important;
+  left: -10000px !important;
+  top: 0 !important;
+  width: 210mm !important;
+  overflow: visible !important;
+  z-index: -1 !important;
+}
+
+.pdf-capture-mode .page {
+  width: 210mm !important;
+  height: auto !important;
+  min-height: 297mm !important;
+  padding: 10mm 14mm 10mm !important;
+  overflow: visible !important;
+}
+</style>
+</head>
+<body>
+<div style="background:#0a2242;color:#cdd9ea;padding:8px 16px;display:flex;gap:14px;align-items:center;font:600 0.86rem/'Manrope',sans-serif;position:sticky;top:0;z-index:1100;">
+  <a id="lnkVolverApp" href="../verificacion.html" style="color:#fff;text-decoration:none;font-weight:800;">🏠 Asistencias</a>
+  <span style="opacity:.5;">›</span>
+  <span>📑 Módulo de contratos</span>
+  <a href="casos.html" style="margin-left:auto;color:#9fc2ff;text-decoration:none;font-weight:800;">📂 Casos guardados →</a>
+</div>
+<div id="refirmaBanner" class="hidden" style="background:#fff4e8;border-bottom:2px solid #e2a456;padding:12px 18px;text-align:center;font-weight:800;color:#7c4a2d;position:sticky;top:0;z-index:1000;">
+  ✍ Modo re-firma · Caso <code id="refirmaCaseId" style="background:#fff;padding:2px 8px;border-radius:6px;"></code>
+  &nbsp;·&nbsp;
+  <a href="casos.html" style="color:#1d4f9a;text-decoration:none;">← Cancelar y volver</a>
+</div>
+<main class="app container-xxl">
+  <section class="card panel">
+    <h1 id="formTitle">Formato de<br>Desistimiento</h1>
+    <p class="sub" id="formSub">Asistente paso a paso para completar y firmar el documento.</p>
+
+    <div class="contract-switch">
+      <h4>Tipo de contrato</h4>
+      <select id="contratoTipo" class="no-sync" onchange="switchContractType()">
+        <option value="desistimiento">Desistimiento</option>
+        <option value="afavor">Contrato A Favor</option>
+        <option value="encontra">Contrato En Contra</option>
+        <option value="mutuo">Contrato Mutuo Acuerdo</option>
+      </select>
+    </div>
+
+    <div class="auth-box">
+      <p class="auth-title">Acceso de usuario</p>
+      <div class="auth-grid" id="authGrid">
+        <div class="auth-panel">
+          <h4>Iniciar sesión</h4>
+          <input class="no-sync" id="authLoginEmail" type="email" placeholder="correo@dominio.com">
+          <input class="no-sync" id="authLoginPassword" type="password" placeholder="Contraseña">
+          <div class="auth-actions">
+            <button id="btnLogin" class="btn-main" onclick="iniciarSesion()">Ingresar</button>
+          </div>
+        </div>
+        <div class="auth-panel">
+          <h4>Crear usuario</h4>
+          <input class="no-sync" id="authRegisterEmail" type="email" placeholder="correo@dominio.com">
+          <input class="no-sync" id="authRegisterPassword" type="password" placeholder="Contraseña">
+          <div class="auth-actions">
+            <button id="btnRegister" class="btn-soft" onclick="registrarUsuario()">Crear usuario</button>
+          </div>
+        </div>
+      </div>
+      <div class="auth-actions" id="authLogoutWrap">
+        <button class="btn-soft" onclick="cerrarSesion()">Salir</button>
+      </div>
+      <div id="authStatus" class="auth-status">No autenticado.</div>
+      <div id="authMessage" class="auth-message hidden"></div>
+      <div id="loginOnlyNote" class="login-only-note">Inicia sesión para ver y usar las funcionalidades del formulario.</div>
+      <div style="margin-top:10px;text-align:right;">
+        <a href="casos.html" style="font-size:0.86rem;font-weight:800;color:#1d4f9a;text-decoration:none;">📂 Ver casos guardados →</a>
+      </div>
+    </div>
+
+    <div id="appProtectedLeft">
+    <div class="stepper" id="stepper">
+      <div class="step-dot active">1. Datos</div>
+      <div class="step-dot">2. Hechos</div>
+      <div class="step-dot">3. Firmas</div>
+      <div class="step-dot">4. PDF</div>
+    </div>
+
+    <div class="step-panel active" data-step="0">
+      <div class="orden-aviso" data-show="afavor encontra mutuo">
+        <strong>📋 Orden importante para contratos de transacción:</strong>
+        <ul style="margin:6px 0 0;padding-left:20px;">
+          <li><strong>Compareciente</strong> = ASEGURADO / cliente / conductor del bus (su placa lleva el número interno)</li>
+          <li><strong>Implicado</strong> = TERCERO / otra parte del accidente</li>
+        </ul>
+      </div>
+
+      <label for="tipo">Tipo de compareciente</label>
+      <select id="tipo">
+        <option value="adulto">Mayor de edad</option>
+        <option value="menor">Representante de menor</option>
+      </select>
+
+      <div class="grid-2">
+        <div>
+          <label for="nombre">Nombre completo <span style="color:#7c93b5;font-weight:500;" data-show="afavor encontra mutuo">(compareciente / asegurado)</span></label>
+          <input id="nombre" placeholder="Ej. Juan Pérez">
+        </div>
+        <div>
+          <label for="cedula">Cédula</label>
+          <input id="cedula" inputmode="numeric" pattern="[0-9]*" placeholder="Ej. 123456789">
+        </div>
+      </div>
+
+      <div id="menorFields" style="display:none;">
+        <div class="grid-2">
+          <div>
+            <label for="nombreMenor">Nombre del menor</label>
+            <input id="nombreMenor" placeholder="Nombre del menor">
+          </div>
+          <div>
+            <label for="docMenor">Documento del menor</label>
+            <input id="docMenor" inputmode="numeric" pattern="[0-9]*" placeholder="Documento">
+          </div>
+        </div>
+        <label for="parentesco">Parentesco</label>
+        <input id="parentesco" placeholder="Ej. madre, padre, tutor">
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-main" onclick="nextStep()">Siguiente</button>
+      </div>
+    </div>
+
+    <div class="step-panel" data-step="1">
+      <!-- Datos compareciente (extra para contratos de transaccion) -->
+      <div data-show="afavor encontra mutuo">
+        <div class="grid-2">
+          <div>
+            <label for="ciudadCedula">Ciudad de expedición C.C. <span style="color:#7c93b5;font-weight:500;">(opcional)</span></label>
+            <input id="ciudadCedula" placeholder="Ej. Medellín">
+          </div>
+          <div data-show="afavor encontra">
+            <label for="condicionComp">Condición compareciente</label>
+            <select id="condicionComp">
+              <option value="">Seleccione...</option>
+              <option value="propietario">Propietario</option>
+              <option value="poseedor">Poseedor</option>
+              <option value="conductor">Conductor</option>
+              <option value="representante">Representante</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Implicado -->
+      <div class="grid-2">
+        <div>
+          <label for="implicado">Implicado / Otra parte <span style="color:#7c93b5;font-weight:500;" data-show="afavor encontra mutuo">(tercero del accidente)</span></label>
+          <input id="implicado" placeholder="Nombre del implicado">
+        </div>
+        <div>
+          <label for="cedulaImp">Cédula del implicado</label>
+          <input id="cedulaImp" inputmode="numeric" pattern="[0-9]*" placeholder="Cédula">
+        </div>
+      </div>
+
+      <div class="grid-2" data-show="afavor encontra mutuo">
+        <div>
+          <label for="ciudadCedulaImp">Ciudad C.C. implicado <span style="color:#7c93b5;font-weight:500;">(opcional)</span></label>
+          <input id="ciudadCedulaImp" placeholder="Ej. Bogotá">
+        </div>
+        <div data-show="afavor encontra">
+          <label for="condicionImp">Condición del implicado</label>
+          <select id="condicionImp">
+            <option value="">Seleccione...</option>
+            <option value="propietario">Propietario</option>
+            <option value="poseedor">Poseedor</option>
+            <option value="conductor">Conductor</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Datos del hecho -->
+      <label for="fecha">Fecha del incidente</label>
+      <input id="fecha" type="date">
+
+      <div data-show="afavor encontra mutuo">
+        <label for="ciudadHecho">Ciudad del accidente</label>
+        <input id="ciudadHecho" placeholder="Ej. Medellín">
+      </div>
+
+      <div data-show="mutuo">
+        <label for="lugarHecho">Lugar específico del accidente <span style="color:#7c93b5;font-weight:500;">(dirección/punto)</span></label>
+        <input id="lugarHecho" placeholder="Ej. Cra 43A con 16A Sur">
+      </div>
+
+      <!-- Vehiculo principal -->
+      <div class="grid-2">
+        <div>
+          <label for="placa" id="lblPlaca">Placa vehículo 1 <span style="color:#7c93b5;font-weight:500;">(compareciente / asegurado)</span></label>
+          <input id="placa" placeholder="Ej. ABC123" style="text-transform:uppercase;">
+        </div>
+        <div>
+          <label for="interno">Número interno del bus <span style="color:#7c93b5;font-weight:500;">(opcional - va junto a placa 1)</span></label>
+          <input id="interno" inputmode="numeric" pattern="[0-9]*" placeholder="Ej. 45">
+        </div>
+      </div>
+
+      <!-- Segunda placa: aplicable a afavor, encontra y mutuo (siempre hay 2 vehiculos involucrados) -->
+      <div data-show="afavor encontra mutuo">
+        <label for="placa2" id="lblPlaca2">Placa vehículo 2 <span style="color:#7c93b5;font-weight:500;">(implicado / tercero)</span></label>
+        <input id="placa2" placeholder="Ej. XYZ456" style="text-transform:uppercase;">
+      </div>
+
+      <!-- Datos economicos (solo a favor y en contra) -->
+      <div data-show="afavor encontra">
+        <hr style="border:0;border-top:1px solid #c8daf3;margin:14px 0;">
+        <h4 style="margin:0 0 8px;font-size:0.95rem;color:#0b2a55;">💰 Datos económicos</h4>
+
+        <div class="grid-2">
+          <div>
+            <label for="valorTexto">Valor a indemnizar (en letras)</label>
+            <input id="valorTexto" placeholder="Ej. DOS MILLONES DE PESOS">
+          </div>
+          <div>
+            <label for="valor">Valor ($)</label>
+            <input id="valor" inputmode="numeric" placeholder="Ej. 2000000">
+          </div>
+        </div>
+
+        <div data-show="afavor">
+          <label for="empresa">Empresa que recibe el pago</label>
+          <input id="empresa" placeholder="Ej. Soluasistencia S.A.S.">
+        </div>
+
+        <div class="grid-2">
+          <div>
+            <label for="banco">Banco</label>
+            <input id="banco" placeholder="Ej. Bancolombia">
+          </div>
+          <div>
+            <label for="cuenta">Número de cuenta</label>
+            <input id="cuenta" placeholder="Ahorros / Corriente">
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div>
+            <label for="titularCuenta">Titular de la cuenta</label>
+            <input id="titularCuenta" placeholder="Nombre completo">
+          </div>
+          <div>
+            <label for="cedulaTitular">C.C. del titular</label>
+            <input id="cedulaTitular" inputmode="numeric" pattern="[0-9]*" placeholder="Cédula">
+          </div>
+        </div>
+      </div>
+
+      <!-- Lugar de firma del contrato -->
+      <div data-show="afavor encontra mutuo">
+        <hr style="border:0;border-top:1px solid #c8daf3;margin:14px 0;">
+        <label for="ciudadFirma">Ciudad donde se firma el contrato</label>
+        <input id="ciudadFirma" placeholder="Ej. Medellín">
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-soft" onclick="prevStep()">Atrás</button>
+        <button class="btn-main" onclick="nextStep()">Siguiente</button>
+      </div>
+    </div>
+
+    <div class="step-panel" data-step="2">
+      <div class="grid-2">
+        <div>
+          <label for="conductorNombre">Nombre del conductor</label>
+          <input id="conductorNombre" placeholder="Nombre completo">
+        </div>
+        <div>
+          <label for="conductorCedula">Cédula del conductor</label>
+          <input id="conductorCedula" inputmode="numeric" pattern="[0-9]*" placeholder="Cédula">
+        </div>
+      </div>
+
+      <div class="firma-aviso">
+        ⚠ <strong>Las dos firmas son obligatorias.</strong> Sin ellas no se puede generar ni descargar el PDF del contrato.
+      </div>
+
+      <label for="firma">Firma compareciente <span style="color:#b8451b;">*</span></label>
+      <div class="sig-box" id="sigBoxCompareciente"><canvas id="firma"></canvas></div>
+      <div class="firma-estado" id="estadoFirmaComp">⚠ Pendiente: firma del compareciente</div>
+
+      <label for="firmaConductor">Firma del conductor <span style="color:#b8451b;">*</span></label>
+      <div class="sig-box" id="sigBoxConductor"><canvas id="firmaConductor"></canvas></div>
+      <div class="firma-estado" id="estadoFirmaCond">⚠ Pendiente: firma del conductor</div>
+
+      <div class="btn-row">
+        <button class="btn-soft" onclick="limpiarFirma()">Limpiar firmas</button>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-soft" onclick="prevStep()">Atrás</button>
+        <button class="btn-main" onclick="nextStep()">Siguiente</button>
+      </div>
+    </div>
+
+    <div class="step-panel" data-step="3">
+      <div class="btn-row">
+        <button class="btn-soft" onclick="prevStep()">Atrás</button>
+        <button class="btn-main" style="flex:2;" onclick="confirmarDatos()">✓ Confirmar y descargar contrato</button>
+      </div>
+      <div class="btn-row" id="btnRedescargarWrap" hidden>
+        <button class="btn-alt" id="btnDescargarPDF" onclick="descargarPDF()">⬇ Volver a descargar copia</button>
+      </div>
+      <label for="emailDestino" class="hidden">Correo destino</label>
+      <input id="emailDestino" type="email" class="hidden" placeholder="correo@dominio.com">
+      <div class="btn-row hidden">
+        <button class="btn-soft" onclick="encolarCorreo()">Enviar</button>
+      </div>
+      <div class="btn-row mobile-preview-toggle">
+        <button class="btn-soft" id="togglePreviewBtn" onclick="togglePreview()">Ver vista previa</button>
+      </div>
+      <div id="estado" class="state"></div>
+      <div id="estadoCloud" class="hint hidden" aria-hidden="true"></div>
+      <p class="hint" id="flowHint">Consejo: confirma primero los datos para habilitar la descarga del PDF.</p>
+    </div>
+    </div>
+  </section>
+
+  <section class="card panel preview-card" id="previewCard">
+    <div id="documento" class="page">
+      <div class="doc-header">
+        <svg class="doc-logo" id="docLogo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 160" role="img" aria-label="Logo Soluasistencia" preserveAspectRatio="xMidYMid meet">
+          <text x="0" y="108" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="92" fill="#9aa4b1" letter-spacing="-2">SOLU</text>
+          <g transform="translate(210, 12)">
+            <path d="M95,70 A60,60 0 1,1 75,20" fill="none" stroke="#1d4f9a" stroke-width="18" stroke-linecap="round"/>
+            <path d="M95,70 A60,60 0 1,1 75,20" fill="none" stroke="#9aa4b1" stroke-width="6" stroke-linecap="round" transform="translate(3,4)" opacity="0.55"/>
+            <circle cx="78" cy="128" r="4.5" fill="#1d4f9a"/>
+            <circle cx="92" cy="133" r="3.4" fill="#1d4f9a"/>
+            <circle cx="104" cy="137" r="2.6" fill="#1d4f9a"/>
+          </g>
+          <text x="328" y="108" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="92" fill="#1d4f9a" letter-spacing="-2">ASISTENCIA</text>
+        </svg>
+      </div>
+      <img class="doc-watermark" id="docWatermark" alt="" aria-hidden="true" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAwIDE2MCI+PHRleHQgeD0iMCIgeT0iMTA4IiBmb250LWZhbWlseT0iQXJpYWwsSGVsdmV0aWNhLHNhbnMtc2VyaWYiIGZvbnQtd2VpZ2h0PSI4MDAiIGZvbnQtc2l6ZT0iOTIiIGZpbGw9IiM1YTc4YTgiIGxldHRlci1zcGFjaW5nPSItMiI+U09MVTwvdGV4dD48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyMTAsMTIpIj48cGF0aCBkPSJNOTUsNzAgQTYwLDYwIDAgMSwxIDc1LDIwIiBmaWxsPSJub25lIiBzdHJva2U9IiMxZDRmOWEiIHN0cm9rZS13aWR0aD0iMTgiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxjaXJjbGUgY3g9Ijc4IiBjeT0iMTI4IiByPSI0LjUiIGZpbGw9IiMxZDRmOWEiLz48Y2lyY2xlIGN4PSI5MiIgY3k9IjEzMyIgcj0iMy40IiBmaWxsPSIjMWQ0ZjlhIi8+PGNpcmNsZSBjeD0iMTA0IiBjeT0iMTM3IiByPSIyLjYiIGZpbGw9IiMxZDRmOWEiLz48L2c+PHRleHQgeD0iMzI4IiB5PSIxMDgiIGZvbnQtZmFtaWx5PSJBcmlhbCxIZWx2ZXRpY2Esc2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9IjgwMCIgZm9udC1zaXplPSI5MiIgZmlsbD0iIzFkNGY5YSIgbGV0dGVyLXNwYWNpbmc9Ii0yIj5BU0lTVEVOQ0lBPC90ZXh0Pjwvc3ZnPg==">
+
+      <div class="doc-body">
+        <h2 id="docTitle">DESISTIMIENTO:</h2>
+        <div id="texto" class="doc-texto"></div>
+
+        <div class="firma">
+          Cordialmente,
+          <img id="firmaImg" alt="Firma compareciente">
+          <div class="firma-linea"></div>
+          C.C. <span id="firmaCedula"></span>
+
+          <div class="firma-rol">Conductor</div>
+          <img id="firmaConductorImg" alt="Firma conductor">
+          <div class="firma-linea"></div>
+          Nombre: <span id="firmaConductorNombre"></span><br>
+          C.C. <span id="firmaConductorCedula"></span>
+        </div>
+      </div>
+
+      <div class="doc-footer">
+        <div class="footer-fallback">
+          <span>✆</span>
+          <span><strong>322-44-84</strong> Carrera 43A #16A SUR-38, Edif. Danzas, Of.708 (El Poblado)</span>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ====== NUEVO SISTEMA DE MODALES (v2) ====== -->
+<div class="sc-modal-host" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" hidden>
+  <div class="sc-modal-box">
+    <h3 id="confirmTitle">Confirmar datos ingresados</h3>
+    <div id="confirmSummary" class="sc-modal-summary"></div>
+    <div class="sc-modal-actions">
+      <button type="button" class="sc-btn-secondary" onclick="cerrarModalConfirmacion()">← Editar datos</button>
+      <button type="button" class="sc-btn-primary" onclick="generarDesdeModal()">✓ Confirmar, generar PDF y descargar</button>
+    </div>
+  </div>
+</div>
+
+<div class="sc-modal-host" id="loadingModal" role="dialog" aria-modal="true" aria-labelledby="loadingTitle" hidden>
+  <div class="sc-modal-box">
+    <h3 id="loadingTitle">Procesando</h3>
+    <p class="sc-loading-text" id="loadingStepText">Iniciando...</p>
+    <div class="sc-loading-bar"><span id="loadingBarFill"></span></div>
+    <p class="sc-loading-progress" id="loadingProgressText">0% completado</p>
+  </div>
+</div>
+
+<div class="sc-modal-host" id="sentModal" role="dialog" aria-modal="true" aria-labelledby="sentTitle" hidden>
+  <div class="sc-modal-box">
+    <h3 id="sentTitle">Envío completado</h3>
+    <div id="sentSummary" class="sc-modal-summary"></div>
+    <div class="sc-modal-actions">
+      <button type="button" class="sc-btn-secondary hidden" id="sentDownloadBtn" onclick="abrirDescargaEnviada()">Abrir documento</button>
+      <button type="button" class="sc-btn-primary" onclick="cerrarModalEnviado()">Aceptar</button>
+    </div>
+  </div>
+</div>
+
+<div class="sc-modal-host" id="authModal" role="dialog" aria-modal="true" aria-labelledby="authModalTitle" hidden>
+  <div class="sc-modal-box">
+    <h3 id="authModalTitle">Acceso de usuario</h3>
+    <div id="authModalMessage" class="sc-modal-summary"></div>
+    <div class="sc-modal-actions">
+      <button type="button" class="sc-btn-primary" onclick="cerrarModalAuth()">Aceptar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const panels = Array.from(document.querySelectorAll(".step-panel"));
+const dots = Array.from(document.querySelectorAll(".step-dot"));
+const previewCard = document.getElementById("previewCard");
+const togglePreviewBtn = document.getElementById("togglePreviewBtn");
+const confirmModal = document.getElementById("confirmModal");
+const confirmSummary = document.getElementById("confirmSummary");
+const loadingModal = document.getElementById("loadingModal");
+const loadingStepText = document.getElementById("loadingStepText");
+const loadingBarFill = document.getElementById("loadingBarFill");
+const loadingProgressText = document.getElementById("loadingProgressText");
+const sentModal = document.getElementById("sentModal");
+const sentSummary = document.getElementById("sentSummary");
+const sentDownloadBtn = document.getElementById("sentDownloadBtn");
+const authModal = document.getElementById("authModal");
+const authModalTitle = document.getElementById("authModalTitle");
+const authModalMessage = document.getElementById("authModalMessage");
+const estadoCloud = document.getElementById("estadoCloud");
+const authStatus = document.getElementById("authStatus");
+const authMessage = document.getElementById("authMessage");
+const authGrid = document.getElementById("authGrid");
+const authLogoutWrap = document.getElementById("authLogoutWrap");
+const appProtectedLeft = document.getElementById("appProtectedLeft");
+const loginOnlyNote = document.getElementById("loginOnlyNote");
+const appMain = document.querySelector("main.app");
+const contratoTipo = document.getElementById("contratoTipo");
+const formTitle = document.getElementById("formTitle");
+const formSub = document.getElementById("formSub");
+const docTitle = document.getElementById("docTitle");
+const flowHint = document.getElementById("flowHint");
+const btnLogin = document.getElementById("btnLogin");
+const btnRegister = document.getElementById("btnRegister");
+let currentStep = 0;
+
+const SUPABASE_URL = "https://nbdacyepdjamgqoibtuv.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_2P3PFpeh5EaJZqWfDHGXSA_hDoA9VRv";
+const DEFAULT_WEBHOOK_URL = "https://connect.pabbly.com/workflow/sendwebhookdata/IjU3NjcwNTZmMDYzMjA0MzA1MjZkNTUzNjUxMzci_pc";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const CONTRACT_META = {
+  desistimiento: {
+    formTitle: "Formato de<br>Desistimiento",
+    formSub: "Asistente paso a paso para completar y firmar el documento.",
+    docTitle: "DESISTIMIENTO:",
+    subject: "Documento de desistimiento firmado",
+    event: "firma_desistimiento_encolado",
+    pdfName: "DESISTIMIENTO.pdf",
+    storagePrefix: "desistimiento"
+  },
+  afavor: {
+    formTitle: "Contrato de Transacción<br>A Favor",
+    formSub: "Asistente en un solo archivo para diligenciar y enviar contrato A Favor.",
+    docTitle: "CONTRATO DE TRANSACCIÓN A FAVOR",
+    subject: "Contrato A Favor firmado",
+    event: "firma_contrato_afavor_encolado",
+    pdfName: "CONTRATO_A_FAVOR.pdf",
+    storagePrefix: "contrato_a_favor"
+  },
+  encontra: {
+    formTitle: "Contrato de Transacción<br>En Contra",
+    formSub: "Asistente en un solo archivo para diligenciar y enviar contrato En Contra.",
+    docTitle: "CONTRATO DE TRANSACCIÓN EN CONTRA",
+    subject: "Contrato En Contra firmado",
+    event: "firma_contrato_encontra_encolado",
+    pdfName: "CONTRATO_EN_CONTRA.pdf",
+    storagePrefix: "contrato_en_contra"
+  },
+  mutuo: {
+    formTitle: "Contrato de Transacción<br>Mutuo Acuerdo",
+    formSub: "Asistente en un solo archivo para diligenciar y enviar contrato Mutuo Acuerdo.",
+    docTitle: "CONTRATO DE TRANSACCIÓN MUTUO ACUERDO",
+    subject: "Contrato Mutuo Acuerdo firmado",
+    event: "firma_contrato_mutuo_encolado",
+    pdfName: "CONTRATO_MUTUO_ACUERDO.pdf",
+    storagePrefix: "contrato_mutuo_acuerdo"
+  }
+};
+
+// Detectar parametros en la URL
+//   ?caso=ID&token=X    → completar borrador (mismo registro)
+//   ?clonar=ID&token=X  → crear NUEVO registro con esos datos prellenados
+//   ?prefill=BASE64URL  → prellenar desde un SINIESTRO de la app de asistencias
+//                         (no lee firma_cases; los datos vienen en la propia URL)
+const _urlParams = new URLSearchParams(window.location.search);
+const _continuarCaseId = _urlParams.get("caso");
+const _clonarCaseId = _urlParams.get("clonar");
+const _urlToken = _urlParams.get("token");
+const esModoContinuar = Boolean(_continuarCaseId && _urlToken);
+const esModoClonar = Boolean(_clonarCaseId && _urlToken);
+const esModoRefirma = esModoContinuar || esModoClonar;
+
+// Prellenado desde un caso de asistencias (base64url de un JSON con los campos).
+let _prefillData = null;
+try {
+  const raw = _urlParams.get("prefill");
+  if (raw) {
+    const b64 = raw.replace(/-/g, "+").replace(/_/g, "/");
+    _prefillData = JSON.parse(decodeURIComponent(escape(atob(b64))));
+  }
+} catch (_) { _prefillData = null; }
+const esModoPrefill = Boolean(_prefillData);
+// Referencia al caso de origen (se guarda dentro de form_data para poder
+// listar, desde el caso, los contratos que se generaron a partir de él).
+let casoOrigenRef = (esModoPrefill && _prefillData.casoOrigen) ? String(_prefillData.casoOrigen) : "";
+
+// En modo CONTINUAR: usar los IDs existentes (actualizar mismo registro)
+// En modo CLONAR: solo prellenar; los IDs quedan null para crear uno NUEVO
+let remoteCaseId = esModoContinuar ? _continuarCaseId : (esModoClonar ? null : (localStorage.getItem("firma_case_id") || null));
+let remotePublicToken = esModoContinuar ? _urlToken : (esModoClonar ? null : (localStorage.getItem("firma_public_token") || null));
+// Cuando es modo clonar, limpiar el localStorage para no reusar IDs viejos
+if (esModoClonar) {
+  localStorage.removeItem("firma_case_id");
+  localStorage.removeItem("firma_public_token");
+}
+let remoteSaveTimer = null;
+let latestPdfBase64 = null;
+let latestPdfSha256 = null;
+let latestPdfStoragePath = null;
+let latestDownloadUrl = null;
+let latestPdfBlobUrl = null;
+let latestPdfFileName = null;
+let currentUser = null;
+
+const canvas = document.getElementById("firma");
+const canvasConductor = document.getElementById("firmaConductor");
+const signaturePad = new SignaturePad(canvas, { penColor: "rgb(24,24,24)" });
+const signaturePadConductor = new SignaturePad(canvasConductor, { penColor: "rgb(24,24,24)" });
+
+// Cache de firmas: una vez dibujadas, se preservan aqui aunque el canvas
+// pierda su contenido (por resize, cambio de paso, modal, etc).
+let firmaComparecienteData = "";
+let firmaConductorData = "";
+
+const estado = document.getElementById("estado");
+let documentoGenerado = false;
+
+document.getElementById("tipo").addEventListener("change", function () {
+  document.getElementById("menorFields").style.display = this.value === "menor" ? "block" : "none";
+  updatePreview(false);
+  queueRemoteSave();
+});
+
+document.querySelectorAll("input:not(.no-sync), select").forEach((el) => {
+  el.addEventListener("input", () => {
+    updatePreview(false);
+    queueRemoteSave();
+    invalidarConfirmacion();
+  });
+  el.addEventListener("change", () => {
+    updatePreview(false);
+    queueRemoteSave();
+    invalidarConfirmacion();
+  });
+});
+
+signaturePad.onEnd = () => {
+  firmaComparecienteData = signaturePad.isEmpty() ? "" : signaturePad.toDataURL("image/png");
+  updatePreview(false);
+  queueRemoteSave();
+  invalidarConfirmacion();
+  actualizarEstadoFirmas();
+};
+signaturePadConductor.onEnd = () => {
+  firmaConductorData = signaturePadConductor.isEmpty() ? "" : signaturePadConductor.toDataURL("image/png");
+  updatePreview(false);
+  queueRemoteSave();
+  invalidarConfirmacion();
+  actualizarEstadoFirmas();
+};
+
+function actualizarEstadoFirmas() {
+  const boxComp = document.getElementById("sigBoxCompareciente");
+  const estComp = document.getElementById("estadoFirmaComp");
+  const boxCond = document.getElementById("sigBoxConductor");
+  const estCond = document.getElementById("estadoFirmaCond");
+  if (boxComp && estComp) {
+    if (firmaComparecienteData) {
+      boxComp.classList.remove("pendiente");
+      boxComp.classList.add("firmado");
+      estComp.classList.add("ok");
+      estComp.textContent = "✓ Firma del compareciente registrada";
+    } else {
+      boxComp.classList.remove("firmado");
+      boxComp.classList.add("pendiente");
+      estComp.classList.remove("ok");
+      estComp.textContent = "⚠ Pendiente: firma del compareciente";
+    }
+  }
+  if (boxCond && estCond) {
+    if (firmaConductorData) {
+      boxCond.classList.remove("pendiente");
+      boxCond.classList.add("firmado");
+      estCond.classList.add("ok");
+      estCond.textContent = "✓ Firma del conductor registrada";
+    } else {
+      boxCond.classList.remove("firmado");
+      boxCond.classList.add("pendiente");
+      estCond.classList.remove("ok");
+      estCond.textContent = "⚠ Pendiente: firma del conductor";
+    }
+  }
+}
+
+function showStep(index) {
+  currentStep = Math.max(0, Math.min(index, panels.length - 1));
+  panels.forEach((p, i) => p.classList.toggle("active", i === currentStep));
+  dots.forEach((d, i) => d.classList.toggle("active", i === currentStep));
+
+  if (currentStep === 2) {
+    requestAnimationFrame(() => {
+      resizeCanvas();
+      if (window.innerWidth <= 430 && previewCard && !previewCard.classList.contains("show")) {
+        previewCard.classList.add("show");
+        if (togglePreviewBtn) togglePreviewBtn.textContent = "Ocultar vista previa";
+      }
+    });
+  }
+}
+
+function nextStep() {
+  if (!validateStep(currentStep)) return;
+  showStep(currentStep + 1);
+}
+
+function prevStep() {
+  showStep(currentStep - 1);
+}
+
+function togglePreview() {
+  if (!previewCard) return;
+  const showing = previewCard.classList.toggle("show");
+  if (togglePreviewBtn) {
+    togglePreviewBtn.textContent = showing ? "Ocultar vista previa" : "Ver vista previa";
+  }
+}
+
+function setEstado(msg, error = true) {
+  estado.style.color = error ? "#7a3114" : "#1f6d43";
+  estado.textContent = msg;
+}
+
+function getContractKind() {
+  return contratoTipo?.value || "desistimiento";
+}
+
+function getContractMeta() {
+  return CONTRACT_META[getContractKind()] || CONTRACT_META.desistimiento;
+}
+
+function updateContractUi() {
+  const meta = getContractMeta();
+  if (formTitle) formTitle.innerHTML = meta.formTitle;
+  if (formSub) formSub.textContent = meta.formSub;
+  if (docTitle) docTitle.textContent = meta.docTitle;
+  if (flowHint) flowHint.textContent = "Consejo: confirma datos, revisa vista previa y luego envía.";
+}
+
+function initContractSwitcher() {
+  if (!contratoTipo) return;
+  const saved = localStorage.getItem("contract_kind");
+  contratoTipo.value = CONTRACT_META[saved] ? saved : "desistimiento";
+  updateContractUi();
+  aplicarVisibilidadCampos();
+}
+
+function switchContractType() {
+  if (!contratoTipo) return;
+  localStorage.setItem("contract_kind", getContractKind());
+  updateContractUi();
+  aplicarVisibilidadCampos();
+  updatePreview(false);
+  queueRemoteSave();
+}
+
+function aplicarVisibilidadCampos() {
+  const tipo = getContractKind();
+  document.querySelectorAll("[data-show]").forEach((el) => {
+    const tipos = el.dataset.show.split(" ");
+    const visible = tipos.includes(tipo);
+    el.style.display = visible ? "" : "none";
+  });
+}
+
+function abrirModal(el) {
+  if (!el) return;
+  el.hidden = false;
+  document.body.classList.add("sc-modal-open");
+}
+
+function cerrarModal(el) {
+  if (!el) return;
+  el.hidden = true;
+  const algunoAbierto = document.querySelector(".sc-modal-host:not([hidden])");
+  if (!algunoAbierto) document.body.classList.remove("sc-modal-open");
+}
+
+function showLoadingModal(show, title) {
+  if (!loadingModal) return;
+  if (show) {
+    const t = document.getElementById("loadingTitle");
+    if (t) t.textContent = title || "Procesando";
+    abrirModal(loadingModal);
+  } else {
+    cerrarModal(loadingModal);
+  }
+}
+
+function setLoadingStep(text, progressPercent) {
+  const pct = Math.max(0, Math.min(progressPercent || 0, 100));
+  if (loadingStepText) loadingStepText.textContent = text || "";
+  if (loadingBarFill) loadingBarFill.style.width = `${pct}%`;
+  if (loadingProgressText) loadingProgressText.textContent = `${Math.round(pct)}% completado`;
+}
+
+function showSendResultModal(title, summaryHtml, downloadUrl) {
+  if (sentSummary) sentSummary.innerHTML = summaryHtml || "";
+  if (sentDownloadBtn) {
+    sentDownloadBtn.dataset.url = downloadUrl || "";
+    sentDownloadBtn.classList.toggle("hidden", !downloadUrl);
+  }
+  const sentTitle = document.getElementById("sentTitle");
+  if (sentTitle) sentTitle.textContent = title || "Envío completado";
+  abrirModal(sentModal);
+}
+
+function abrirDescargaEnviada() {
+  const url = sentDownloadBtn?.dataset?.url;
+  if (url) window.open(url, "_blank", "noopener");
+}
+
+function cerrarModalEnviado() {
+  cerrarModal(sentModal);
+}
+
+function nextFrame() {
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+}
+
+async function withPdfCaptureLayout(task) {
+  const wasShowing = previewCard?.classList.contains("show") || false;
+  document.body.classList.add("pdf-capture-mode");
+  if (previewCard) previewCard.classList.add("show");
+  await nextFrame();
+  try {
+    return await task();
+  } finally {
+    document.body.classList.remove("pdf-capture-mode");
+    if (previewCard && !wasShowing) previewCard.classList.remove("show");
+  }
+}
+
+function rememberPdfBlob(pdfBlob) {
+  if (latestPdfBlobUrl) {
+    const oldPdfBlobUrl = latestPdfBlobUrl;
+    setTimeout(() => URL.revokeObjectURL(oldPdfBlobUrl), 30000);
+  }
+  latestPdfBlobUrl = URL.createObjectURL(pdfBlob);
+  latestPdfFileName = getContractMeta().pdfName;
+}
+
+function descargarPdfGeneradoLocal() {
+  if (!latestPdfBlobUrl) return false;
+  const link = document.createElement("a");
+  link.href = latestPdfBlobUrl;
+  link.download = latestPdfFileName || "documento.pdf";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  return true;
+}
+
+function resetFormularioDespuesEnvio() {
+  document.querySelectorAll("input:not(.no-sync), select:not(.no-sync), textarea:not(.no-sync)").forEach((el) => {
+    if (el.type === "checkbox" || el.type === "radio") {
+      el.checked = false;
+      return;
+    }
+    if (el.tagName === "SELECT") {
+      el.selectedIndex = 0;
+      return;
+    }
+    el.value = "";
+  });
+  if (signaturePad) signaturePad.clear();
+  if (signaturePadConductor) signaturePadConductor.clear();
+  documentoGenerado = false;
+  latestPdfBase64 = null;
+  latestPdfSha256 = null;
+  latestPdfStoragePath = null;
+  latestDownloadUrl = null;
+  if (latestPdfBlobUrl) {
+    const oldPdfBlobUrl = latestPdfBlobUrl;
+    setTimeout(() => URL.revokeObjectURL(oldPdfBlobUrl), 30000);
+  }
+  latestPdfBlobUrl = null;
+  latestPdfFileName = null;
+  remoteCaseId = null;
+  remotePublicToken = null;
+  localStorage.removeItem("firma_case_id");
+  localStorage.removeItem("firma_public_token");
+  showStep(0);
+  updatePreview(false);
+  setEstado("Formulario limpiado. Puedes iniciar un nuevo caso.", false);
+  setEstadoCloud("");
+}
+
+function updateAuthStatus() {
+  if (!authStatus) return;
+  if (currentUser) {
+    authStatus.textContent = `Autenticado: ${currentUser.email}`;
+  } else {
+    authStatus.textContent = "No autenticado.";
+  }
+  renderAuthGate();
+}
+
+function setAuthMessage(msg, ok = false) {
+  if (!authMessage) return;
+  if (!msg) {
+    authMessage.classList.add("hidden");
+    authMessage.classList.remove("ok");
+    authMessage.textContent = "";
+    return;
+  }
+  authMessage.classList.remove("hidden");
+  authMessage.classList.toggle("ok", ok);
+  authMessage.textContent = msg;
+}
+
+function showAuthModal(title, messageHtml) {
+  if (authModalTitle) authModalTitle.textContent = title || "Acceso de usuario";
+  if (authModalMessage) authModalMessage.innerHTML = messageHtml || "";
+  abrirModal(authModal);
+}
+
+function cerrarModalAuth() {
+  cerrarModal(authModal);
+}
+
+function setAuthButtonsLoading(isLoading, action) {
+  const lockLogin = action === "login" || action === "both";
+  const lockRegister = action === "register" || action === "both";
+  if (btnLogin && lockLogin) {
+    btnLogin.disabled = isLoading;
+    btnLogin.textContent = isLoading ? "Ingresando..." : "Ingresar";
+  }
+  if (btnRegister && lockRegister) {
+    btnRegister.disabled = isLoading;
+    btnRegister.textContent = isLoading ? "Creando..." : "Crear usuario";
+  }
+}
+
+function enforceNumericFields() {
+  const ids = ["cedula", "docMenor", "cedulaImp", "interno", "conductorCedula"];
+  ids.forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener("input", () => {
+      const clean = (el.value || "").replace(/\D+/g, "");
+      if (clean !== el.value) el.value = clean;
+    });
+    el.addEventListener("paste", (ev) => {
+      ev.preventDefault();
+      const text = (ev.clipboardData?.getData("text") || "").replace(/\D+/g, "");
+      const start = el.selectionStart ?? el.value.length;
+      const end = el.selectionEnd ?? el.value.length;
+      const next = `${el.value.slice(0, start)}${text}${el.value.slice(end)}`;
+      el.value = next;
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  });
+}
+
+function renderAuthGate() {
+  const isAuthed = Boolean(currentUser);
+  if (appProtectedLeft) appProtectedLeft.classList.toggle("hidden", !isAuthed);
+  if (previewCard) previewCard.classList.toggle("hidden", !isAuthed);
+  if (loginOnlyNote) loginOnlyNote.classList.toggle("hidden", isAuthed);
+  if (authGrid) authGrid.classList.toggle("hidden", isAuthed);
+  if (authLogoutWrap) authLogoutWrap.classList.toggle("hidden", !isAuthed);
+  if (appMain) appMain.classList.toggle("auth-locked", !isAuthed);
+}
+
+function requireAuth() {
+  if (!currentUser) {
+    setEstado("Debes iniciar sesión para continuar.");
+    return false;
+  }
+  return true;
+}
+
+async function initAuth() {
+  const { data } = await sb.auth.getSession();
+  currentUser = data?.session?.user || null;
+  updateAuthStatus();
+  sb.auth.onAuthStateChange((_event, session) => {
+    currentUser = session?.user || null;
+    updateAuthStatus();
+    if (esModoRefirma && currentUser) cargarCasoParaRefirma();
+    else if (esModoPrefill && currentUser) prellenarDesdeCaso();
+  });
+  if (esModoRefirma && currentUser) cargarCasoParaRefirma();
+  else if (esModoPrefill && currentUser) prellenarDesdeCaso();
+}
+
+// Prellena el formulario con datos traídos de un siniestro de la app de
+// asistencias. No toca firma_cases: los valores vienen en la URL (?prefill=).
+let _prefillYaCargado = false;
+function prellenarDesdeCaso() {
+  if (_prefillYaCargado || !_prefillData) return;
+  _prefillYaCargado = true;
+  const p = _prefillData;
+
+  // Tipo de contrato primero (ajusta títulos y campos visibles).
+  if (p.contractKind && contratoTipo) {
+    contratoTipo.value = p.contractKind;
+    switchContractType();
+  }
+
+  const setVal = (id, v) => {
+    const el = document.getElementById(id);
+    if (el && v != null && String(v).trim() !== "") el.value = v;
+  };
+  setVal("tipo", p.tipo);
+  setVal("nombre", p.nombre);
+  setVal("cedula", p.cedula);
+  setVal("ciudadCedula", p.ciudadCedula);
+  setVal("condicionComp", p.condicionComp);
+  setVal("implicado", p.implicado);
+  setVal("cedulaImp", p.cedulaImp);
+  setVal("ciudadCedulaImp", p.ciudadCedulaImp);
+  setVal("condicionImp", p.condicionImp);
+  setVal("fecha", p.fecha);
+  setVal("ciudadHecho", p.ciudadHecho);
+  setVal("lugarHecho", p.lugarHecho);
+  setVal("placa", p.placa);
+  setVal("placa2", p.placa2);
+  setVal("interno", p.interno);
+  setVal("conductorNombre", p.conductorNombre);
+  setVal("conductorCedula", p.conductorCedula);
+  setVal("empresa", p.empresa);
+  setVal("ciudadFirma", p.ciudadFirma);
+
+  if (document.getElementById("menorFields")) {
+    document.getElementById("menorFields").style.display = p.tipo === "menor" ? "block" : "none";
+  }
+  aplicarVisibilidadCampos();
+  updatePreview(false);
+
+  // Enlace de "volver al caso" (deep-link a la app de asistencias).
+  const urlCaso = casoOrigenRef
+    ? `../verificacion.html?caso=${encodeURIComponent(casoOrigenRef)}`
+    : "../verificacion.html";
+  const lnkApp = document.getElementById("lnkVolverApp");
+  if (lnkApp && casoOrigenRef) {
+    lnkApp.href = urlCaso;
+    lnkApp.textContent = "← Volver al caso";
+  }
+
+  // Banner informativo (verde) indicando el caso de origen, con botón de volver.
+  const banner = document.getElementById("refirmaBanner");
+  if (banner) {
+    banner.classList.remove("hidden");
+    banner.style.background = "#e8f7ee";
+    banner.style.borderBottomColor = "#5cb98a";
+    banner.style.color = "#0b5b39";
+    banner.innerHTML = `<a href="${urlCaso}" style="display:inline-block;background:#0b5b39;color:#fff;font-weight:800;text-decoration:none;padding:6px 14px;border-radius:8px;margin-right:10px;">← Volver al caso</a> 📋 Datos traídos del caso <code style="background:#fff;padding:2px 8px;border-radius:6px;">${escapeHtml(casoOrigenRef || "—")}</code> &nbsp;·&nbsp; Verifica, completa lo que falte y firma.`;
+  }
+  setEstado("Datos del caso cargados. Verifica los campos, completa lo que falte y continúa a las firmas.", false);
+}
+
+let _casoYaCargado = false;
+async function cargarCasoParaRefirma() {
+  if (_casoYaCargado) return;
+  _casoYaCargado = true;
+
+  // ID de origen (de donde se cargan los datos)
+  const idOrigen = esModoClonar ? _clonarCaseId : _continuarCaseId;
+
+  // Banner visual segun el modo
+  const banner = document.getElementById("refirmaBanner");
+  if (banner) {
+    banner.classList.remove("hidden");
+    const cid = document.getElementById("refirmaCaseId");
+    if (cid) cid.textContent = idOrigen.substring(0, 8) + "...";
+    // Cambiar texto y color del banner segun modo
+    if (esModoClonar) {
+      banner.style.background = "#e8f4ff";
+      banner.style.borderBottomColor = "#5a99e0";
+      banner.style.color = "#0b3d70";
+      banner.innerHTML = `📋 Nuevo contrato basado en caso <code id="refirmaCaseId" style="background:#fff;padding:2px 8px;border-radius:6px;">${idOrigen.substring(0,8)}...</code> &nbsp;·&nbsp; Se creará un NUEVO registro con su propia fecha &nbsp;·&nbsp; <a href="casos.html" style="color:#1d4f9a;text-decoration:none;">← Cancelar</a>`;
+    }
+  }
+
+  showLoadingModal(true, esModoClonar ? "Copiando datos" : "Cargando caso");
+  setLoadingStep("Buscando datos guardados en Supabase...", 30);
+
+  // Intentar leer la tabla firma_cases directamente
+  let formData = null;
+  let contractKind = null;
+  try {
+    const { data, error } = await sb
+      .from("firma_cases")
+      .select("form_data")
+      .eq("id", idOrigen)
+      .eq("public_token", _urlToken)
+      .maybeSingle();
+    if (!error && data && data.form_data) {
+      formData = data.form_data;
+      contractKind = formData.contractKind || null;
+    }
+  } catch (_) {}
+
+  setLoadingStep("Prellenando formulario...", 70);
+
+  if (formData) {
+    // Set tipo contrato primero (para que cambien titulos)
+    if (contractKind && contratoTipo) {
+      contratoTipo.value = contractKind;
+      switchContractType();
+    }
+    // Llenar campos
+    const setVal = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
+    setVal("tipo", formData.tipo);
+    setVal("nombre", formData.nombre);
+    setVal("cedula", formData.cedula);
+    setVal("nombreMenor", formData.nombreMenor);
+    setVal("docMenor", formData.docMenor);
+    setVal("parentesco", formData.parentesco);
+    setVal("implicado", formData.implicado);
+    setVal("cedulaImp", formData.cedulaImp);
+    setVal("fecha", formData.fecha);
+    setVal("placa", formData.placa);
+    setVal("interno", formData.interno);
+    setVal("conductorNombre", formData.conductorNombre);
+    setVal("conductorCedula", formData.conductorCedula);
+
+    // Campos extra de contratos de transaccion
+    setVal("ciudadCedula", formData.ciudadCedula);
+    setVal("ciudadCedulaImp", formData.ciudadCedulaImp);
+    setVal("condicionComp", formData.condicionComp);
+    setVal("condicionImp", formData.condicionImp);
+    setVal("ciudadHecho", formData.ciudadHecho);
+    setVal("lugarHecho", formData.lugarHecho);
+    setVal("ciudadFirma", formData.ciudadFirma);
+    setVal("placa2", formData.placa2);
+    setVal("valor", formData.valor);
+    setVal("valorTexto", formData.valorTexto);
+    setVal("empresa", formData.empresa);
+    setVal("banco", formData.banco);
+    setVal("cuenta", formData.cuenta);
+    setVal("titularCuenta", formData.titularCuenta);
+    setVal("cedulaTitular", formData.cedulaTitular);
+
+    // Mostrar/ocultar campos de menor
+    document.getElementById("menorFields").style.display = formData.tipo === "menor" ? "block" : "none";
+    aplicarVisibilidadCampos();
+
+    // En modo clonar: limpiar firmas viejas (cada contrato debe firmarse de nuevo)
+    if (esModoClonar) {
+      signaturePad.clear();
+      signaturePadConductor.clear();
+      firmaComparecienteData = "";
+      firmaConductorData = "";
+    }
+
+    updatePreview(false);
+    setEstado(
+      esModoClonar
+        ? "Datos copiados. Ve al paso 3, vuelve a firmar y luego descarga el nuevo contrato."
+        : "Caso cargado. Ve al paso 3 para volver a firmar y luego descargar.",
+      false
+    );
+    showLoadingModal(false);
+
+    // Saltar al paso de firmas
+    showStep(2);
+  } else {
+    showLoadingModal(false);
+    setEstado("No se pudo cargar el caso desde Supabase. Reingresa los datos manualmente.");
+    alert("No se pudieron recuperar los datos automáticamente.\n\nProbablemente la tabla 'firma_cases' no es legible públicamente (RLS).\n\nPuedes:\n• Reingresar los datos manualmente (el caso se mantiene)\n• O pedir a tu admin de Supabase un policy de SELECT para esa tabla");
+  }
+}
+
+async function registrarUsuario() {
+  const email = valor("authRegisterEmail");
+  const password = valor("authRegisterPassword");
+  if (!email || !password) {
+    setAuthMessage("Ingresa correo y contraseña para crear usuario.");
+    setEstado("Ingresa correo y contraseña para crear usuario.");
+    showAuthModal("Datos incompletos", "<p>Debes ingresar correo y contraseña para crear el usuario.</p>");
+    return;
+  }
+  setAuthButtonsLoading(true, "register");
+  showLoadingModal(true, "Creando usuario");
+  setLoadingStep("Registrando cuenta en el servidor...", 40);
+  const { error } = await sb.auth.signUp({ email, password });
+  if (error) {
+    showLoadingModal(false);
+    setAuthMessage(`No se pudo crear usuario: ${sbErr(error)}`);
+    setEstado(`No se pudo crear usuario: ${sbErr(error)}`);
+    showAuthModal("Error al crear usuario", `<p>${escapeHtml(sbErr(error))}</p>`);
+    setAuthButtonsLoading(false, "register");
+    return;
+  }
+
+  setLoadingStep("Iniciando sesión automática...", 80);
+  const { data: loginData, error: loginError } = await sb.auth.signInWithPassword({ email, password });
+  showLoadingModal(false);
+  if (!loginError && loginData?.user) {
+    currentUser = loginData.user;
+    updateAuthStatus();
+    setAuthMessage("Usuario creado y sesión iniciada correctamente.", true);
+    setEstado("Usuario creado y sesión iniciada.", false);
+    showAuthModal("Usuario creado", `<p>La cuenta <strong>${escapeHtml(email)}</strong> fue creada y la sesión está activa.</p>`);
+    setAuthButtonsLoading(false, "register");
+    return;
+  }
+
+  setAuthMessage("Usuario creado. Si no inicia sesión automáticamente, ingresa con tus credenciales.", true);
+  setEstado("Usuario creado.", false);
+  showAuthModal("Usuario creado", `<p>La cuenta <strong>${escapeHtml(email)}</strong> fue creada. Ahora puedes iniciar sesión.</p>`);
+  setAuthButtonsLoading(false, "register");
+}
+
+async function iniciarSesion() {
+  const email = valor("authLoginEmail");
+  const password = valor("authLoginPassword");
+  if (!email || !password) {
+    setAuthMessage("Ingresa correo y contraseña para iniciar sesión.");
+    setEstado("Ingresa correo y contraseña.");
+    showAuthModal("Datos incompletos", "<p>Debes ingresar correo y contraseña para iniciar sesión.</p>");
+    return;
+  }
+  setAuthButtonsLoading(true, "login");
+  showLoadingModal(true, "Iniciando sesión");
+  setLoadingStep("Verificando credenciales...", 50);
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  showLoadingModal(false);
+  if (error) {
+    let msg = `No se pudo iniciar sesión: ${sbErr(error)}`;
+    if ((error.message || "").toLowerCase().includes("invalid login credentials")) {
+      msg = "Credenciales inválidas. Verifica correo/contraseña o confirma tu correo.";
+    }
+    if ((error.message || "").toLowerCase().includes("email not confirmed")) {
+      msg = "Correo no confirmado. Abre el email de confirmación y vuelve a intentar.";
+    }
+    setAuthMessage(msg);
+    setEstado(msg);
+    showAuthModal("No se pudo iniciar sesión", `<p>${escapeHtml(msg)}</p>`);
+    setAuthButtonsLoading(false, "login");
+    return;
+  }
+  currentUser = data?.user || null;
+  updateAuthStatus();
+  setAuthMessage("Sesión iniciada correctamente.", true);
+  setEstado("Sesión iniciada correctamente.", false);
+  showAuthModal("Inicio de sesión exitoso", `<p>Bienvenido(a), <strong>${escapeHtml(email)}</strong>.</p><p>Ya puedes usar todo el formulario.</p>`);
+  setAuthButtonsLoading(false, "login");
+}
+
+async function cerrarSesion() {
+  await sb.auth.signOut();
+  currentUser = null;
+  updateAuthStatus();
+  setAuthMessage("Sesión cerrada.");
+  setEstado("Sesión cerrada.");
+}
+
+function valor(id) {
+  const el = document.getElementById(id);
+  return el ? (el.value || "").trim() : "";
+}
+
+function setEstadoCloud(msg) {
+  if (estadoCloud) estadoCloud.textContent = "";
+}
+
+function sbErr(error) {
+  if (!error) return "Error desconocido";
+  const code = error.code ? ` [${error.code}]` : "";
+  const hint = error.hint ? ` | ${error.hint}` : "";
+  return `${error.message || "Error"}${code}${hint}`;
+}
+
+function guardarIdentidadLocal() {
+  if (remoteCaseId && remotePublicToken) {
+    localStorage.setItem("firma_case_id", remoteCaseId);
+    localStorage.setItem("firma_public_token", remotePublicToken);
+  }
+}
+
+function getSnapshot() {
+  return {
+    contractKind: getContractKind(),
+    tipo: valor("tipo"),
+    nombre: valor("nombre"),
+    cedula: valor("cedula"),
+    nombreMenor: valor("nombreMenor"),
+    docMenor: valor("docMenor"),
+    parentesco: valor("parentesco"),
+    implicado: valor("implicado"),
+    cedulaImp: valor("cedulaImp"),
+    fecha: valor("fecha"),
+    placa: valor("placa"),
+    interno: valor("interno"),
+    conductorNombre: valor("conductorNombre"),
+    conductorCedula: valor("conductorCedula"),
+    emailDestino: valor("emailDestino"),
+    // Campos extra para contratos de transaccion
+    ciudadCedula: valor("ciudadCedula"),
+    ciudadCedulaImp: valor("ciudadCedulaImp"),
+    condicionComp: valor("condicionComp"),
+    condicionImp: valor("condicionImp"),
+    ciudadHecho: valor("ciudadHecho"),
+    lugarHecho: valor("lugarHecho"),
+    ciudadFirma: valor("ciudadFirma"),
+    placa2: valor("placa2"),
+    valor: valor("valor"),
+    valorTexto: valor("valorTexto"),
+    empresa: valor("empresa"),
+    banco: valor("banco"),
+    cuenta: valor("cuenta"),
+    titularCuenta: valor("titularCuenta"),
+    cedulaTitular: valor("cedulaTitular"),
+    firmaCompareciente: Boolean(firmaComparecienteData),
+    firmaConductor: Boolean(firmaConductorData),
+    // Vínculo al siniestro de la app de asistencias (si se generó desde un caso).
+    casoOrigen: casoOrigenRef || undefined
+  };
+}
+
+async function sha256Hex(input) {
+  const enc = new TextEncoder().encode(input);
+  const hashBuf = await crypto.subtle.digest("SHA-256", enc);
+  return Array.from(new Uint8Array(hashBuf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function queueRemoteSave() {
+  clearTimeout(remoteSaveTimer);
+  remoteSaveTimer = setTimeout(() => {
+    saveDraftToSupabase().catch(() => {});
+  }, 700);
+}
+
+async function initRemoteCaseIfNeeded(docHtml) {
+  if (remoteCaseId && remotePublicToken) return true;
+  const { data, error } = await sb.rpc("firma_init_case", {
+    p_form_data: getSnapshot(),
+    p_doc_html: docHtml || null
+  });
+  if (error) {
+    setEstadoCloud("");
+    return false;
+  }
+  if (data && data.length > 0) {
+    remoteCaseId = data[0].case_id;
+    remotePublicToken = data[0].public_token;
+    guardarIdentidadLocal();
+    setEstadoCloud("");
+    return true;
+  }
+  setEstadoCloud("");
+  return false;
+}
+
+async function saveDraftToSupabase() {
+  const docHtml = document.getElementById("texto").innerHTML || null;
+  const okInit = await initRemoteCaseIfNeeded(docHtml);
+  if (!okInit) return false;
+  const { data, error } = await sb.rpc("firma_save_draft", {
+    p_case_id: remoteCaseId,
+    p_public_token: remotePublicToken,
+    p_form_data: getSnapshot(),
+    p_doc_html: docHtml
+  });
+  if (error || data !== true) {
+    setEstadoCloud("");
+    return false;
+  }
+  setEstadoCloud("");
+  return true;
+}
+
+async function confirmCaseInSupabase() {
+  const okInit = await initRemoteCaseIfNeeded(document.getElementById("texto").innerHTML || null);
+  if (!okInit) return false;
+
+  const evidence = {
+    confirmedAt: new Date().toISOString(),
+    userAgent: navigator.userAgent,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "unknown",
+    form: getSnapshot()
+  };
+  const { data, error } = await sb.rpc("firma_confirm_case", {
+    p_case_id: remoteCaseId,
+    p_public_token: remotePublicToken,
+    p_pdf_sha256: latestPdfSha256,
+    p_evidence: evidence
+  });
+  if (error || data !== true) {
+    setEstadoCloud("");
+    return false;
+  }
+  setEstadoCloud("");
+  return true;
+}
+
+async function attachPdfToSupabase() {
+  if (!latestPdfBase64 || !latestPdfSha256) return false;
+  const okInit = await initRemoteCaseIfNeeded(document.getElementById("texto").innerHTML || null);
+  if (!okInit) return false;
+  const { data, error } = await sb.rpc("firma_attach_pdf", {
+    p_case_id: remoteCaseId,
+    p_public_token: remotePublicToken,
+    p_pdf_base64: latestPdfBase64,
+    p_pdf_sha256: latestPdfSha256
+  });
+  if (error || data !== true) {
+    setEstadoCloud("");
+    return false;
+  }
+  setEstadoCloud("");
+  return true;
+}
+
+async function uploadPdfToStorage(pdfBlob) {
+  const okInit = await initRemoteCaseIfNeeded(document.getElementById("texto").innerHTML || null);
+  if (!okInit) return false;
+
+  const path = `${remoteCaseId}/${remotePublicToken}/${getContractMeta().storagePrefix}_${Date.now()}.pdf`;
+  const { error: upErr } = await sb.storage
+    .from("signed-documents")
+    .upload(path, pdfBlob, { contentType: "application/pdf", upsert: true });
+
+  if (upErr) {
+    setEstadoCloud("");
+    return false;
+  }
+
+  const { data: signedData, error: signedErr } = await sb.storage
+    .from("signed-documents")
+    .createSignedUrl(path, 60 * 60 * 24 * 7);
+
+  if (signedErr || !signedData?.signedUrl) {
+    setEstadoCloud("");
+    latestPdfStoragePath = path;
+    latestDownloadUrl = null;
+  } else {
+    latestPdfStoragePath = path;
+    latestDownloadUrl = normalizeSignedUrl(signedData.signedUrl);
+    setEstadoCloud("");
+  }
+
+  await sb.rpc("firma_set_pdf_storage_path", {
+    p_case_id: remoteCaseId,
+    p_public_token: remotePublicToken,
+    p_pdf_storage_path: path
+  });
+
+  return true;
+}
+
+function normalizeSignedUrl(url) {
+  if (!url) return null;
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  if (url.startsWith("/")) return `${SUPABASE_URL}${url}`;
+  return `${SUPABASE_URL}/${url}`;
+}
+
+function formatSignedAtLocal(dateObj) {
+  try {
+    return new Intl.DateTimeFormat("es-CO", {
+      dateStyle: "full",
+      timeStyle: "long",
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Bogota"
+    }).format(dateObj);
+  } catch (_) {
+    return dateObj.toString();
+  }
+}
+
+function getGeolocationOnce(timeoutMs = 8000) {
+  return new Promise((resolve) => {
+    if (!("geolocation" in navigator)) {
+      resolve({ ok: false, reason: "geolocation_not_supported" });
+      return;
+    }
+    let done = false;
+    const timer = setTimeout(() => {
+      if (done) return;
+      done = true;
+      resolve({ ok: false, reason: "timeout" });
+    }, timeoutMs);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        resolve({
+          ok: true,
+          latitude: Number(pos.coords.latitude).toFixed(6),
+          longitude: Number(pos.coords.longitude).toFixed(6),
+          accuracy_m: Math.round(pos.coords.accuracy || 0)
+        });
+      },
+      (err) => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        resolve({ ok: false, reason: err?.message || "location_error" });
+      },
+      { enableHighAccuracy: false, maximumAge: 120000, timeout: timeoutMs - 500 }
+    );
+  });
+}
+
+async function ensureDownloadUrl() {
+  if (latestDownloadUrl) return latestDownloadUrl;
+  if (!latestPdfStoragePath) return null;
+  const { data, error } = await sb.storage
+    .from("signed-documents")
+    .createSignedUrl(latestPdfStoragePath, 60 * 60 * 24 * 7);
+  if (error || !data?.signedUrl) {
+    setEstadoCloud("");
+    return null;
+  }
+  latestDownloadUrl = normalizeSignedUrl(data.signedUrl);
+  return latestDownloadUrl;
+}
+
+function validateStep(step) {
+  const rules = {
+    0: ["tipo", "nombre", "cedula"],
+    1: ["implicado", "cedulaImp", "fecha", "placa"],
+    2: ["conductorNombre", "conductorCedula"]
+  };
+
+  const need = rules[step] || [];
+  for (const id of need) {
+    if (!valor(id)) {
+      setEstado("Completa los campos del paso actual para continuar.");
+      return false;
+    }
+  }
+
+  if (step === 0 && valor("tipo") === "menor") {
+    for (const id of ["nombreMenor", "docMenor", "parentesco"]) {
+      if (!valor(id)) {
+        setEstado("Completa los datos del menor para continuar.");
+        return false;
+      }
+    }
+  }
+
+  const numericIds = ["cedula", "docMenor", "cedulaImp", "interno", "conductorCedula"];
+  for (const id of numericIds) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    const required = need.includes(id) || (id === "docMenor" && valor("tipo") === "menor");
+    const val = valor(id);
+    if (!required && !val) continue;
+    if (!required && val && !/^\d+$/.test(val)) {
+      setEstado("Los campos numéricos solo aceptan dígitos.");
+      el.focus();
+      return false;
+    }
+    if (required && !/^\d+$/.test(val)) {
+      setEstado("Los campos numéricos solo aceptan dígitos.");
+      el.focus();
+      return false;
+    }
+  }
+
+  if (step === 2) {
+    // Refrescar cache antes de validar (por si onEnd no se disparo en algun navegador)
+    if (!signaturePad.isEmpty()) firmaComparecienteData = signaturePad.toDataURL("image/png");
+    if (!signaturePadConductor.isEmpty()) firmaConductorData = signaturePadConductor.toDataURL("image/png");
+    if (!firmaComparecienteData) {
+      setEstado("La firma del compareciente es obligatoria.");
+      return false;
+    }
+    if (!firmaConductorData) {
+      setEstado("La firma del conductor es obligatoria.");
+      return false;
+    }
+  }
+
+  setEstado("");
+  return true;
+}
+
+function resizeCanvasElement(el, pad) {
+  // Si el canvas esta oculto (display:none → offsetWidth=0), NO redimensionar.
+  // Sino se borraria la firma del usuario al cambiar de paso o abrir un modal.
+  if (!el.offsetWidth || !el.offsetHeight) return;
+
+  const data = pad.isEmpty() ? null : pad.toData();
+  const ratio = Math.max(window.devicePixelRatio || 1, 1);
+  el.width = Math.floor(el.offsetWidth * ratio);
+  el.height = Math.floor(el.offsetHeight * ratio);
+  el.getContext("2d").scale(ratio, ratio);
+  pad.clear();
+  if (data) {
+    pad.fromData(data);
+  }
+}
+
+function resizeCanvas() {
+  resizeCanvasElement(canvas, signaturePad);
+  resizeCanvasElement(canvasConductor, signaturePadConductor);
+}
+window.addEventListener("resize", resizeCanvas);
+resizeCanvas();
+actualizarEstadoFirmas();
+
+function limpiarFirma() {
+  signaturePad.clear();
+  signaturePadConductor.clear();
+  firmaComparecienteData = "";
+  firmaConductorData = "";
+  documentoGenerado = false;
+  invalidarConfirmacion();
+  setEstado("Firmas limpiadas. Las dos firmas son obligatorias.");
+  updatePreview(false);
+  queueRemoteSave();
+  actualizarEstadoFirmas();
+}
+
+function getPartesFecha(fechaIso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(fechaIso || "");
+  if (!m) return null;
+  return { anio: String(Number(m[1])), mes: String(Number(m[2])), dia: String(Number(m[3])) };
+}
+
+function escapeHtml(v) {
+  return String(v)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function linea(v) {
+  const text = String(v || "").trim();
+  if (!text) {
+    return `<span class="line" style="min-width:6ch">&nbsp;</span>`;
+  }
+  return `<span class="line">${escapeHtml(text)}</span>`;
+}
+
+function buildTexto(contractKind, comparecienteTipo, data) {
+  const {
+    nombre, cedula, ciudadCedula, condicionComp,
+    implicado, cedulaImp, ciudadCedulaImp, condicionImp,
+    dia, mes, anio, placa, placa2, interno,
+    ciudadHecho, lugarHecho, ciudadFirma,
+    valor, valorTexto, empresa, banco, cuenta, titularCuenta, cedulaTitular,
+    nombreMenor, docMenor, parentesco
+  } = data;
+
+  // ============ A FAVOR ============
+  if (contractKind === "afavor") {
+    return `
+      <p style="text-align:center;font-weight:700;">CONTRATO DE TRANSACCIÓN A FAVOR</p>
+      <p style="text-align:center;font-weight:700;">PARTES DEL CONTRATO</p>
+      <p>Los suscritos de una parte, ${linea(nombre)}, mayor de edad, identificado con C.C. No. ${linea(cedula)} de ${linea(ciudadCedula)}, en su condición de ${linea(condicionComp)} del vehículo de placas ${linea(placa)}, número interno ${linea(interno)} y, ${linea(implicado)}, mayor de edad, identificado con la C.C. No. ${linea(cedulaImp)} de ${linea(ciudadCedulaImp)}, en su condición de ${linea(condicionImp || "propietario y/o poseedor")} del vehículo de placas ${linea(placa2)}, con facultades para transigir, involucrados en el accidente de tránsito ocurrido el día ${linea(dia)} mes ${linea(mes)} año ${linea(anio)}, en la ciudad de ${linea(ciudadHecho)}, hemos celebrado el siguiente contrato de transacción, con las siguientes clausulas:</p>
+      <p style="text-align:center;font-weight:700;">CLAUSULAS</p>
+      <p><strong>PRIMERA:</strong> En razón del accidente de tránsito reseñado anteriormente, ${linea(implicado)}, en calidad de ${linea(condicionImp || "propietario o poseedor")} del vehículo de placas ${linea(placa2)} se compromete a indemnizar a la empresa ${linea(empresa)} la suma de ${linea(valorTexto)} ($${linea(valor)}) como suma única, por concepto de todos los posibles daños y perjuicios materiales ocasionados (lucro cesante, daño emergente), derivados del accidente antes referido.</p>
+      <p><strong>SEGUNDA:</strong> La suma antes mencionada se girará por parte de ${linea(implicado)} en efectivo y/o transferencia. Por medio de este contrato la empresa ${linea(empresa)} se compromete a no continuar con la acción civil, administrativa, penal y contravencional por estos mismos hechos y por ellos se solicita a la Autoridad de conocimiento que archiven las diligencias, pues, desiste de cualquier tipo de acción, ya que con la suma antes mencionada se siente plenamente indemnizado y resarcido. En caso de que ${linea(implicado)} entre en mora o incumpla una o cualquiera de las obligaciones derivadas del presente documento, ${linea(empresa)} podrá declarar vencido la totalidad de los plazos de esta obligación o de las cuotas que constituyan el saldo de lo debido y exigir su pago inmediato ya sea judicial o extrajudicialmente.</p>
+      <p>Este contrato no significa ninguna aceptación de responsabilidad, presta mérito ejecutivo y hace tránsito a cosa juzgada conforme con el Artículo 2483 de C.C.</p>
+      <p>Se autoriza el pago en la cuenta ${linea(cuenta)}, banco ${linea(banco)}, a nombre de ${linea(titularCuenta)}, C.C. ${linea(cedulaTitular)}.</p>
+      <p>En señal de aceptación firmamos los aquí intervinientes en la ciudad de ${linea(ciudadFirma)}, a los ${linea(dia)} días, del mes ${linea(mes)}, del año ${linea(anio)}.</p>
+    `;
+  }
+
+  // ============ EN CONTRA ============
+  if (contractKind === "encontra") {
+    return `
+      <p style="text-align:center;font-weight:700;">CONTRATO DE TRANSACCIÓN EN CONTRA</p>
+      <p>Los suscritos de una parte, ${linea(nombre)}, identificado con C.C. ${linea(cedula)} de ${linea(ciudadCedula)}, en su condición de ${linea(condicionComp || "propietario y/o poseedor")} del vehículo de placas ${linea(placa)}, número interno ${linea(interno)} y, ${linea(implicado)}, mayor de edad, identificado con la C.C. No. ${linea(cedulaImp)} de ${linea(ciudadCedulaImp)}, en su condición de ${linea(condicionImp || "propietario y/o poseedor")} del vehículo de placas ${linea(placa2)}, con facultades para transigir, involucrados en el accidente de tránsito ocurrido el día ${linea(dia)} mes ${linea(mes)} año ${linea(anio)}, en la ciudad de ${linea(ciudadHecho)}, hemos celebrado el siguiente contrato de transacción.</p>
+      <p>En razón del accidente de tránsito reseñado anteriormente, ${linea(nombre)}, en calidad de ${linea(condicionComp || "propietario o poseedor")} del vehículo de placas ${linea(placa)}, se compromete a indemnizar al señor ${linea(implicado)} en la suma de ${linea(valorTexto)} COP ($${linea(valor)}) como suma única, por concepto de todos los posibles daños o perjuicios materiales ocasionados (lucro cesante, daño emergente), daños o perjuicios morales, fisiológicos y daños a la vida en relación, derivados del accidente antes referido.</p>
+      <p>Por medio de este contrato, el señor ${linea(implicado)} se compromete a NO continuar con la acción civil, administrativa, penal y contravencional por estos mismos hechos y por ello solicita a la Autoridad de conocimiento que archiven las diligencias, pues, desiste de cualquier tipo de acción, ya que con la suma antes mencionada se siente plenamente indemnizado; también se compromete a no iniciar ninguna acción civil y/o administrativa en contra de la empresa ${linea(empresa)}, conductor y propietario del vehículo, la entidad a la que estuviera afiliado el vehículo comprometido y a la aseguradora, por los mismos hechos.</p>
+      <p>Así mismo el señor ${linea(implicado)}, tiene claro que la indemnización comprende todos los perjuicios patrimoniales incluido lucro cesante y los extrapatrimoniales; personales y hereditarios, pasados, presentes y futuros; de naturaleza contractual y extracontractual, y los perjuicios morales, fisiológicos y daño en la vida en relación. También manifiesta que no conoce a nadie con mejor derecho que él, pero en caso de que aparezca se compromete a entregar al mismo lo que en derecho les corresponda, y se obliga a dejar indemne al propietario del vehículo, la entidad que estuviera afiliado el vehículo comprometido, y la aseguradora, en caso de que éstas sufran alguna reclamación o acción judicial si dicha garantía resultare no corresponder a la verdad, que renuncia y no permite que otras personas se abroguen el derecho a reclamar por estos mismos hechos ante cualquier autoridad por cualquier tipo de perjuicio, toda vez, que es el único titular de dichos derechos y en este momento está siendo indemnizado totalmente por dichos perjuicios.</p>
+      <p>Este contrato no significa ninguna aceptación de responsabilidad, presta mérito ejecutivo y hace tránsito a cosa juzgada conforme al Artículo 2483 de C.C.</p>
+      <p>Se autoriza el pago en la cuenta ${linea(cuenta)}, banco ${linea(banco)}, a nombre de ${linea(titularCuenta)}, C.C. ${linea(cedulaTitular)}.</p>
+      <p>En señal de aceptación firmamos los aquí intervinientes, en la ciudad de ${linea(ciudadFirma)}, a los ${linea(dia)} días, del mes ${linea(mes)} del año ${linea(anio)}.</p>
+    `;
+  }
+
+  // ============ MUTUO ACUERDO ============
+  if (contractKind === "mutuo") {
+    return `
+      <p style="text-align:center;font-weight:700;">CONTRATO DE TRANSACCIÓN MUTUO ACUERDO</p>
+      <p>Entre los suscritos, mayores de edad e identificados como aparece al pie de sus correspondientes firmas, en calidad de propietarios o conductores de los vehículos involucrados, que se describen:</p>
+      <p><strong>PLACA DEL VEHÍCULO NÚMERO 1.</strong> ${linea(placa)} <strong>Y PLACA DEL VEHÍCULO NÚMERO 2.</strong> ${linea(placa2)}</p>
+      <p>Acordaron en nombre propio y con capacidad plena para conciliar se suscribe el presente acuerdo:</p>
+      <p><strong>PRIMERO:</strong> Que las partes involucradas en el accidente de tránsito ocurrido en: ${linea(lugarHecho || ciudadHecho)} el día ${linea(dia)} de ${linea(mes)} de ${linea(anio)} con el fin de evitar posibles procesos, ya sea en materia civil, contravencional, penal, acuerdan que cada uno de los conductores o propietarios asumirá el daño de sus propios vehículos.</p>
+      <p><strong>SEGUNDO:</strong> Con el presente acuerdo las partes declaran paz y salvo todos los perjuicios patrimoniales incluido lucro cesante y daño emergente, los extrapatrimoniales; personales y hereditarios, pasados, presentes y futuros; de naturaleza contractual y extracontractual, y los perjuicios morales, fisiológicos y daño en la vida en relación. Por lo que dicha transacción hace tránsito a cosa juzgada evitando futuros litigios.</p>
+      <p><strong>TERCERO:</strong> Los acuerdos realizados tienen su fundamento legal en los artículos 2469 y siguientes del Código Civil Colombiano.</p>
+      <p>En señal de aceptación firmamos los aquí intervinientes, en la ciudad de ${linea(ciudadFirma)} a los ${linea(dia)} días, del mes ${linea(mes)} del año ${linea(anio)}.</p>
+    `;
+  }
+
+  // ============ DESISTIMIENTO (texto original) ============
+  if (comparecienteTipo === "adulto") {
+    return `
+      <p>Yo, ${linea(nombre)} mayor de edad, identificado como aparece al pie de mi firma, mediante el presente escrito manifiesto, que es mi voluntad libre y espontánea DESISTIR de toda asistencia médica o prehospitalaria, acción penal, civil, administrativa y contravencional en contra del señor ${linea(implicado)}, mayor de edad, identificado con cédula de ciudadanía No. ${linea(cedulaImp)}, por los hechos acaecidos en accidente de tránsito de fecha, día ${linea(dia)} mes ${linea(mes)} año ${linea(anio)}, en el que está involucrado el vehículo de placas ${linea(placa)} número interno ${linea(interno)}; en consecuencia de igual forma desisto de toda acción penal, civil, administrativa y contravencional en contra de la entidad propietaria del vehículo, empresa afiliadora, conductor y aseguradora.</p>
+      <p>Conforme a la Ley 906 de 2004 C.P.P., Art. 76. "En cualquier caso el desistimiento se hará extensivo a todos los autores o partícipes del delito investigado y una vez aceptado no admitirá retractación".</p>
+      <p>Para constancia de lo anterior, firmo libre y voluntariamente, hoy ${linea(dia)} de ${linea(mes)} de ${linea(anio)}.</p>
+    `;
+  }
+
+  return `
+    <p>Yo, ${linea(nombre)} mayor de edad, identificado(a) como aparece al pie de mi firma, y en calidad de representante del menor de edad ${linea(nombreMenor)} con documento ${linea(docMenor)} y parentesco ${linea(parentesco)}, mediante el presente escrito manifiesto, que es mi voluntad libre y espontánea DESISTIR de toda asistencia médica o prehospitalaria, acción penal, civil, administrativa y contravencional en contra del señor ${linea(implicado)}, mayor de edad, identificado con cédula de ciudadanía No. ${linea(cedulaImp)}, por los hechos acaecidos en accidente de tránsito de fecha, día ${linea(dia)} mes ${linea(mes)} año ${linea(anio)}, en el que está involucrado el vehículo de placas ${linea(placa)} número interno ${linea(interno)}; en consecuencia de igual forma desisto de toda acción penal, civil, administrativa y contravencional en contra de la entidad propietaria del vehículo, empresa afiliadora, conductor y aseguradora.</p>
+    <p>Conforme a la Ley 906 de 2004 C.P.P., Art. 76. "En cualquier caso el desistimiento se hará extensivo a todos los autores o partícipes del delito investigado y una vez aceptado no admitirá retractación".</p>
+    <p>Para constancia de lo anterior, firmo libre y voluntariamente, hoy ${linea(dia)} de ${linea(mes)} de ${linea(anio)}.</p>
+  `;
+}
+
+function fmtFecha(fechaIso) {
+  const p = getPartesFecha(fechaIso);
+  if (!p) return "-";
+  return `${p.dia}/${p.mes}/${p.anio}`;
+}
+
+function getSiNo(ok) {
+  return ok ? "Sí" : "No";
+}
+
+function updatePreview(strict = false) {
+  const comparecienteTipo = valor("tipo");
+  const contractKind = getContractKind();
+  const nombre = valor("nombre");
+  const cedula = valor("cedula");
+  const implicado = valor("implicado");
+  const cedulaImp = valor("cedulaImp");
+  const fecha = valor("fecha");
+  const placa = valor("placa");
+  const interno = valor("interno");
+  const conductorNombre = valor("conductorNombre");
+  const conductorCedula = valor("conductorCedula");
+
+  const partes = getPartesFecha(fecha);
+  const fechaValida = Boolean(partes);
+  if (!fechaValida && strict) {
+    setEstado("Selecciona una fecha válida.");
+    return false;
+  }
+
+  const dia = partes ? partes.dia : "";
+  const mes = partes ? partes.mes : "";
+  const anio = partes ? partes.anio : "";
+  const nombreMenor = valor("nombreMenor");
+  const docMenor = valor("docMenor");
+  const parentesco = valor("parentesco");
+
+  // Nuevos campos para contratos de transaccion
+  const ciudadCedula = valor("ciudadCedula");
+  const ciudadCedulaImp = valor("ciudadCedulaImp");
+  const condicionComp = valor("condicionComp");
+  const condicionImp = valor("condicionImp");
+  const ciudadHecho = valor("ciudadHecho");
+  const lugarHecho = valor("lugarHecho");
+  const ciudadFirma = valor("ciudadFirma");
+  const placa2 = valor("placa2");
+  const valorNum = valor("valor");
+  const valorTexto = valor("valorTexto");
+  const empresa = valor("empresa");
+  const banco = valor("banco");
+  const cuenta = valor("cuenta");
+  const titularCuenta = valor("titularCuenta");
+  const cedulaTitular = valor("cedulaTitular");
+
+  const texto = buildTexto(contractKind, comparecienteTipo, {
+    nombre, cedula, implicado, cedulaImp, dia, mes, anio, placa, interno,
+    nombreMenor, docMenor, parentesco,
+    ciudadCedula, ciudadCedulaImp, condicionComp, condicionImp,
+    ciudadHecho, lugarHecho, ciudadFirma, placa2,
+    valor: valorNum, valorTexto, empresa, banco, cuenta, titularCuenta, cedulaTitular
+  });
+
+  document.getElementById("texto").innerHTML = texto;
+  // Refrescar cache si el canvas tiene contenido (por si onEnd no se disparo)
+  if (!signaturePad.isEmpty()) firmaComparecienteData = signaturePad.toDataURL("image/png");
+  if (!signaturePadConductor.isEmpty()) firmaConductorData = signaturePadConductor.toDataURL("image/png");
+  document.getElementById("firmaImg").src = firmaComparecienteData || "";
+  document.getElementById("firmaConductorImg").src = firmaConductorData || "";
+  document.getElementById("firmaCedula").innerText = cedula;
+  document.getElementById("firmaConductorNombre").innerText = conductorNombre;
+  document.getElementById("firmaConductorCedula").innerText = conductorCedula;
+
+  if (strict) {
+    setEstado("Documento generado correctamente.", false);
+  }
+  return true;
+}
+
+async function generar() {
+  if (!requireAuth()) return false;
+  for (let s = 0; s < 3; s += 1) {
+    if (!validateStep(s)) {
+      showStep(s);
+      return false;
+    }
+  }
+  if (!updatePreview(true)) {
+    return false;
+  }
+  documentoGenerado = true;
+  await saveDraftToSupabase();
+  await confirmCaseInSupabase();
+
+  if (window.innerWidth <= 430 && previewCard && !previewCard.classList.contains("show")) {
+    previewCard.classList.add("show");
+    if (togglePreviewBtn) togglePreviewBtn.textContent = "Ocultar vista previa";
+  }
+  return true;
+}
+
+async function confirmarDatos() {
+  if (!requireAuth()) return;
+  showLoadingModal(true, "Validando información");
+  setLoadingStep("Revisando los datos del formulario...", 25);
+  await new Promise((r) => setTimeout(r, 250));
+  for (let s = 0; s < 3; s += 1) {
+    if (!validateStep(s)) {
+      showLoadingModal(false);
+      showStep(s);
+      return;
+    }
+  }
+  setLoadingStep("Generando vista previa...", 70);
+  if (!updatePreview(false)) {
+    showLoadingModal(false);
+    return;
+  }
+  setLoadingStep("Preparando confirmación...", 100);
+  await new Promise((r) => setTimeout(r, 200));
+  showLoadingModal(false);
+
+  const comparecienteTipo = valor("tipo");
+  const contractKind = getContractKind();
+  const contractLabel = contratoTipo?.selectedOptions?.[0]?.textContent || "Desistimiento";
+  const nombre = valor("nombre");
+  const cedula = valor("cedula");
+  const implicado = valor("implicado");
+  const cedulaImp = valor("cedulaImp");
+  const fecha = valor("fecha");
+  const placa = valor("placa");
+  const placa2 = valor("placa2");
+  const interno = valor("interno");
+  const conductorNombre = valor("conductorNombre");
+  const conductorCedula = valor("conductorCedula");
+  const nombreMenor = valor("nombreMenor");
+  const docMenor = valor("docMenor");
+  const parentesco = valor("parentesco");
+
+  let extraMenor = "";
+  if (comparecienteTipo === "menor") {
+    extraMenor = `<p><strong>Menor:</strong> ${escapeHtml(nombreMenor)} | <strong>Documento:</strong> ${escapeHtml(docMenor)} | <strong>Parentesco:</strong> ${escapeHtml(parentesco)}</p>`;
+  }
+
+  confirmSummary.innerHTML = `
+    <p><strong>Contrato:</strong> ${escapeHtml(contractLabel)} (${escapeHtml(contractKind)})</p>
+    <p><strong>Tipo compareciente:</strong> ${comparecienteTipo === "menor" ? "Representante de menor" : "Mayor de edad"}</p>
+    <p><strong>Compareciente:</strong> ${escapeHtml(nombre)} | <strong>Cédula:</strong> ${escapeHtml(cedula)}</p>
+    ${extraMenor}
+    <p><strong>Implicado:</strong> ${escapeHtml(implicado)} | <strong>Cédula:</strong> ${escapeHtml(cedulaImp)}</p>
+    <p><strong>Fecha:</strong> ${escapeHtml(fmtFecha(fecha))}</p>
+    <p><strong>Vehículo 1 (compareciente):</strong> Placa ${escapeHtml(placa)}${interno ? " | Interno " + escapeHtml(interno) : ""}${placa2 ? ` &nbsp;·&nbsp; <strong>Vehículo 2 (implicado):</strong> Placa ${escapeHtml(placa2)}` : ""}</p>
+    <p><strong>Conductor:</strong> ${escapeHtml(conductorNombre)} | <strong>Cédula:</strong> ${escapeHtml(conductorCedula)}</p>
+    <p><strong>Firma compareciente:</strong> ${getSiNo(Boolean(firmaComparecienteData))} | <strong>Firma conductor:</strong> ${getSiNo(Boolean(firmaConductorData))}</p>
+  `;
+  abrirModal(confirmModal);
+  await saveDraftToSupabase();
+}
+
+function cerrarModalConfirmacion() {
+  cerrarModal(confirmModal);
+}
+
+async function generarDesdeModal() {
+  if (!requireAuth()) return;
+  cerrarModalConfirmacion();
+  showLoadingModal(true, "Procesando contrato");
+  try {
+    setLoadingStep("Validando datos firmados...", 10);
+    await new Promise((r) => setTimeout(r, 150));
+
+    setLoadingStep("Construyendo documento legal...", 30);
+    const ok = await generar();
+    if (!ok) {
+      setEstado("No se pudieron confirmar los datos.");
+      return;
+    }
+
+    setLoadingStep("Generando PDF...", 55);
+    await new Promise((r) => setTimeout(r, 150));
+
+    setLoadingStep("Guardando copia en Supabase...", 75);
+    const okPdf = await generarPdfYSubir(true); // true = tambien descargar
+    if (!okPdf) {
+      setEstado("Se generaron los datos, pero no fue posible crear el PDF.");
+      return;
+    }
+
+    setLoadingStep("¡Listo! Copia descargada.", 100);
+    await new Promise((r) => setTimeout(r, 350));
+
+    // Habilitar boton para volver a descargar como respaldo
+    const wrap = document.getElementById("btnRedescargarWrap");
+    if (wrap) wrap.hidden = false;
+    const btn = document.getElementById("btnDescargarPDF");
+    if (btn) btn.disabled = false;
+
+    setEstado("✓ Contrato firmado, guardado en la nube y descargado correctamente.", false);
+
+    // Modal de exito
+    showSendResultModal(
+      "✓ Contrato completado",
+      `<p style="margin:0 0 8px;"><strong>El proceso terminó exitosamente:</strong></p>
+       <p style="margin:0;">✓ Datos validados y confirmados</p>
+       <p style="margin:0;">✓ PDF generado con las firmas</p>
+       <p style="margin:0;">✓ Copia guardada en Supabase</p>
+       <p style="margin:0;">✓ PDF descargado en tu equipo</p>`,
+      null
+    );
+  } finally {
+    showLoadingModal(false);
+  }
+}
+
+function invalidarConfirmacion() {
+  documentoGenerado = false;
+  const btn = document.getElementById("btnDescargarPDF");
+  if (btn) btn.disabled = true;
+  const wrap = document.getElementById("btnRedescargarWrap");
+  if (wrap) wrap.hidden = true;
+}
+
+async function enviarWebhookDirecto(webhook, payload) {
+  try {
+    const resp = await fetch(webhook, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!resp.ok) {
+      throw new Error(`HTTP ${resp.status}`);
+    }
+    return { ok: true, via: "cors" };
+  } catch (e) {
+    try {
+      await fetch(webhook, {
+        method: "POST",
+        mode: "no-cors",
+        body: JSON.stringify(payload)
+      });
+      return { ok: true, via: "no-cors" };
+    } catch (e2) {
+      return { ok: false, error: e2?.message || e?.message || "Error webhook" };
+    }
+  }
+}
+
+async function encolarCorreo() {
+  if (!requireAuth()) return;
+  const meta = getContractMeta();
+  const email = valor("emailDestino");
+  const webhook = DEFAULT_WEBHOOK_URL;
+  if (!email) {
+    setEstado("Ingresa un correo destino para enviar el documento.");
+    return;
+  }
+
+  showLoadingModal(true);
+  let envioColaOk = false;
+  try {
+    setLoadingStep("Validando datos y firmas...", 12);
+    const okGenerar = await generar();
+    if (!okGenerar) {
+      setEstado("No se pudieron confirmar los datos para enviar.");
+      return;
+    }
+
+    setLoadingStep("Generando documento...", 38);
+    const okPdf = await generarPdfYSubir(false);
+    if (!okPdf) {
+      setEstado("No se pudo preparar el documento.");
+      return;
+    }
+
+    setLoadingStep("Preparando envío...", 58);
+    if (!remoteCaseId || !remotePublicToken) {
+      const ok = await saveDraftToSupabase();
+      if (!ok) {
+        setEstado("No fue posible preparar el envío.");
+        return;
+      }
+    }
+
+    setLoadingStep("Preparando archivo...", 72);
+    const ensuredUrl = await ensureDownloadUrl();
+    if (!ensuredUrl) {
+      setEstado("No se pudo preparar el archivo de descarga.");
+      return;
+    }
+
+    setLoadingStep("Enviando documento...", 84);
+    const { data, error } = await sb.rpc("firma_queue_email", {
+      p_case_id: remoteCaseId,
+      p_public_token: remotePublicToken,
+      p_to_email: email,
+      p_subject: meta.subject,
+      p_body: "Caso encolado desde formulario web.",
+      p_webhook_url: webhook
+    });
+    if (error || data !== true) {
+      setEstado("No se pudo enviar el documento. Intenta nuevamente.");
+      setEstadoCloud("");
+      return;
+    }
+    envioColaOk = true;
+
+    setLoadingStep("Finalizando envío...", 92);
+    const payload = {
+      event: meta.event,
+      contract_kind: getContractKind(),
+      contract_label: contratoTipo?.selectedOptions?.[0]?.textContent || getContractKind(),
+      case_id: remoteCaseId,
+      public_token: remotePublicToken,
+      to_email: email,
+      pdf_storage_path: latestPdfStoragePath,
+      download_url: ensuredUrl,
+      created_at: new Date().toISOString()
+    };
+
+    const snapshot = getSnapshot();
+    const signedAt = new Date();
+    const signedAtUtc = signedAt.toISOString();
+    const signedAtLocal = formatSignedAtLocal(signedAt);
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Bogota";
+    const geo = await getGeolocationOnce();
+
+    payload.signed_by_name = snapshot.nombre || "";
+    payload.signed_by_role = "Firmante compareciente";
+    payload.recipient_statement = "La persona que recibe este correo es quien firma y acepta el documento.";
+    payload.signed_at_utc = signedAtUtc;
+    payload.signed_at_local = signedAtLocal;
+    payload.timezone = timezone;
+    payload.incident_date = snapshot.fecha || "";
+    payload.location = geo.ok
+      ? { latitude: geo.latitude, longitude: geo.longitude, accuracy_m: geo.accuracy_m }
+      : { unavailable: true, reason: geo.reason || "not_available" };
+
+    const direct = await enviarWebhookDirecto(webhook, payload);
+    setLoadingStep("Finalizando...", 100);
+    const descargaLocalOk = descargarPdfGeneradoLocal();
+
+    if (direct.ok) {
+      setEstado(descargaLocalOk ? "Envío completado correctamente. PDF descargado." : "Envío completado correctamente.", false);
+      setEstadoCloud("");
+      showSendResultModal(
+        "Envío completado",
+        `<p><strong>Estado:</strong> Documento enviado correctamente.</p><p><strong>Descarga:</strong> ${descargaLocalOk ? "PDF descargado automáticamente." : "Usa el botón Abrir documento."}</p><p><strong>Correo:</strong> ${escapeHtml(email)}</p>`,
+        ensuredUrl
+      );
+    } else {
+      setEstado(descargaLocalOk ? "Documento enviado. PDF descargado." : "Documento enviado.", false);
+      setEstadoCloud("");
+      showSendResultModal(
+        "Envío completado",
+        `<p><strong>Estado:</strong> Documento enviado correctamente.</p><p><strong>Descarga:</strong> ${descargaLocalOk ? "PDF descargado automáticamente." : "Usa el botón Abrir documento."}</p><p><strong>Correo:</strong> ${escapeHtml(email)}</p>`,
+        ensuredUrl
+      );
+    }
+
+    if (envioColaOk) {
+      resetFormularioDespuesEnvio();
+    }
+  } finally {
+    setTimeout(() => showLoadingModal(false), 500);
+  }
+}
+
+// Click fuera del cuadro = cerrar (excepto loading)
+[confirmModal, sentModal, authModal].forEach((host) => {
+  if (!host) return;
+  host.addEventListener("click", (ev) => {
+    if (ev.target === host) {
+      if (host === confirmModal) cerrarModalConfirmacion();
+      else if (host === sentModal) cerrarModalEnviado();
+      else if (host === authModal) cerrarModalAuth();
+    }
+  });
+});
+
+// ESC cierra modales abiertos
+document.addEventListener("keydown", (ev) => {
+  if (ev.key !== "Escape") return;
+  if (confirmModal && !confirmModal.hidden) cerrarModalConfirmacion();
+  else if (sentModal && !sentModal.hidden) cerrarModalEnviado();
+  else if (authModal && !authModal.hidden) cerrarModalAuth();
+});
+
+async function waitForImagesReady(container) {
+  const images = Array.from(container.querySelectorAll("img"));
+  await Promise.all(images.map((img) => {
+    if (!img.src) return Promise.resolve();
+    if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+    return new Promise((resolve) => {
+      const done = () => resolve();
+      img.addEventListener("load", done, { once: true });
+      img.addEventListener("error", done, { once: true });
+      setTimeout(done, 3000);
+    });
+  }));
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+}
+
+async function generarPdfYSubir(descargarArchivo = false) {
+  if (!documentoGenerado) return false;
+  // VALIDACION DURA: firmas son obligatorias para generar el PDF
+  if (!signaturePad.isEmpty()) firmaComparecienteData = signaturePad.toDataURL("image/png");
+  if (!signaturePadConductor.isEmpty()) firmaConductorData = signaturePadConductor.toDataURL("image/png");
+  if (!firmaComparecienteData || !firmaConductorData) {
+    setEstado("⚠ No se puede generar el PDF: faltan firmas obligatorias.");
+    showStep(2);
+    return false;
+  }
+  const element = document.getElementById("documento");
+  const pdfWidth = 210;
+  const pdfHeight = 297;
+
+  try {
+    const pdf = await withPdfCaptureLayout(async () => {
+      updatePreview(false);
+      await waitForImagesReady(element);
+      // Evitar que el bloque de firmas quede partido entre paginas A4
+      const firmaEl = element.querySelector(".firma");
+      if (firmaEl) {
+        firmaEl.style.marginTop = "";
+        await new Promise((r) => requestAnimationFrame(r));
+        const elementWidth = element.offsetWidth || 1;
+        const pageHeightPx = (297 * elementWidth) / 210;
+        const firmaTopPx = firmaEl.offsetTop;
+        const firmaHeightPx = firmaEl.offsetHeight;
+        const pageIndex = Math.floor(firmaTopPx / pageHeightPx);
+        const nextPageStartPx = (pageIndex + 1) * pageHeightPx;
+        if (firmaTopPx + firmaHeightPx > nextPageStartPx) {
+          const spacerPx = Math.max(0, nextPageStartPx - firmaTopPx) + 24;
+          firmaEl.style.marginTop = `${spacerPx}px`;
+          await new Promise((r) => requestAnimationFrame(r));
+        }
+      }
+      const cv = await window.html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        imageTimeout: 0,
+        backgroundColor: "#ffffff"
+      });
+      const imgData = cv.toDataURL("image/jpeg", 0.98);
+      const pdfDoc = new window.jspdf.jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+      // Calcular altura total del documento en mm
+      const imgHeightMm = (cv.height / cv.width) * pdfWidth;
+
+      if (imgHeightMm <= pdfHeight + 1) {
+        // Cabe en una sola pagina
+        pdfDoc.addImage(imgData, "JPEG", 0, 0, pdfWidth, imgHeightMm, undefined, "FAST");
+      } else {
+        // Multi-pagina: la misma imagen se posiciona desplazada en cada pagina
+        let yOffset = 0;
+        let remaining = imgHeightMm;
+        let page = 0;
+        while (remaining > 0) {
+          if (page > 0) pdfDoc.addPage();
+          pdfDoc.addImage(imgData, "JPEG", 0, yOffset, pdfWidth, imgHeightMm, undefined, "FAST");
+          yOffset -= pdfHeight;
+          remaining -= pdfHeight;
+          page += 1;
+          if (page > 12) break; // limite de seguridad
+        }
+      }
+      return pdfDoc;
+    });
+    // Limpiar el spacer aplicado para la captura (no afectar la vista previa)
+    const firmaElReset = document.querySelector("#documento .firma");
+    if (firmaElReset) firmaElReset.style.marginTop = "";
+    const pdfBlob = pdf.output("blob");
+    rememberPdfBlob(pdfBlob);
+
+    const dataUri = pdf.output("datauristring");
+    latestPdfBase64 = dataUri.split(",")[1] || null;
+    latestPdfSha256 = latestPdfBase64 ? await sha256Hex(latestPdfBase64) : null;
+    await attachPdfToSupabase();
+    await uploadPdfToStorage(pdfBlob);
+
+    if (descargarArchivo) {
+      pdf.save(getContractMeta().pdfName);
+    }
+    return true;
+  } catch (_) {
+    setEstado("No fue posible generar el PDF.");
+    return false;
+  }
+}
+
+async function descargarPDF() {
+  if (!requireAuth()) return;
+  if (!documentoGenerado) {
+    setEstado("Primero usa 'Confirmar y descargar contrato'.");
+    return;
+  }
+  // Si ya hay PDF guardado, simplemente re-descarga el blob local
+  if (latestPdfBlobUrl && descargarPdfGeneradoLocal()) {
+    setEstado("Copia descargada nuevamente.", false);
+    return;
+  }
+  // Si no hay blob, regenera todo
+  showLoadingModal(true, "Re-descargando PDF");
+  try {
+    setLoadingStep("Regenerando documento...", 50);
+    await generarPdfYSubir(true);
+    setLoadingStep("Listo", 100);
+    await new Promise((r) => setTimeout(r, 200));
+  } finally {
+    showLoadingModal(false);
+  }
+}
+
+setEstadoCloud("");
+
+renderAuthGate();
+enforceNumericFields();
+updatePreview(false);
+initAuth();
+initContractSwitcher();
+
+// ====== PWA ======
+// Módulo integrado en la app madre: NO registra service worker propio.
+// El SW raíz de la app de asistencias (scope "/") ya controla /contratos/,
+// evitando dos service workers en conflicto sobre el mismo origen.
+</script>
+</body>
+</html>

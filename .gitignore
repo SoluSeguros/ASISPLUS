@@ -1,0 +1,22 @@
+# Configuración local de Claude Code (no compartir)
+.claude/
+
+# Copias/respaldo antiguos
+verificacion.zip
+*.bak
+*.tmp
+
+# Basura del sistema operativo
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Logs
+*.log
+
+# Dependencias (por si en el futuro se agregan)
+node_modules/
+
+# Caché/estado local del CLI de Supabase
+supabase/.temp/
+supabase/.branches/
