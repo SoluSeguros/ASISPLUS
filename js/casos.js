@@ -1363,10 +1363,11 @@ async function abrirCaso(caso) {
   const esArea = AREA_ROLES.includes(rol);
   const puedeEditar = ['asistente', 'admin'].includes(rol) || esArea;
   const tieneCoords = !!String(d['COORDENADAS ASISTENCIA'] || '').trim();
-  // Los casos cerrados/cancelados y las áreas (back-office) NO requieren check-in
-  // de llegada al sitio: editan directamente su gestión.
-  // Un borrador no exige check-in: el asistente acaba de crearlo en el sitio.
-  const requiereCheckin = !esArea && !caso._borrador && !['CERRADO', 'CANCELADO'].includes(caso.estado);
+  // El check-in de llegada (GPS) SÓLO aplica al ASISTENTE, que es quien va al
+  // lugar del siniestro. El admin y las áreas (back-office) gestionan desde la
+  // oficina: editan directamente, NO se les pide reportar llegada. Tampoco se
+  // pide en borradores (recién creados en sitio) ni en casos cerrados/cancelados.
+  const requiereCheckin = rol === 'asistente' && !caso._borrador && !['CERRADO', 'CANCELADO'].includes(caso.estado);
   const enSitio = tieneCoords || !requiereCheckin;
 
   // Regla clave: el asistente, sin reportar la llegada al sitio, no puede editar.

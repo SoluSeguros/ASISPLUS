@@ -30,6 +30,7 @@
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  overflow-x: clip; /* evita el scroll/zoom horizontal en móvil sin romper el sticky */
 }
 
 button, .tab, .home-card, .croquis-icono, .vt-btn {
@@ -156,6 +157,8 @@ body {
 .user-email {
   font-size: 13px;
   opacity: 0.9;
+  max-width: 100%;
+  overflow-wrap: anywhere; /* si el correo es largo, se parte en vez de desbordar */
 }
 
 main {
@@ -598,6 +601,23 @@ tbody tr:hover {
   }
 }
 
+/* --- Ajustes para celular (vista progresiva): encabezado más compacto --- */
+@media (max-width: 640px) {
+  .appbar { padding: 10px 14px; gap: 8px 10px; }
+  .brand-wordmark img { height: 22px; }
+  .brand-tag { display: none; }            /* el subtítulo sobra en pantalla chica */
+  .header-user { flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+  .user-email { display: none; }           /* el correo no aporta en celular */
+  main { padding: 16px 14px; }
+
+  /* Modales: menos margen y botones que se acomodan al ancho del teléfono. */
+  .modal-overlay { padding: 10px; }
+  .modal-head { padding: 14px 16px; }
+  .modal-body { padding: 14px 16px 18px; }
+  .modal-actions { flex-wrap: wrap; padding: 12px 16px; }
+  .modal-actions button { flex: 1 1 140px; width: auto; }
+}
+
 /* Barra de encabezado con datos del usuario */
 .header-bar {
   display: flex;
@@ -610,10 +630,12 @@ tbody tr:hover {
 .header-user {
   display: flex;
   align-items: center;
-  gap: 10px;
+  flex-wrap: wrap;                 /* se acomoda en varias líneas si no cabe */
+  justify-content: flex-end;
+  gap: 8px 10px;
   color: #fff;
   font-size: 14px;
-  white-space: nowrap;
+  min-width: 0;                    /* permite encoger dentro del encabezado */
 }
 
 .header-user button {
@@ -1792,6 +1814,14 @@ input[type="password"]:focus {
 }
 
 .checkin-box #btnCheckin { width: auto; white-space: nowrap; }
+
+/* En celular el banner de check-in se apila: el texto arriba y el botón de
+   "Reportar llegada" a todo el ancho, para que se vea claro y sea fácil de tocar. */
+@media (max-width: 560px) {
+  .checkin-box { flex-wrap: wrap; gap: 10px 12px; }
+  .checkin-info { flex: 1 1 auto; }
+  .checkin-box #btnCheckin { flex: 1 1 100%; width: 100%; white-space: normal; min-height: 46px; }
+}
 
 /* Modal de confirmación de caso creado */
 .ok-check {
