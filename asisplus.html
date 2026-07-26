@@ -279,15 +279,15 @@
               </span>
               <div>
                 <h3>Vehículo involucrado</h3>
-                <p>Búscalo en el parque automotor y se autocompletan sus datos.</p>
+                <p>Búscalo en el parque automotor. El conductor y la cédula los escribe quien atiende (no vienen del parque).</p>
               </div>
             </div>
 
             <div class="form-field span-2 combo caso-hero">
-              <label for="casoVehiculoBuscar">Buscar vehículo por placa o N.º interno *</label>
+              <label for="casoVehiculoBuscar">Buscar vehículo por placa *</label>
               <div class="hero-input">
                 <svg class="hero-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-                <input type="text" id="casoVehiculoBuscar" autocomplete="off" placeholder="Escribe la placa (EQR846) o el N.º interno (633)..." />
+                <input type="text" id="casoVehiculoBuscar" autocomplete="off" placeholder="Escribe la placa (EQR846)..." />
               </div>
               <div id="casoVehiculoLista" class="combo-list hidden"></div>
               <input type="hidden" id="casoVehiculo" />
@@ -297,11 +297,12 @@
             <div class="form-grid">
               <div class="form-field"><label for="casoEmpresa">Empresa</label><input type="text" id="casoEmpresa" list="listaEmpresas" placeholder="No se encontró en la base de datos" /><datalist id="listaEmpresas"></datalist></div>
               <div class="form-field"><label for="casoPlaca">Placa</label><input type="text" id="casoPlaca" placeholder="No se encontró en la base de datos" /></div>
-              <div class="form-field"><label for="casoInterno">N.º interno</label><input type="text" id="casoInterno" placeholder="No se encontró en la base de datos" /></div>
+              <!-- N.º interno: se trae del parque pero queda oculto (no se muestra ni es obligatorio). -->
+              <input type="hidden" id="casoInterno" />
               <div class="form-field"><label for="casoTipo">Tipo de vehículo</label>
                 <select id="casoTipo"><option value="">— Selecciona —</option></select>
               </div>
-              <div class="form-field"><label for="casoConductor">Conductor *</label><input type="text" id="casoConductor" placeholder="Nombre del conductor (solo letras)" /></div>
+              <div class="form-field"><label for="casoConductor">Conductor *</label><input type="text" id="casoConductor" placeholder="Escribe el nombre del conductor real" /><span class="hint">Escríbelo tú; no se toma del parque.</span></div>
               <div class="form-field"><label for="casoCedulaConductor">Cédula conductor *</label><input type="text" id="casoCedulaConductor" inputmode="numeric" placeholder="Número de cédula (solo números)" /></div>
               <div class="form-field"><label for="casoPropietario">Propietario</label><input type="text" id="casoPropietario" placeholder="No se encontró en la base de datos" /></div>
               <div class="form-field"><label for="casoAseguradora">Aseguradora</label><input type="text" id="casoAseguradora" placeholder="No se encontró en la base de datos" /></div>
@@ -383,6 +384,7 @@
               <option value="REPORTADO">Reportado</option>
               <option value="ASIGNADO">Asignado</option>
               <option value="EN_SITIO">En sitio</option>
+              <option value="TELEFONICA">Telefónica</option>
               <option value="EN_PROCESO">En proceso</option>
               <option value="ASISTIDO">Asistido</option>
               <option value="CERRADO">Cerrado</option>
@@ -420,9 +422,16 @@
             <strong id="checkinTitulo">Reporta tu llegada al sitio</strong>
             <span id="checkinTexto">Para atender y completar este caso, primero debes confirmar que llegaste al lugar de la asistencia. Se registrará tu ubicación (GPS) y la hora.</span>
           </div>
-          <button type="button" class="success" id="btnCheckin">📍 Reportar llegada al sitio</button>
+          <div class="checkin-btns">
+            <button type="button" class="success" id="btnCheckin">📍 Reportar llegada al sitio</button>
+            <button type="button" class="secondary" id="btnTelefonica" title="Si atendiste el caso por teléfono, sin ir al sitio">📞 Fue telefónica</button>
+          </div>
         </div>
         <div id="checkinMapa" class="checkin-mapa hidden"></div>
+
+        <!-- Resumen (solo lectura) del siniestro: para que el asistente sepa a
+             quién y a qué empresa va a asistir antes de llegar al sitio. -->
+        <div id="detalleResumen" class="detalle-resumen hidden"></div>
 
         <div class="form-grid">
           <div class="form-field">
@@ -431,6 +440,7 @@
               <option value="REPORTADO">Reportado</option>
               <option value="ASIGNADO">Asignado</option>
               <option value="EN_SITIO">En sitio</option>
+              <option value="TELEFONICA">Telefónica</option>
               <option value="EN_PROCESO">En proceso</option>
               <option value="ASISTIDO">Asistido</option>
               <option value="CERRADO">Cerrado</option>
@@ -439,8 +449,9 @@
             <span class="hint">Se actualiza solo según el avance del asistente. Solo el administrador puede forzar Cerrado/Cancelado.</span>
           </div>
           <div class="form-field">
-            <label for="detalleAsignar">Asignado a</label>
+            <label for="detalleAsignar">👤 Asignar / reasignar a un asistente</label>
             <select id="detalleAsignar"><option value="">— Sin asignar —</option></select>
+            <span class="hint">Elige un asistente para asignarle o reasignarle este caso. El administrador lo guarda al instante.</span>
           </div>
         </div>
 

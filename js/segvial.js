@@ -33,10 +33,14 @@ function _clasificarAuto(d) {
   const est = up(d['ESTADO DEL SINIESTRO']);
 
   if (up(d['PREJUDICIAL']) === 'SI' || up(d['RUTA CIERRE']) === 'SEG_VIAL_PREJUDICIALES') return 'PREJUDICIAL';
+  // Hay lesiones si LO indica el campo "¿Hay lesionados?" o si es homicidio.
+  // ('HERIDOS' se mantiene por compatibilidad con datos antiguos.)
   if (les.startsWith('si') || grav === 'HERIDOS' || grav === 'HOMICIDIO') return 'LESIONES';
   if (resp === 'SI') return 'EN_CONTRA';
   if (resp === 'NO') return 'A_FAVOR';
-  if (grav === 'SOLO DAÑOS') return 'V2251';
+  // Solo daños (sin lesionados): la gravedad ahora es "DAÑOS Y LESIONES"; el
+  // que NO haya lesionados es lo que lo lleva a 2251. ('SOLO DAÑOS' = dato viejo.)
+  if (grav === 'SOLO DAÑOS' || grav === 'DAÑOS Y LESIONES') return 'V2251';
   if (est === 'CERRADO') return 'CERRADO';
   return 'SIN';
 }

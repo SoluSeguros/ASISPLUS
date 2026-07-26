@@ -72,6 +72,7 @@ const DETALLE_SECCIONES = [
       ['USUARIO ASISTENCIA', 'Usuario asistencia'],
       ['USUARIO LOGISTICA', 'Usuario logística'],
       ['NOMBRE ASISTENTE EN SITIO', 'Asistente en sitio'],
+      ['ASISTENCIA TELEFONICA', '¿Asistencia telefónica?'],
       ['FECHA Y HORA DE LLEGADA', 'Llegada al sitio (check-in)'],
       ['HORA DE ATENCION', 'Hora de atención'],
       ['HORA FIN ATENCION', 'Fin de atención'],

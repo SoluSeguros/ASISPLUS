@@ -435,6 +435,7 @@ const ESTADOS_CASO = {
   REPORTADO:  { texto: 'Reportado',  clase: 'est-reportado' },
   ASIGNADO:   { texto: 'Asignado',   clase: 'est-asignado' },
   EN_SITIO:   { texto: 'En sitio',   clase: 'est-sitio' },
+  TELEFONICA: { texto: 'Telefónica', clase: 'est-telefonica' },
   EN_PROCESO: { texto: 'En proceso', clase: 'est-proceso' },
   ASISTIDO:   { texto: 'Asistido',   clase: 'est-asistido' },
   CERRADO:    { texto: 'Cerrado',    clase: 'est-cerrado' },
@@ -451,7 +452,7 @@ function badgeEstado(estado) {
 // Checklist de atención: qué debe tener un caso para considerarse "Asistido".
 // Cada ítem sabe leer si está cumplido en los datos del caso.
 const CHECKLIST_CASO = [
-  { etiqueta: 'Llegada al sitio (GPS)', ok: d => !!String(d['COORDENADAS ASISTENCIA'] || '').trim() },
+  { etiqueta: 'Llegada al sitio (GPS) o atención telefónica', ok: d => !!String(d['COORDENADAS ASISTENCIA'] || '').trim() || String(d['ASISTENCIA TELEFONICA'] || '').toUpperCase() === 'SI' },
   { etiqueta: 'Gravedad del siniestro', ok: d => !!String(d['GRAVEDAD DEL SINIESTRO'] || '').trim() },
   { etiqueta: 'Responsabilidad del conductor', ok: d => !!String(d['RESPONSABILIDAD DEL CONDUCTOR'] || '').trim() },
   { etiqueta: 'Hipótesis del siniestro', ok: d => !!String(d['CODIGO HIPOTESIS'] || '').trim() },
@@ -475,10 +476,14 @@ function completitudCaso(datos) {
  */
 function calcularEstadoAuto(caso, datos) {
   if (['CERRADO', 'CANCELADO', 'HISTORICO'].includes(caso.estado)) return caso.estado;
-  const geo = !!String((datos || {})['COORDENADAS ASISTENCIA'] || '').trim();
-  if (!geo) return caso.asignado_a ? 'ASIGNADO' : 'REPORTADO';
+  const d = datos || {};
+  const tel = String(d['ASISTENCIA TELEFONICA'] || '').toUpperCase() === 'SI';
+  const geo = !!String(d['COORDENADAS ASISTENCIA'] || '').trim();
+  // Sin llegada al sitio y sin marcar telefónica: aún no arranca la atención.
+  if (!geo && !tel) return caso.asignado_a ? 'ASIGNADO' : 'REPORTADO';
   const { total, hechos } = completitudCaso(datos);
   if (hechos >= total) return 'ASISTIDO';   // completó todo → caso asistido
+  if (tel) return 'TELEFONICA';             // atención telefónica en curso
   if (hechos > 1) return 'EN_PROCESO';       // llegó y va llenando
   return 'EN_SITIO';                         // recién llegó (solo el GPS)
 }
@@ -796,8 +801,11 @@ function autocompletarVehiculo() {
   els.casoPlaca.value = v.placa || '';
   els.casoInterno.value = v.numero_interno || '';
   seleccionarTipoVehiculo(v.tipo || '');
-  els.casoConductor.value = v.nombre_conductor || '';
-  els.casoCedulaConductor.value = v.cedula_conductor || '';
+  // El conductor y la cédula NO se traen del parque (ese conductor no suele ser
+  // el real): los escribe quien atiende el caso. Se limpian por si venían de una
+  // selección anterior.
+  els.casoConductor.value = '';
+  els.casoCedulaConductor.value = '';
   els.casoPropietario.value = v.propietario || '';
   els.casoAseguradora.value = v.aseguradora || '';
 }
@@ -1164,7 +1172,7 @@ function escBandeja(v) {
 function claseGravedad(g) {
   const s = String(g || '').toUpperCase();
   if (s.includes('HOMICIDIO')) return 'grav-homicidio';
-  if (s.includes('HERIDO')) return 'grav-heridos';
+  if (s.includes('LESION') || s.includes('HERIDO')) return 'grav-heridos'; // "daños y lesiones"
   if (s.includes('DAÑO') || s.includes('DANO')) return 'grav-danos';
   return 'grav-otro';
 }
@@ -1326,6 +1334,46 @@ function initBuscadorHipotesis() {
  * ------------------------------------------------------------------ */
 
 /** Abre el detalle de un caso para completarlo. */
+/**
+ * Resumen (SOLO LECTURA) de los datos del siniestro reportado, para que el
+ * asistente sepa a quién y a qué empresa va a asistir ANTES de llegar al sitio.
+ * Destaca Empresa y Conductor (lo más importante) y lista el resto del contexto.
+ */
+function renderResumenSiniestro(caso) {
+  const cont = els.detalleResumen;
+  if (!cont) return;
+  const d = (caso && caso.datos) || {};
+  const esc = (typeof escBandeja === 'function') ? escBandeja : (v => String(v == null ? '' : v));
+  const idVeh = [d['PLACA VEHICULO'], d['NUMERO INTERNO VEHICULO'] ? `Interno #${d['NUMERO INTERNO VEHICULO']}` : '']
+    .filter(Boolean).join(' · ');
+  const fechaHora = [d['FECHA DEL SINIESTRO'], d['HORA DEL SINIESTRO']].filter(Boolean).join('  ');
+  const top = (lab, val) => val ? `<div class="rs-top-item"><span class="rs-lab">${lab}</span><span class="rs-top-val">${esc(val)}</span></div>` : '';
+  const fila = (lab, val) => val ? `<div class="rs-item"><span class="rs-lab">${lab}</span><span class="rs-val">${esc(val)}</span></div>` : '';
+
+  const destacados = [top('🏢 Empresa', d['EMPRESA']), top('👤 Conductor', d['NOMBRE CONDUCTOR'])].filter(Boolean).join('');
+  const filas = [
+    fila('🚌 Vehículo', idVeh),
+    fila('Tipo de vehículo', d['TIPO DE VEHICULO']),
+    fila('Cédula del conductor', d['CEDULA DEL CONDUCTOR']),
+    fila('Propietario', d['PROPIETARIO']),
+    fila('Aseguradora', d['ASEGURADORA']),
+    fila('🗓️ Fecha y hora', fechaHora),
+    fila('Ciudad', d['CIUDAD DEL SINIESTRO']),
+    fila('📍 Dirección del lugar', d['DIRECCION DEL LUGAR DEL SINIESTRO']),
+    fila('Ruta', d['RUTA']),
+    fila('Reportado por', d['REPORTADO POR']),
+    fila('📞 Contacto', d['NUMERO DE CONTACTO']),
+    fila('Observaciones', d['OBSERVACIONES'])
+  ].filter(Boolean).join('');
+
+  if (!destacados && !filas) { cont.classList.add('hidden'); cont.innerHTML = ''; return; }
+  cont.classList.remove('hidden');
+  cont.innerHTML =
+    `<div class="rs-tit">📋 Datos del caso a asistir</div>` +
+    (destacados ? `<div class="rs-top">${destacados}</div>` : '') +
+    (filas ? `<div class="rs-grid">${filas}</div>` : '');
+}
+
 async function abrirCaso(caso) {
   state.casoActual = caso;
   ocultarPantallas();
@@ -1336,6 +1384,7 @@ async function abrirCaso(caso) {
   const d = caso.datos || {};
   els.detalleTitulo.textContent =
     `${idMostrar} · ${d['EMPRESA'] || ''} · ${d['PLACA VEHICULO'] || ''}`;
+  renderResumenSiniestro(caso); // resumen visible del caso a asistir (conductor, empresa…)
   els.detalleEstado.value = caso.estado || 'REPORTADO';
 
   if (!state.perfilesLista.length) await cargarPerfilesLista();
@@ -1363,33 +1412,48 @@ async function abrirCaso(caso) {
   const esArea = AREA_ROLES.includes(rol);
   const puedeEditar = ['asistente', 'admin'].includes(rol) || esArea;
   const tieneCoords = !!String(d['COORDENADAS ASISTENCIA'] || '').trim();
+  const esTelefonica = String(d['ASISTENCIA TELEFONICA'] || '').toUpperCase() === 'SI';
   // El check-in de llegada (GPS) SÓLO aplica al ASISTENTE, que es quien va al
   // lugar del siniestro. El admin y las áreas (back-office) gestionan desde la
   // oficina: editan directamente, NO se les pide reportar llegada. Tampoco se
   // pide en borradores (recién creados en sitio) ni en casos cerrados/cancelados.
   const requiereCheckin = rol === 'asistente' && !caso._borrador && !['CERRADO', 'CANCELADO'].includes(caso.estado);
-  const enSitio = tieneCoords || !requiereCheckin;
+  // Se puede editar si llegó al sitio (GPS), si marcó atención telefónica, o si
+  // el rol no requiere check-in.
+  const enSitio = tieneCoords || esTelefonica || !requiereCheckin;
 
-  // Regla clave: el asistente, sin reportar la llegada al sitio, no puede editar.
+  // Regla clave: el asistente, sin reportar la llegada (o marcar telefónica), no edita.
   aplicarCheckin(caso, puedeEditar, enSitio, requiereCheckin);
 }
 
 /** Muestra el banner de llegada y bloquea/desbloquea la edición del caso. */
 function aplicarCheckin(caso, puedeEditar, enSitio, requiereCheckin) {
   const editable = puedeEditar && enSitio;
+  const d = caso.datos || {};
+  const esTelefonica = String(d['ASISTENCIA TELEFONICA'] || '').toUpperCase() === 'SI';
 
-  // Banner de check-in: solo si el caso realmente requiere reportar llegada.
-  const mostrarBanner = puedeEditar && requiereCheckin;
+  // Banner: si el caso requiere reportar llegada, o si ya se marcó telefónica.
+  const mostrarBanner = puedeEditar && (requiereCheckin || esTelefonica);
   els.checkinBox.classList.toggle('hidden', !mostrarBanner);
   els.checkinBox.classList.toggle('done', enSitio);
   els.btnCheckin.classList.toggle('hidden', enSitio);
   els.btnCheckin.disabled = !puedeEditar || enSitio;
+  // Botón "fue telefónica": disponible mientras no se haya reportado llegada/telefónica.
+  if (els.btnTelefonica) {
+    els.btnTelefonica.classList.toggle('hidden', enSitio);
+    els.btnTelefonica.disabled = !puedeEditar || enSitio;
+  }
 
-  if (!requiereCheckin) {
+  if (esTelefonica) {
+    els.checkinTitulo.textContent = '📞 Asistencia telefónica';
+    els.checkinTexto.textContent =
+      'Este caso se atendió por teléfono (sin desplazamiento al sitio). Ya puedes completar la información.';
+    els.checkinMapa.classList.add('hidden');
+    els.checkinMapa.innerHTML = '';
+  } else if (!requiereCheckin) {
     els.checkinMapa.classList.add('hidden');
     els.checkinMapa.innerHTML = '';
   } else if (enSitio) {
-    const d = caso.datos || {};
     const cuando = d['FECHA Y HORA DE LLEGADA'] ? ` · ${d['FECHA Y HORA DE LLEGADA']}` : '';
     els.checkinTitulo.textContent = '✓ Llegada al sitio reportada';
     els.checkinTexto.textContent =
@@ -1398,7 +1462,7 @@ function aplicarCheckin(caso, puedeEditar, enSitio, requiereCheckin) {
   } else {
     els.checkinTitulo.textContent = 'Reporta tu llegada al sitio';
     els.checkinTexto.textContent =
-      'Para atender y completar este caso, primero debes confirmar que llegaste al lugar de la asistencia. Se registrará tu ubicación (GPS) y la hora.';
+      'Para atender el caso, confirma que llegaste al sitio (se registra tu GPS y la hora) o marca que fue una atención telefónica.';
     els.checkinMapa.classList.add('hidden');
     els.checkinMapa.innerHTML = '';
   }
@@ -1569,6 +1633,58 @@ function obtenerUbicacionActual() {
   });
 }
 
+/**
+ * El asistente marca que la asistencia fue 100% TELEFÓNICA (sin desplazarse al
+ * sitio): no se pide GPS, se registra la hora y se desbloquea la edición. El
+ * estado del caso pasa a "Telefónica" (automático).
+ */
+async function reportarTelefonica() {
+  const caso = state.casoActual;
+  if (!caso) return;
+  if (!window.confirm('¿Confirmas que esta asistencia fue 100% telefónica (no fuiste al sitio)?')) return;
+
+  const datos = Object.assign({}, caso.datos || {});
+  datos['ASISTENCIA TELEFONICA'] = 'SI';
+  datos['HORA DE ATENCION'] = datos['HORA DE ATENCION'] || formatDate(new Date());
+  datos['FECHA Y HORA DE LLEGADA'] = datos['FECHA Y HORA DE LLEGADA'] || formatDate(new Date());
+  if (!String(datos['NOMBRE ASISTENTE EN SITIO'] || '').trim() && state.perfil && state.perfil.nombre) {
+    datos['NOMBRE ASISTENTE EN SITIO'] = state.perfil.nombre;
+  }
+  const nuevoEstado = ['REPORTADO', 'ASIGNADO'].includes(caso.estado) ? 'TELEFONICA' : caso.estado;
+
+  try {
+    showLoader(true);
+    let encolado = false;
+    if (typeof esBorrador === 'function' && esBorrador(caso)) {
+      caso.datos = datos; caso.estado = nuevoEstado;
+      await guardarBorrador(caso);
+      encolado = true;
+    } else if (typeof guardarCasoResiliente === 'function') {
+      const r = await guardarCasoResiliente(caso.numero_caso,
+        { cambios: datos, estado: nuevoEstado, baseDatos: caso.datos || {} });
+      encolado = r.encolado;
+    } else {
+      const { error } = await db
+        .from('registro_asistencias')
+        .update({ datos, estado: nuevoEstado })
+        .eq('numero_caso', caso.numero_caso);
+      if (error) throw error;
+    }
+    caso.datos = datos;
+    caso.estado = nuevoEstado;
+    showStatus(encolado
+      ? 'Asistencia telefónica registrada en el dispositivo. Se subirá al reconectar; ya puedes completar el caso.'
+      : 'Asistencia telefónica registrada. Ya puedes completar el caso.',
+      encolado ? 'info' : 'ok');
+    abrirCaso(caso);
+    actualizarNotificaciones();
+  } catch (error) {
+    showStatus('Error al registrar la asistencia telefónica: ' + (error.message || error), 'error');
+  } finally {
+    showLoader(false);
+  }
+}
+
 /** El asistente reporta que llegó al sitio: captura GPS, hora y desbloquea. */
 async function reportarLlegada() {
   const caso = state.casoActual;
@@ -1695,7 +1811,7 @@ const CAMPOS_SOLO_LECTURA = new Set(['USUARIO ASISTENCIA', 'USUARIO LOGISTICA', 
 
 // Campos que se capturan con un catálogo cerrado (selector) en vez de texto libre.
 const CAMPOS_OPCIONES = {
-  'GRAVEDAD DEL SINIESTRO': ['SOLO DAÑOS', 'HERIDOS', 'HOMICIDIO'],
+  'GRAVEDAD DEL SINIESTRO': ['DAÑOS Y LESIONES', 'HOMICIDIO'],
   'RESPONSABILIDAD DEL CONDUCTOR': ['SI', 'NO', 'POR DEFINIR'],
   'LESIONADOS': ['SI', 'NO', 'POR DEFINIR']
 };
@@ -1737,13 +1853,14 @@ function crearCampoCaso(campo, datos) {
       if (o === actual) op.selected = true;
       sel.appendChild(op);
     });
-    // Si hay lesionados (SI), la gravedad no puede ser "SOLO DAÑOS": se marca
-    // HERIDOS automáticamente (sin degradar un HOMICIDIO ya registrado).
+    // Si hay lesionados (SI) y la gravedad aún no se marcó (o venía como un valor
+    // antiguo de "solo daños"/"heridos"), se marca "DAÑOS Y LESIONES" automáticamente
+    // (sin degradar un HOMICIDIO ya registrado).
     if (campo === 'LESIONADOS') {
       sel.addEventListener('change', () => {
         if (sel.value !== 'SI') return;
         const gsel = els.detalleCampos.querySelector('select[data-campo="GRAVEDAD DEL SINIESTRO"]');
-        if (gsel && (gsel.value === '' || gsel.value === 'SOLO DAÑOS')) gsel.value = 'HERIDOS';
+        if (gsel && ['', 'SOLO DAÑOS', 'HERIDOS'].includes(gsel.value)) gsel.value = 'DAÑOS Y LESIONES';
       });
     }
     wrap.appendChild(label);

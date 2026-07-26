@@ -20,10 +20,10 @@ els.formCaso.addEventListener('submit', guardarCaso);
 els.btnCrearVolver.addEventListener('click', ocultarPantallas);
 els.btnCrearVolver2.addEventListener('click', ocultarPantallas);
 
-// Validación de formato en vivo: nombre solo letras, cédula/contacto solo números.
+// Validación de formato en vivo: nombre solo letras (en MAYÚSCULA), cédula/contacto solo números.
 const soloLetras = v => v.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ .'-]/g, '');
 const soloDigitos = v => v.replace(/\D/g, '');
-els.casoConductor.addEventListener('input', e => { e.target.value = soloLetras(e.target.value); });
+els.casoConductor.addEventListener('input', e => { e.target.value = soloLetras(e.target.value).toUpperCase(); });
 els.casoCedulaConductor.addEventListener('input', e => { e.target.value = soloDigitos(e.target.value); });
 els.casoContacto.addEventListener('input', e => { e.target.value = soloDigitos(e.target.value); });
 els.filtroEstado.addEventListener('change', aplicarFiltrosBandeja);
@@ -38,6 +38,7 @@ els.btnNotif.addEventListener('click', () => {
 els.btnBandejaVolver.addEventListener('click', ocultarPantallas);
 els.btnGuardarDetalle.addEventListener('click', guardarDetalleCaso);
 els.btnCheckin.addEventListener('click', reportarLlegada);
+if (els.btnTelefonica) els.btnTelefonica.addEventListener('click', reportarTelefonica);
 els.btnDetalleVolver.addEventListener('click', abrirBandeja);
 els.btnCancelarCaso.addEventListener('click', cancelarCaso);
 els.btnEliminarCaso.addEventListener('click', eliminarCaso);

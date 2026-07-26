@@ -1814,14 +1814,48 @@ input[type="password"]:focus {
 }
 
 .checkin-box #btnCheckin { width: auto; white-space: nowrap; }
+.checkin-btns { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.checkin-btns button { width: auto; white-space: nowrap; }
 
-/* En celular el banner de check-in se apila: el texto arriba y el botón de
-   "Reportar llegada" a todo el ancho, para que se vea claro y sea fácil de tocar. */
+/* En celular el banner de check-in se apila: el texto arriba y los botones
+   (llegada / telefónica) a todo el ancho, para que se vean claros y sean
+   fáciles de tocar. */
 @media (max-width: 560px) {
   .checkin-box { flex-wrap: wrap; gap: 10px 12px; }
   .checkin-info { flex: 1 1 auto; }
-  .checkin-box #btnCheckin { flex: 1 1 100%; width: 100%; white-space: normal; min-height: 46px; }
+  .checkin-btns { flex: 1 1 100%; }
+  .checkin-btns button { flex: 1 1 140px; width: auto; white-space: normal; min-height: 46px; }
 }
+
+/* Resumen (solo lectura) del siniestro en el detalle: contexto del caso a
+   asistir. Empresa y Conductor van destacados; el resto en una grilla. */
+.detalle-resumen {
+  background: #f4f8ff;
+  border: 1px solid #d6e2f7;
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.rs-tit { font-weight: 800; font-size: 13.5px; color: #0b2a55; margin-bottom: 10px; }
+.rs-top {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px 16px;
+  margin-bottom: 12px;
+}
+.rs-top-item {
+  display: flex; flex-direction: column; gap: 2px; min-width: 0;
+  background: #fff; border: 1px solid #dbe6f8; border-radius: 10px; padding: 8px 12px;
+}
+.rs-top-val { font-size: 16px; font-weight: 800; color: #0b2a55; overflow-wrap: anywhere; }
+.rs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 8px 18px;
+}
+.rs-item { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.rs-lab { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; }
+.rs-val { font-size: 14px; font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
 
 /* Modal de confirmación de caso creado */
 .ok-check {
@@ -2467,6 +2501,12 @@ button.danger-soft:hover { background: #fdecec; }
   background: #f0ebff;
   color: #4a2ea0;
   border: 1px solid #d9ccff;
+}
+
+.est-telefonica {
+  background: #e7f0ff;
+  color: #1e4fb8;
+  border: 1px solid #c3d8fb;
 }
 
 .est-historico {

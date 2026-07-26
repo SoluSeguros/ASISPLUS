@@ -115,9 +115,11 @@ const ESTADO_SIN_META = {
   'ABIERTO':   { label: 'Abiertos',   cls: 'br-azul' }
 };
 const GRAVEDAD_META = {
-  'SOLO DAÑOS': { label: 'Solo daños', cls: 'br-verde' },
-  'HERIDOS':    { label: 'Heridos',    cls: 'br-naranja' },
-  'HOMICIDIO':  { label: 'Homicidio',  cls: 'br-rojo' }
+  'DAÑOS Y LESIONES': { label: 'Daños y lesiones', cls: 'br-naranja' },
+  'HOMICIDIO':        { label: 'Homicidio',        cls: 'br-rojo' },
+  // Compatibilidad con datos antiguos (antes eran tres opciones):
+  'SOLO DAÑOS':       { label: 'Solo daños',       cls: 'br-verde' },
+  'HERIDOS':          { label: 'Heridos',          cls: 'br-naranja' }
 };
 
 /** Escapa texto para insertarlo con seguridad en HTML. */
@@ -177,7 +179,7 @@ function renderResumenBD() {
 
   cont.innerHTML =
     filaHTML('Estado', 'estado', state.filtroEstadoSin, estadoSinDeFila, ESTADO_SIN_META, ['CERRADO', 'CANCELADO', 'ABIERTO']) +
-    filaHTML('Gravedad', 'gravedad', state.filtroGravedad, gravedadDeFila, GRAVEDAD_META, ['SOLO DAÑOS', 'HERIDOS', 'HOMICIDIO']);
+    filaHTML('Gravedad', 'gravedad', state.filtroGravedad, gravedadDeFila, GRAVEDAD_META, ['DAÑOS Y LESIONES', 'HOMICIDIO', 'SOLO DAÑOS', 'HERIDOS']);
   cont.classList.remove('hidden');
 
   // Cableado por delegación (una sola vez): sobrevive al reemplazo de innerHTML.

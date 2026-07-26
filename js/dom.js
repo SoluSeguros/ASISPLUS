@@ -144,6 +144,7 @@ const els = {
   // Detalle
   casoDetalleCard: document.getElementById('casoDetalleCard'),
   detalleTitulo: document.getElementById('detalleTitulo'),
+  detalleResumen: document.getElementById('detalleResumen'),
   detalleEstado: document.getElementById('detalleEstado'),
   detalleChecklist: document.getElementById('detalleChecklist'),
   detalleDuracion: document.getElementById('detalleDuracion'),
@@ -156,6 +157,7 @@ const els = {
   checkinTexto: document.getElementById('checkinTexto'),
   checkinMapa: document.getElementById('checkinMapa'),
   btnCheckin: document.getElementById('btnCheckin'),
+  btnTelefonica: document.getElementById('btnTelefonica'),
   detalleCampos: document.getElementById('detalleCampos'),
   detalleDanos: document.getElementById('detalleDanos'),
   casoFirmasGrid: document.getElementById('casoFirmasGrid'),
