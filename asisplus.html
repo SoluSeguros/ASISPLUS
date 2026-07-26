@@ -13,7 +13,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Casos" />
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
-  <link rel="icon" type="image/svg+xml" href="icons/logo.svg" />
+  <link rel="icon" type="image/png" href="icons/favicon-32.png" />
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
 
   <!-- Estilos de la aplicación -->
@@ -57,7 +57,7 @@
 <body>
   <header class="appbar">
     <div class="brand">
-      <div class="brand-logo"><img class="brand-logo-img" src="icons/logo.svg" alt="SoluAsistencia" /></div>
+      <span class="brand-wordmark"><img src="icons/soluasistencia.png" alt="SoluAsistencia" /></span>
       <div class="brand-text">
         <span class="brand-name">ASIS <b>PLUS</b></span>
         <span class="brand-tag">Sistema de gestión de asistencias</span>
@@ -269,15 +269,10 @@
         </div>
 
         <form id="formCaso">
-          <!-- Indicador de pasos -->
-          <div class="wizard-steps" id="wizardSteps">
-            <div class="wz-step active" data-wz="1"><span class="wz-num">1</span><span class="wz-lab">Vehículo</span></div>
-            <div class="wz-step" data-wz="2"><span class="wz-num">2</span><span class="wz-lab">Siniestro</span></div>
-            <div class="wz-step" data-wz="3"><span class="wz-num">3</span><span class="wz-lab">Asignación</span></div>
-          </div>
+          <!-- Formulario directo: las 3 secciones visibles a la vez (sin pasos). -->
 
-          <!-- Paso 1: vehículo -->
-          <div class="form-section wizard-step active" data-paso="1">
+          <!-- Vehículo -->
+          <div class="form-section" data-paso="1">
             <div class="form-section-head">
               <span class="section-ico">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 17h4V5H2v12h3"/><path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5v8h1"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
@@ -313,8 +308,8 @@
             </div>
           </div>
 
-          <!-- Paso 2: siniestro -->
-          <div class="form-section wizard-step" data-paso="2">
+          <!-- Siniestro -->
+          <div class="form-section" data-paso="2">
             <div class="form-section-head">
               <span class="section-ico">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 12-9 12s-9-5-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -329,15 +324,18 @@
               <div class="form-field"><label for="casoFecha">Fecha del siniestro *</label><input type="date" id="casoFecha" /></div>
               <div class="form-field"><label for="casoHora">Hora del siniestro *</label><input type="time" id="casoHora" /></div>
               <div class="form-field"><label for="casoReportadoPor">Reportado por *</label><input type="text" id="casoReportadoPor" placeholder="Nombre de quien reporta" /></div>
+              <div class="form-field"><label for="casoFechaReporte">Fecha de reporte</label><input type="date" id="casoFechaReporte" title="Se llena sola con la fecha actual; puedes cambiarla." /></div>
+              <div class="form-field"><label for="casoHoraReporte">Hora de reporte</label><input type="time" id="casoHoraReporte" title="Se llena sola con la hora actual; puedes cambiarla." /></div>
               <div class="form-field"><label for="casoContacto">Número de contacto</label><input type="text" id="casoContacto" inputmode="numeric" placeholder="Teléfono de contacto" /></div>
-              <div class="form-field span-2"><label for="casoRuta">Ruta</label><input type="text" id="casoRuta" placeholder="Ruta del vehículo (opcional)" /></div>
+              <div class="form-field"><label for="casoRuta">Ruta</label><input type="text" id="casoRuta" placeholder="Ruta del vehículo (opcional)" /></div>
+              <div class="form-field"><label for="casoCiudad">Ciudad / Municipio del siniestro</label><input type="text" id="casoCiudad" placeholder="Ciudad donde ocurrió (para los contratos)" /></div>
               <div class="form-field span-2"><label for="casoDireccion">Dirección del lugar</label><input type="text" id="casoDireccion" placeholder="Dirección donde ocurrió el siniestro" /></div>
               <div class="form-field span-2"><label for="casoObservaciones">Observaciones</label><textarea id="casoObservaciones" rows="3" placeholder="Detalles relevantes de la primera medida..."></textarea></div>
             </div>
           </div>
 
-          <!-- Paso 3: estado y asignación -->
-          <div class="form-section wizard-step" data-paso="3">
+          <!-- Estado y asignación -->
+          <div class="form-section" data-paso="3">
             <div class="form-section-head">
               <span class="section-ico">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 11h-6"/><path d="M19 8v6"/></svg>
@@ -365,16 +363,12 @@
             </div>
           </div>
 
-          <div class="form-actions form-actions-pro wizard-nav">
-            <button type="button" class="secondary hidden" id="btnPasoAnterior">← Atrás</button>
-            <div class="wizard-nav-right">
-              <button type="button" class="secondary" id="btnCrearVolver2">Cancelar</button>
-              <button type="button" class="success btn-crear" id="btnPasoSiguiente">Siguiente →</button>
-              <button type="submit" class="success btn-crear hidden" id="btnGuardarCaso">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-                Crear caso
-              </button>
-            </div>
+          <div class="form-actions form-actions-pro">
+            <button type="button" class="secondary" id="btnCrearVolver2">Cancelar</button>
+            <button type="submit" class="success btn-crear" id="btnGuardarCaso">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+              Crear caso
+            </button>
           </div>
         </form>
       </div>
@@ -567,19 +561,37 @@
             <h4 class="tercero-seccion-tit" id="terceroDatosTit">👤 Datos del tercero</h4>
             <div class="form-grid">
               <div class="form-field span-2"><label for="terNombre">Nombre completo *</label><input type="text" id="terNombre" data-col="NOMBRE COMPLETO" required /></div>
-              <div class="form-field"><label>Tipo de documento</label>
+              <div class="form-field terc-persona"><label>Tipo de documento</label>
                 <select data-col="TIPO DE DOCUMENTO"><option>CC</option><option>CE</option><option>TI</option><option>PAS</option><option>PPT</option><option>NIT</option></select>
               </div>
-              <div class="form-field"><label>N.º de documento</label><input type="text" data-col="NUMERO DOCUMENTO" inputmode="numeric" /></div>
-              <div class="form-field"><label>Expedido en</label><input type="text" data-col="DE DONDE ES EL DOCUMENTO" placeholder="Ciudad de expedición" /></div>
-              <div class="form-field"><label>Correo</label><input type="email" data-col="CORREO" /></div>
-              <div class="form-field"><label>Celular de contacto</label><input type="text" data-col="NUMERO CEULAR CONTACTO" inputmode="numeric" /></div>
-              <div class="form-field"><label>Otro contacto</label><input type="text" data-col="NUMERO CONTACTO 2" inputmode="numeric" /></div>
-              <div class="form-field span-2"><label>Propietario o poseedor del vehículo</label><input type="text" data-col="PROPIETARIO O POSSEDOR DEL VEHICULO" placeholder="Nombre del propietario" /></div>
+              <div class="form-field terc-persona"><label>N.º de documento</label><input type="text" data-col="NUMERO DOCUMENTO" inputmode="numeric" /></div>
+              <div class="form-field terc-persona"><label>Expedido en</label><input type="text" data-col="DE DONDE ES EL DOCUMENTO" placeholder="Ciudad de expedición" /></div>
+              <div class="form-field terc-persona"><label>Correo</label><input type="email" data-col="CORREO" /></div>
+              <div class="form-field terc-persona"><label>Celular de contacto</label><input type="text" data-col="NUMERO CEULAR CONTACTO" inputmode="numeric" /></div>
+              <div class="form-field terc-persona"><label>Otro contacto</label><input type="text" data-col="NUMERO CONTACTO 2" inputmode="numeric" /></div>
+              <div class="form-field span-2 terc-vehprop"><label>Propietario o poseedor del vehículo</label><input type="text" data-col="PROPIETARIO O POSSEDOR DEL VEHICULO" placeholder="Nombre del propietario" /></div>
+              <div class="form-field terc-persona"><label for="terCondicion">Condición (para el contrato)</label>
+                <select id="terCondicion" data-col="CONDICION TERCERO">
+                  <option value="">—</option>
+                  <option value="propietario">Propietario</option>
+                  <option value="poseedor">Poseedor</option>
+                  <option value="conductor">Conductor</option>
+                  <option value="representante">Representante</option>
+                </select>
+              </div>
+              <div class="form-field terc-persona"><label for="terEsMenor">¿Es menor de edad?</label>
+                <select id="terEsMenor" data-col="TERCERO ES MENOR"><option value="">—</option><option>NO</option><option>SI</option></select>
+              </div>
+            </div>
+            <div class="form-grid hidden" id="terceroMenorCampos">
+              <p class="audio-nota span-2">El tercero es menor: en el contrato firma su <b>representante</b>. Registra sus datos.</p>
+              <div class="form-field"><label>Representante — nombre</label><input type="text" data-col="REPRESENTANTE NOMBRE" placeholder="Nombre del representante" /></div>
+              <div class="form-field"><label>Representante — documento</label><input type="text" data-col="REPRESENTANTE DOCUMENTO" inputmode="numeric" /></div>
+              <div class="form-field span-2"><label>Parentesco</label><input type="text" data-col="REPRESENTANTE PARENTESCO" placeholder="madre, padre, tutor…" /></div>
             </div>
           </div>
 
-          <div class="tercero-seccion">
+          <div class="tercero-seccion" id="terceroSeccionLesion">
             <h4 class="tercero-seccion-tit">🚑 Lesiones</h4>
             <div class="form-grid">
               <div class="form-field"><label for="terTieneLesion">¿Tiene algún tipo de lesión?</label>
@@ -590,19 +602,19 @@
           </div>
 
           <div class="tercero-seccion" id="terceroSeccionVehiculo">
-            <h4 class="tercero-seccion-tit">🚗 Vehículo del tercero</h4>
+            <h4 class="tercero-seccion-tit" id="terceroVehiculoTit">🚗 Vehículo del tercero</h4>
             <div class="form-grid">
               <div class="form-field"><label for="terTipoVeh">Tipo de vehículo</label><input type="text" id="terTipoVeh" data-col="TIPO DE VEHICULO" /></div>
-              <div class="form-field"><label for="terPlaca">Placa</label><input type="text" id="terPlaca" data-col="PLACA" /></div>
+              <div class="form-field veh-motor"><label for="terPlaca">Placa</label><input type="text" id="terPlaca" data-col="PLACA" /></div>
               <div class="form-field"><label>Marca</label><input type="text" data-col="MARCA" /></div>
               <div class="form-field"><label>Color</label><input type="text" data-col="COLOR" /></div>
-              <div class="form-field"><label>¿Cuenta con aseguradora?</label>
+              <div class="form-field veh-motor"><label>¿Cuenta con aseguradora?</label>
                 <select data-col="CUENTA CON ASEGURDADORA"><option value="">—</option><option>SI</option><option>NO</option></select>
               </div>
-              <div class="form-field"><label for="terAseguradora">Nombre aseguradora</label><input type="text" id="terAseguradora" data-col="NOMBRE ASEGURADORA" /></div>
-              <div class="form-field"><label>Pólizas</label><input type="text" data-col="POLIZAS" placeholder="Sí / No / detalle" /></div>
-              <div class="form-field"><label>SOAT</label><input type="text" data-col="SOAT" placeholder="Vigencia / Sí / No" /></div>
-              <div class="form-field"><label>RTM (tecnomecánica)</label><input type="text" data-col="RTM" placeholder="Vigencia / Sí / No" /></div>
+              <div class="form-field veh-motor"><label for="terAseguradora">Nombre aseguradora</label><input type="text" id="terAseguradora" data-col="NOMBRE ASEGURADORA" /></div>
+              <div class="form-field veh-motor"><label>Pólizas</label><input type="text" data-col="POLIZAS" placeholder="Sí / No / detalle" /></div>
+              <div class="form-field veh-motor"><label>SOAT</label><input type="text" data-col="SOAT" placeholder="Vigencia / Sí / No" /></div>
+              <div class="form-field veh-motor"><label>RTM (tecnomecánica)</label><input type="text" data-col="RTM" placeholder="Vigencia / Sí / No" /></div>
             </div>
           </div>
 
@@ -654,14 +666,22 @@
           </div>
 
           <div class="tercero-seccion">
-            <h4 class="tercero-seccion-tit">🤝 Conciliación</h4>
+            <h4 class="tercero-seccion-tit">🤝 Conciliación / contrato</h4>
+            <p class="audio-nota">Si el tercero concilia o se gestiona un acuerdo en sitio, elige el tipo. Ese mismo tipo es el que genera el contrato legal ya prellenado. Si no hay acuerdo, déjalo en «Ninguno».</p>
             <div class="form-grid">
-              <div class="form-field"><label for="terDeseaConciliar">¿Desea conciliar en sitio?</label>
-                <select id="terDeseaConciliar" data-col="DESEA CONCILIAR EN SITIO"><option value="">—</option><option>SI</option><option>NO</option></select>
+              <div class="form-field span-2"><label for="terTipoConciliacion">Tipo de conciliación / contrato</label>
+                <select id="terTipoConciliacion" data-col="TIPO DE CONCILIACION">
+                  <option value="">— Ninguno / no concilia —</option>
+                  <option value="Desistimiento">Desistimiento (el tercero desiste)</option>
+                  <option value="A Favor">A favor (reclamación a favor)</option>
+                  <option value="En Contra">En contra</option>
+                  <option value="Mutuo Acuerdo">Mutuo acuerdo / conciliación con pago</option>
+                </select>
               </div>
-              <div class="form-field hidden" id="terTipoConciliacionCampo"><label for="terTipoConciliacion">Tipo de conciliación *</label><input type="text" id="terTipoConciliacion" data-col="TIPO DE CONCILIACION" /></div>
-              <div class="form-field hidden" id="terDineroCampo"><label>Dinero relacionado en el contrato</label><input type="text" data-col="DINERO RELACIONADO EN EL CONTRATO" inputmode="numeric" placeholder="$" /></div>
-              <div class="form-field span-2 hidden" id="terMontoLetrasCampo"><label>Descripción del monto en letras</label><input type="text" data-col="DESCRIPCION DEL MONTO EN LETRAS" /></div>
+            </div>
+            <div class="tercero-contrato-form hidden" id="terceroContratoForm">
+              <p class="audio-nota">Se abre el contrato ya prellenado con los datos del tercero <b>si los escribiste</b> y los del siniestro. Lo que falte lo completas dentro del contrato.</p>
+              <div class="tercero-contrato-tipos" id="terceroContratoTipos"></div>
             </div>
           </div>
 
@@ -952,7 +972,7 @@
   <div class="login-overlay show" id="loginOverlay">
     <div class="login-box">
       <div class="login-brand">
-        <div class="brand-logo login-logo"><img class="brand-logo-img" src="icons/logo.svg" alt="SoluAsistencia" /></div>
+        <div class="login-wordmark"><img src="icons/soluasistencia.png" alt="SoluAsistencia" /></div>
         <div class="login-brand-text">
           <span class="brand-name">ASIS <b>PLUS</b></span>
           <span class="brand-tag">Sistema de gestión de asistencias</span>

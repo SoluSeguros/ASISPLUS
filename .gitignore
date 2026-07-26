@@ -6,6 +6,9 @@ verificacion.zip
 *.bak
 *.tmp
 
+# Notas/ideas personales (no compartir en el repo público)
+contratos/local.html
+
 # Basura del sistema operativo
 Thumbs.db
 desktop.ini

@@ -15,7 +15,26 @@ const PARQUE_COLUMNAS =
   'cedula_propietario,propietario,telefono_propietario,' +
   'aseguradora,correo_empresa';
 
-/** Trae todas las filas del parque automotor (paginadas). */
+// Copia del parque en el dispositivo, para buscar/seleccionar el vehículo aunque
+// no haya internet (el asistente en la calle). Cabe de sobra en localStorage.
+const PARQUE_CACHE_KEY = 'asisplus-parque-cache';
+
+/** Guarda el parque en el dispositivo (con marca de tiempo). */
+function guardarParqueCache(rows) {
+  try {
+    localStorage.setItem(PARQUE_CACHE_KEY, JSON.stringify({ ts: Date.now(), rows: rows }));
+  } catch (e) { /* cuota llena u otro: no es crítico */ }
+}
+
+/** Lee el parque cacheado. Devuelve { ts, rows } o null. */
+function leerParqueCache() {
+  try {
+    const obj = JSON.parse(localStorage.getItem(PARQUE_CACHE_KEY) || 'null');
+    return (obj && Array.isArray(obj.rows)) ? obj : null;
+  } catch (e) { return null; }
+}
+
+/** Trae todas las filas del parque automotor (paginadas) y actualiza el caché. */
 async function fetchParque() {
   const todas = [];
   let desde = 0;
@@ -36,8 +55,37 @@ async function fetchParque() {
     desde += PAGE;
   }
 
+  guardarParqueCache(todas); // deja una copia offline para el formulario
   return todas;
 }
+
+/**
+ * Deja el parque disponible en state.parqueRows. Intenta traerlo fresco (online);
+ * si no hay señal o falla, usa la copia guardada en el dispositivo.
+ * Devuelve { origen: 'memoria' | 'red' | 'cache' | 'vacio', ts? }.
+ */
+async function asegurarParqueDisponible() {
+  if (state.parqueRows && state.parqueRows.length) return { origen: 'memoria' };
+  try {
+    state.parqueRows = await fetchParque();
+    return { origen: 'red' };
+  } catch (e) {
+    const cache = leerParqueCache();
+    if (cache && cache.rows.length) {
+      state.parqueRows = cache.rows;
+      return { origen: 'cache', ts: cache.ts };
+    }
+    state.parqueRows = state.parqueRows || [];
+    return { origen: 'vacio' };
+  }
+}
+
+/** Precachea el parque en segundo plano si hay señal y aún no hay copia local. */
+async function precacheParqueSiHaceFalta() {
+  if (!navigator.onLine || leerParqueCache()) return;
+  try { await fetchParque(); } catch (e) { /* se reintenta luego */ }
+}
+window.addEventListener('online', () => { precacheParqueSiHaceFalta(); });
 
 /** Carga el parque desde Supabase y lo muestra en la tabla con búsqueda. */
 async function cargarParqueYMostrar() {

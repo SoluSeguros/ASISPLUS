@@ -174,7 +174,7 @@ async function subirAudiosCaso(caso, datos) {
   for (const campo of CAMPOS_AUDIO) {
     const blob = state.audioBlobs && state.audioBlobs[campo];
     const slug = campo.replace(/\s+/g, '_');
-    const ruta = `${caso.numero_caso}/${slug}.webm`;
+    const ruta = `${carpetaCaso(caso)}/${slug}.webm`;
 
     if (blob) {
       // El tipo del blob suele venir como "audio/webm;codecs=opus"; el bucket

@@ -13,6 +13,8 @@ const DETALLE_SECCIONES = [
     campos: [
       ['FECHA DEL SINIESTRO', 'Fecha'],
       ['HORA DEL SINIESTRO', 'Hora'],
+      ['FECHA DE REPORTE', 'Fecha de reporte'],
+      ['HORA DE REPORTE', 'Hora de reporte'],
       ['MES DEL REPORTE DEL SINIESTRO', 'Mes de reporte'],
       ['DIRECCION DEL LUGAR DEL SINIESTRO', 'Dirección del lugar'],
       ['RUTA', 'Ruta'],
@@ -70,6 +72,9 @@ const DETALLE_SECCIONES = [
       ['USUARIO ASISTENCIA', 'Usuario asistencia'],
       ['USUARIO LOGISTICA', 'Usuario logística'],
       ['NOMBRE ASISTENTE EN SITIO', 'Asistente en sitio'],
+      ['FECHA Y HORA DE LLEGADA', 'Llegada al sitio (check-in)'],
+      ['HORA DE ATENCION', 'Hora de atención'],
+      ['HORA FIN ATENCION', 'Fin de atención'],
       ['HORA Y FECHA DE ACCION USUARIO', 'Fecha/hora de acción']
     ]
   }
@@ -97,6 +102,11 @@ const TERCERO_CAMPOS = [
   ['TIPO DE LESION', 'Tipo de lesión'],
   ['DESEA CONCILIAR EN SITIO', '¿Desea conciliar en sitio?'],
   ['TIPO DE CONCILIACION', 'Tipo de conciliación'],
+  ['CONDICION TERCERO', 'Condición'],
+  ['TERCERO ES MENOR', '¿Es menor de edad?'],
+  ['REPRESENTANTE NOMBRE', 'Representante'],
+  ['REPRESENTANTE DOCUMENTO', 'Documento del representante'],
+  ['REPRESENTANTE PARENTESCO', 'Parentesco'],
   ['ASISTENTE', 'Asistente'],
   ['HORA Y FECHA  ASISTENTE', 'Fecha/hora del asistente']
 ];

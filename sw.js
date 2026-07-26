@@ -41,8 +41,10 @@ const ASSETS = [
   './js/pwa.js',
   './icons/icon-192.png',
   './icons/icon-512.png',
-  './icons/logo.svg',
-  './icons/logo-maskable.svg',
+  './icons/apple-touch-icon.png',
+  './icons/favicon-32.png',
+  './icons/soluasistencia.png',
+  './icons/soluasistencia-trans.png',
   // Módulo de contratos legales (integrado, mismo origen y misma sesión).
   './contratos/casos.html',
   './contratos/formularios2.html'

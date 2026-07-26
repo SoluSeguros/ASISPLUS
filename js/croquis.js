@@ -662,7 +662,7 @@ async function guardarCroquis() {
   try {
     showLoader(true);
     const blob = await exportarCroquisBlob();
-    const ruta = `${caso.numero_caso}/croquis.png`;
+    const ruta = `${carpetaCaso(caso)}/croquis.png`;
     // Sube el PNG (o lo encola si no hay señal para subirlo al reconectar).
     let encolado = false;
     if (typeof subirArchivoResiliente === 'function') {

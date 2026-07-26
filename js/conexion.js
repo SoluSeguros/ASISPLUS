@@ -40,8 +40,8 @@ function setConexion(online) {
   if (cambio && typeof showStatus === 'function') {
     showStatus(
       online
-        ? '🟢 Conexión restablecida. Ya puedes guardar.'
-        : '🔴 Sin conexión a internet. Los cambios no se guardarán hasta reconectar.',
+        ? '🟢 Conexión restablecida. Subiendo lo que quedó pendiente…'
+        : '🔴 Sin conexión. Puedes seguir trabajando: lo que guardes queda en el dispositivo y se subirá solo al reconectar.',
       online ? 'ok' : 'error'
     );
   }

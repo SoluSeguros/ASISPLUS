@@ -135,7 +135,7 @@ async function procesarFotosSitio(archivos) {
       if (!file.type.startsWith('image/')) continue;
       const desc = (window.prompt('Descripción de la foto (opcional):', '') || '').trim();
       const blob = await marcarAguaFoto(file, caso, desc);
-      const ruta = `${caso.numero_caso}/${nombreArchivoFoto()}.jpg`;
+      const ruta = `${carpetaCaso(caso)}/${nombreArchivoFoto()}.jpg`;
 
       // Sube el archivo (o lo encola si no hay señal para subirlo al reconectar).
       const up = (typeof subirArchivoResiliente === 'function')

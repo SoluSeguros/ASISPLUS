@@ -26,10 +26,23 @@ const TERCERO_FOTOS = [
 // recogen en el módulo de contratos). Vacío = ningún pad ni subida de firma.
 const TERCERO_FIRMAS = [];
 
-// Tipos de tercero que TIENEN vehículo propio (muestran la sección de vehículo).
-const TIPOS_CON_VEHICULO = ['CONDUCTOR VEHICULO TERCERO', 'CICLISTA', 'MOTOCICLISTA', 'OTRO'];
-// Tipos que NO son una persona (mascota/animal, daño a bien): se re-etiqueta el nombre.
-const TIPOS_NO_PERSONA = ['SEMOVIENTE / ANIMAL', 'DAÑO A PROPIEDAD / INMUEBLE'];
+// Qué muestra el formulario según el TIPO de tercero (app "inteligente"):
+//   persona → datos personales (documento, contacto, condición, menor) y lesiones
+//   veh     → sección de vehículo (básico: tipo/marca/color)
+//   motor   → campos de vehículo a motor (placa, SOAT, RTM, aseguradora, pólizas)
+// Un peatón u ocupante no tiene vehículo; un ciclista tiene "vehículo" pero sin
+// placa/SOAT; un animal o un bien no es persona (ni lesiones ni documento).
+const TERCERO_CATEGORIAS = {
+  'OCUPANTE VEHICULO ASEGURADO': { persona: true, lesion: true },
+  'OCUPANTE VEHICULO TERCERO':   { persona: true, lesion: true },
+  'CONDUCTOR VEHICULO TERCERO':  { persona: true, lesion: true, veh: true, motor: true },
+  'PEATON':                      { persona: true, lesion: true },
+  'CICLISTA':                    { persona: true, lesion: true, veh: true, motor: false },
+  'MOTOCICLISTA':                { persona: true, lesion: true, veh: true, motor: true },
+  'SEMOVIENTE / ANIMAL':         { animal: true },
+  'DAÑO A PROPIEDAD / INMUEBLE': { propiedad: true },
+  'OTRO':                        { persona: true, lesion: true, veh: true, motor: true }
+};
 
 // Fotos libres del tercero (estilo formulario de asistencias). Cada ítem:
 //   { blob, previewUrl, desc }            → foto nueva aún sin subir
@@ -72,7 +85,8 @@ function initTerceros() {
   construirPadsFirma();
   els.terTipo.addEventListener('change', adaptarFormTercero);
   if (els.terTieneLesion) els.terTieneLesion.addEventListener('change', adaptarLesionTercero);
-  if (els.terDeseaConciliar) els.terDeseaConciliar.addEventListener('change', adaptarConciliacionTercero);
+  if (els.terTipoConciliacion) els.terTipoConciliacion.addEventListener('change', adaptarConciliacionTercero);
+  if (els.terEsMenor) els.terEsMenor.addEventListener('change', adaptarMenorTercero);
   els.formTercero.addEventListener('submit', guardarTerceroCompleto);
   // Pregunta guía: mostrar u ocultar el formulario del tercero.
   els.btnTerceroSi.addEventListener('click', () => { limpiarFormTercero(); mostrarFormTercero(true); });
@@ -83,9 +97,17 @@ function initTerceros() {
       mostrarFormTercero(false);
     });
   }
+  construirBotonesContratoForm();
   adaptarFormTercero();
   adaptarLesionTercero();
   adaptarConciliacionTercero();
+  adaptarMenorTercero();
+}
+
+/** Muestra los datos del representante sólo si el tercero es menor de edad. */
+function adaptarMenorTercero() {
+  if (!els.terEsMenor || !els.terceroMenorCampos) return;
+  els.terceroMenorCampos.classList.toggle('hidden', els.terEsMenor.value !== 'SI');
 }
 
 /**
@@ -111,6 +133,7 @@ function editarTerceroEnForm(idRegistro, datos) {
   });
   adaptarLesionTercero(); // refleja si tenía lesión (muestra/oculta el tipo)
   adaptarConciliacionTercero(); // refleja si concilió (muestra/oculta detalles)
+  adaptarMenorTercero(); // refleja si es menor (muestra/oculta al representante)
 
   // Modo edición: título, botón y aviso de evidencia.
   if (els.terceroFormTitulo) els.terceroFormTitulo.textContent = '✏️ Editar tercero';
@@ -136,7 +159,10 @@ function mostrarFormTercero(mostrar) {
   els.terceroFormWrap.classList.toggle('hidden', !mostrar);
   els.btnTerceroSi.classList.toggle('active', mostrar);
   els.btnTerceroNo.classList.toggle('active', !mostrar);
-  if (mostrar) els.terNombre.focus();
+  if (mostrar) {
+    actualizarContratoEnForm(); // muestra el generador de contrato según el rol
+    els.terNombre.focus();
+  }
 }
 
 /**
@@ -155,42 +181,57 @@ function adaptarLesionTercero() {
 }
 
 /**
- * Muestra los detalles de conciliación (tipo, dinero, monto en letras) y hace
- * obligatorio el "Tipo de conciliación" sólo cuando el tercero desea conciliar
- * en sitio (SI). El generador de contrato en la tarjeta también se habilita
- * únicamente para los terceros con conciliación = SI.
+ * El "Tipo de conciliación / contrato" es un selector que ES el contrato
+ * (desistimiento / a favor / en contra / mutuo acuerdo). El dinero y el monto
+ * en letras ya NO se piden aquí: se llenan en el propio contrato. Al elegir un
+ * tipo aparece el botón para generarlo; con "Ninguno" se oculta.
  */
 function adaptarConciliacionTercero() {
-  if (!els.terDeseaConciliar) return;
-  const concilia = els.terDeseaConciliar.value === 'SI';
-  ['terTipoConciliacionCampo', 'terDineroCampo', 'terMontoLetrasCampo'].forEach(id => {
-    if (els[id]) els[id].classList.toggle('hidden', !concilia);
-  });
-  if (els.terTipoConciliacion) {
-    els.terTipoConciliacion.required = concilia; // required sólo si visible
-    if (!concilia) els.terTipoConciliacion.value = '';
-  }
-  // Limpia los otros campos de conciliación cuando se elige NO.
-  if (!concilia) {
-    if (els.terDineroCampo) els.terDineroCampo.querySelectorAll('input').forEach(i => i.value = '');
-    if (els.terMontoLetrasCampo) els.terMontoLetrasCampo.querySelectorAll('input').forEach(i => i.value = '');
-  }
+  if (!els.terTipoConciliacion) return;
+  actualizarContratoEnForm();
 }
 
-/** Adapta el formulario al tipo de tercero (muestra/oculta vehículo, re-etiqueta). */
+/**
+ * Adapta el formulario al TIPO de tercero: muestra sólo lo que aplica (la app
+ * es "inteligente"). Un peatón u ocupante no ve vehículo/placa/SOAT; un ciclista
+ * ve vehículo pero sin placa/SOAT/RTM; un animal o un bien no ven datos de
+ * persona ni lesiones (usan su propia sección). Los campos ocultos NO se guardan.
+ */
 function adaptarFormTercero() {
   const tipo = els.terTipo.value;
-  // La sección de vehículo solo aplica a quien conduce/usa un vehículo.
-  const muestraVeh = !tipo || TIPOS_CON_VEHICULO.includes(tipo);
-  els.terceroSeccionVehiculo.classList.toggle('hidden', !muestraVeh);
-  // Secciones específicas por tipo (animal / propiedad).
-  els.terceroSeccionAnimal.classList.toggle('hidden', tipo !== 'SEMOVIENTE / ANIMAL');
-  els.terceroSeccionPropiedad.classList.toggle('hidden', tipo !== 'DAÑO A PROPIEDAD / INMUEBLE');
+  // Por defecto (sin elegir): tratamos como persona; sin vehículo hasta elegir.
+  const cfg = TERCERO_CATEGORIAS[tipo] || { persona: true, lesion: true };
+  const esAnimal = tipo === 'SEMOVIENTE / ANIMAL';
+  const esProp = tipo === 'DAÑO A PROPIEDAD / INMUEBLE';
+  const form = els.formTercero;
+
+  // Secciones completas.
+  els.terceroSeccionVehiculo.classList.toggle('hidden', !cfg.veh);
+  els.terceroSeccionAnimal.classList.toggle('hidden', !esAnimal);
+  els.terceroSeccionPropiedad.classList.toggle('hidden', !esProp);
+  if (els.terceroSeccionLesion) els.terceroSeccionLesion.classList.toggle('hidden', !cfg.lesion);
+
+  // Campos por grupo (persona / propietario del vehículo / vehículo a motor).
+  form.querySelectorAll('.terc-persona').forEach(el => el.classList.toggle('hidden', !cfg.persona));
+  form.querySelectorAll('.terc-vehprop').forEach(el => el.classList.toggle('hidden', !cfg.veh));
+  form.querySelectorAll('.veh-motor').forEach(el => el.classList.toggle('hidden', !cfg.motor));
+
+  // Si no es persona, oculta también los datos del representante (menor de edad).
+  if (!cfg.persona && els.terceroMenorCampos) els.terceroMenorCampos.classList.add('hidden');
+
+  // Título del vehículo según el tipo (bici / moto / carro).
+  if (els.terceroVehiculoTit) {
+    els.terceroVehiculoTit.textContent =
+      tipo === 'CICLISTA' ? '🚲 Bicicleta del tercero'
+      : tipo === 'MOTOCICLISTA' ? '🏍️ Motocicleta del tercero'
+      : '🚗 Vehículo del tercero';
+  }
+
   // Re-etiqueta el nombre según sea persona, animal o bien.
-  if (tipo === 'SEMOVIENTE / ANIMAL') {
+  if (esAnimal) {
     els.terceroDatosTit.textContent = '🐾 Datos del semoviente / animal';
     els.terNombre.previousElementSibling.textContent = 'Descripción (especie, raza, color) *';
-  } else if (tipo === 'DAÑO A PROPIEDAD / INMUEBLE') {
+  } else if (esProp) {
     els.terceroDatosTit.textContent = '🏠 Datos del bien / propiedad';
     els.terNombre.previousElementSibling.textContent = 'Descripción del bien afectado *';
   } else {
@@ -393,14 +434,15 @@ function firmaABlob(est) {
 
 /* ---------------- Guardar ---------------- */
 
-async function guardarTerceroCompleto(event) {
-  event.preventDefault();
+async function guardarTerceroCompleto(event, opciones) {
+  if (event && typeof event.preventDefault === 'function') event.preventDefault();
+  opciones = opciones || {};
   const caso = state.casoActual;
-  if (!caso) return;
+  if (!caso) return null;
   const d = caso.datos || {};
 
   const nombre = (els.terNombre.value || '').trim();
-  if (!nombre) { showStatus('El nombre del tercero es obligatorio.', 'error'); return; }
+  if (!nombre) { showStatus('El nombre del tercero es obligatorio.', 'error'); return null; }
 
   // 1) Campos de texto/selección/checkbox (data-col).
   let datos = {};
@@ -434,6 +476,10 @@ async function guardarTerceroCompleto(event) {
   });
   if (editando) datos['ULTIMA EDICION'] = formatDate(new Date());
 
+  // Compat con el informe: 'DESEA CONCILIAR EN SITIO' se deriva del tipo de
+  // conciliación/contrato elegido (hay tipo → SI; "Ninguno" → NO).
+  datos['DESEA CONCILIAR EN SITIO'] = datos['TIPO DE CONCILIACION'] ? 'SI' : 'NO';
+
   try {
     showLoader(true);
 
@@ -446,7 +492,7 @@ async function guardarTerceroCompleto(event) {
         continue;
       }
       if (!it.blob) continue;
-      const ruta = `${caso.numero_caso}/terceros/${idReg}/foto_${Date.now()}_${idx++}.jpg`;
+      const ruta = `${carpetaCaso(caso)}/terceros/${idReg}/foto_${Date.now()}_${idx++}.jpg`;
       if (typeof subirArchivoResiliente === 'function') {
         await subirArchivoResiliente(BUCKET_FOTOS, ruta, it.blob, 'image/jpeg');
       } else {
@@ -465,7 +511,7 @@ async function guardarTerceroCompleto(event) {
     for (const [col] of TERCERO_FIRMAS) {
       const blob = await firmaABlob(terceroFirmas[col]);
       if (!blob) continue;
-      const ruta = `${caso.numero_caso}/terceros/${idReg}/${slugCampo(col)}.png`;
+      const ruta = `${carpetaCaso(caso)}/terceros/${idReg}/${slugCampo(col)}.png`;
       if (typeof subirArchivoResiliente === 'function') {
         await subirArchivoResiliente(BUCKET_FOTOS, ruta, blob, 'image/png');
       } else {
@@ -492,20 +538,139 @@ async function guardarTerceroCompleto(event) {
       if (error) throw error;
     }
 
+    // Borrador local: guarda el tercero también en el dispositivo para poder
+    // verlo/editarlo sin señal (además de la cola que lo subirá).
+    if (typeof esBorrador === 'function' && esBorrador(caso)) {
+      const b = (typeof obtenerBorrador === 'function') ? obtenerBorrador(caso.key) : null;
+      const lista = (b && Array.isArray(b.terceros)) ? b.terceros.slice() : [];
+      const i = lista.findIndex(t => t.id_registro === idReg);
+      if (i >= 0) lista[i] = { id_registro: idReg, datos: datos };
+      else lista.push({ id_registro: idReg, datos: datos });
+      caso.terceros = lista;
+      await guardarBorrador(caso);
+    }
+
+    // Modo silencioso (p. ej. antes de abrir el contrato): NO limpia el
+    // formulario, NO recarga la lista y NO muestra aviso, porque el flujo que
+    // llamó va a navegar a otra página. Devuelve los datos recién guardados.
+    if (opciones.silencioso || typeof opciones.alGuardar === 'function') {
+      if (typeof opciones.alGuardar === 'function') await opciones.alGuardar(datos, idReg, encolado);
+      return { ok: true, datos, idReg, encolado };
+    }
+
     limpiarFormTercero();
     mostrarFormTercero(false);
-    await cargarTercerosDeCaso(caso.key);
+    await cargarTercerosDeCaso(caso.key, caso);
     showStatus(
       encolado
         ? (editando ? 'Cambios del tercero guardados en el dispositivo. Se subirán al reconectar.'
                     : 'Tercero guardado en el dispositivo. Se subirá al reconectar.')
         : (editando ? 'Cambios del tercero guardados.' : 'Tercero registrado con su evidencia.'),
       encolado ? 'info' : 'ok');
+    return { ok: true, datos, idReg, encolado };
   } catch (error) {
     showStatus('Error al guardar el tercero: ' + (error.message || error), 'error');
+    return null;
   } finally {
     showLoader(false);
   }
+}
+
+/* ---------------- Contrato legal DESDE el formulario del tercero ---------- *
+ * El contrato (desistimiento / a favor / en contra / mutuo acuerdo) se genera
+ * aquí mismo, sin recorrer la tarjeta ni depender de la conciliación: un clic
+ * guarda el tercero y abre el módulo de contratos ya prellenado.               */
+
+/** Traduce el valor del selector "Tipo de conciliación" al código de contrato
+ *  (desistimiento / afavor / encontra / mutuo) que usa el módulo de contratos. */
+function contratoKindDesdeTipo(tipo) {
+  const s = String(tipo || '').trim().toLowerCase();
+  if (!s) return '';
+  const labels = (typeof CONTRATO_TIPO_LABEL !== 'undefined') ? CONTRATO_TIPO_LABEL : {};
+  for (const [code, lab] of Object.entries(labels)) {
+    if (String(lab).toLowerCase() === s) return code;
+  }
+  // Respaldo por si el texto no coincide exactamente con la etiqueta.
+  if (s.includes('desist')) return 'desistimiento';
+  if (s.includes('favor')) return 'afavor';
+  if (s.includes('contra')) return 'encontra';
+  if (s.includes('mutuo') || s.includes('acuerdo')) return 'mutuo';
+  return '';
+}
+
+/** Construye (una sola vez) el botón para generar el contrato del tercero. */
+function construirBotonesContratoForm() {
+  const cont = els.terceroContratoTipos;
+  if (!cont || cont.dataset.listo) return;
+  cont.innerHTML = '';
+  const b = document.createElement('button');
+  b.type = 'button'; // NO envía el formulario (solo "Guardar tercero" lo hace)
+  b.id = 'btnGenerarContratoTercero';
+  b.className = 'primary tercero-contrato-btn';
+  b.textContent = '📝 Generar contrato';
+  b.addEventListener('click', generarContratoDesdeFormTercero);
+  cont.appendChild(b);
+  cont.dataset.listo = '1';
+}
+
+/**
+ * Muestra el generador de contrato SÓLO cuando hay un tipo de conciliación/
+ * contrato elegido y el rol puede generarlo. Actualiza el texto del botón con
+ * el tipo seleccionado.
+ */
+function actualizarContratoEnForm() {
+  const wrap = els.terceroContratoForm;
+  if (!wrap) return;
+  construirBotonesContratoForm();
+  const puede = (typeof rolVeContratos === 'function') ? rolVeContratos() : false;
+  const tipo = els.terTipoConciliacion ? els.terTipoConciliacion.value : '';
+  wrap.classList.toggle('hidden', !(puede && tipo));
+  const btn = document.getElementById('btnGenerarContratoTercero');
+  if (btn && tipo) btn.textContent = `📝 Generar contrato: ${tipo}`;
+}
+
+/** Lee del formulario del tercero los campos visibles (data-col) a un objeto. */
+function leerDatosTerceroForm() {
+  const datos = {};
+  els.formTercero.querySelectorAll('[data-col]').forEach(el => {
+    if (el.closest('.hidden')) return; // ignora secciones ocultas del tipo actual
+    if (el.type === 'checkbox') { datos[el.dataset.col] = el.checked ? 'SI' : 'NO'; return; }
+    const v = (el.value || '').trim();
+    if (v) datos[el.dataset.col] = v;
+  });
+  return datos;
+}
+
+/**
+ * Guarda el tercero y abre su contrato (del tipo elegido arriba), prellenado.
+ * El prellenado se arma con lo que hay AHORA en el formulario, así el contrato
+ * SIEMPRE abre aunque el guardado en el servidor tarde o falle (se navega igual;
+ * el tercero se guarda en segundo plano para conservar su ficha).
+ */
+async function generarContratoDesdeFormTercero() {
+  const caso = state.casoActual;
+  if (!caso) { showStatus('Abre primero el caso para generar el contrato.', 'error'); return; }
+  if (typeof construirPrefillContrato !== 'function' || typeof abrirFormularioContrato !== 'function') {
+    showStatus('El módulo de contratos no está disponible.', 'error');
+    return;
+  }
+  const tipo = els.terTipoConciliacion ? els.terTipoConciliacion.value : '';
+  const kind = contratoKindDesdeTipo(tipo);
+  if (!kind) { showStatus('Elige primero el tipo de conciliación / contrato.', 'error'); return; }
+
+  // Los datos del tercero son OPCIONALES: sólo sirven para PRELLENAR el contrato
+  // (ahorrar retipearlos). Lo que esté escrito se copia; lo que falte se llena
+  // dentro del propio contrato.
+  const datosForm = leerDatosTerceroForm();
+  const prefill = construirPrefillContrato(caso, datosForm, kind);
+  // Si escribiste el nombre, además se guarda el tercero (best-effort) para
+  // conservar su ficha y enlazar el contrato. Si no, se abre el contrato directo.
+  const tieneNombre = !!String(datosForm['NOMBRE COMPLETO'] || '').trim();
+  if (tieneNombre) {
+    try { await guardarTerceroCompleto(null, { silencioso: true }); } catch (_) { /* se navega igual */ }
+  }
+  // Abre el módulo de contratos SIEMPRE, ya prellenado con lo disponible.
+  abrirFormularioContrato(prefill);
 }
 
 function limpiarFormTercero() {
@@ -516,6 +681,7 @@ function limpiarFormTercero() {
   adaptarFormTercero(); // repone las secciones según el tipo (vacío)
   adaptarLesionTercero(); // oculta el tipo de lesión (sin respuesta)
   adaptarConciliacionTercero(); // oculta los detalles de conciliación
+  adaptarMenorTercero(); // oculta los datos del representante
   salirModoEdicionTercero(); // vuelve el formulario a modo "alta"
 }
 

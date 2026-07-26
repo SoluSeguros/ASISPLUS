@@ -19,8 +19,6 @@ els.casoVehiculoBuscar.addEventListener('blur', () => {
 els.formCaso.addEventListener('submit', guardarCaso);
 els.btnCrearVolver.addEventListener('click', ocultarPantallas);
 els.btnCrearVolver2.addEventListener('click', ocultarPantallas);
-els.btnPasoSiguiente.addEventListener('click', pasoSiguienteCaso);
-els.btnPasoAnterior.addEventListener('click', pasoAnteriorCaso);
 
 // Validación de formato en vivo: nombre solo letras, cédula/contacto solo números.
 const soloLetras = v => v.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ .'-]/g, '');

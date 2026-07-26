@@ -162,6 +162,78 @@ async function encolarMergeDatos(numeroCaso, cambios) {
   return { encolado: true };
 }
 
+/**
+ * Encola la CREACIÓN de un caso nuevo (borrador) para subirlo al reconectar.
+ * El caso ya trae su `key` (única): en el servidor se hace upsert por esa key,
+ * así que reintentar NO duplica el caso.
+ */
+async function encolarInsertCaso(payload) {
+  await _encolar({ tipo: 'insert-caso', fila: payload });
+  return { encolado: true };
+}
+
+/* ------------------------------------------------------------------ *
+ *  Borradores locales (casos creados/editados SIN señal). Viven en
+ *  localStorage por su `key`; su `datos` se mantiene aquí y sube ENTERO
+ *  al reconectar (dentro de la op insert-caso). Las fotos/croquis/firmas
+ *  son referencias dentro de `datos` (sus blobs se suben aparte por ruta).
+ * ------------------------------------------------------------------ */
+const BORRADORES_KEY = 'asisplus-borradores';
+
+function _leerBorradores() {
+  try { return JSON.parse(localStorage.getItem(BORRADORES_KEY) || '{}') || {}; }
+  catch (e) { return {}; }
+}
+function _escribirBorradores(obj) {
+  try { localStorage.setItem(BORRADORES_KEY, JSON.stringify(obj)); } catch (e) { /* cuota */ }
+}
+
+/** ¿Este caso es un borrador local (creado sin señal, aún sin subir)? */
+function esBorrador(caso) { return !!(caso && caso._borrador); }
+
+/** Lista los borradores locales (para mostrarlos en la bandeja). */
+function listarBorradores() {
+  const obj = _leerBorradores();
+  return Object.keys(obj).map(k => obj[k]);
+}
+/** Obtiene un borrador por su key (o null). */
+function obtenerBorrador(key) { return _leerBorradores()[key] || null; }
+/** Elimina un borrador (tras subirse). */
+function eliminarBorrador(key) { const o = _leerBorradores(); delete o[key]; _escribirBorradores(o); }
+
+/**
+ * Guarda/actualiza un borrador local y refleja su estado en la op insert-caso
+ * ya encolada (para que suba con lo último). `caso` trae key, datos, estado,
+ * asignado_a y opcionalmente `terceros` (para verlos sin señal).
+ */
+async function guardarBorrador(caso) {
+  const o = _leerBorradores();
+  const prev = o[caso.key] || {};
+  o[caso.key] = {
+    key: caso.key,
+    numero_caso: null,
+    estado: caso.estado || prev.estado || 'REPORTADO',
+    asignado_a: (caso.asignado_a !== undefined ? caso.asignado_a : prev.asignado_a) || null,
+    datos: caso.datos || prev.datos || {},
+    terceros: caso.terceros || prev.terceros || [],
+    creado_en: prev.creado_en || caso.creado_en || new Date().toISOString(),
+    _borrador: true
+  };
+  _escribirBorradores(o);
+  // Refleja datos/estado/asignado en la op insert-caso encolada.
+  try {
+    const ops = await _all('ops');
+    const op = ops.find(x => x.tipo === 'insert-caso' && x.fila && x.fila.key === caso.key);
+    if (op) {
+      op.fila.datos = o[caso.key].datos;
+      op.fila.estado = o[caso.key].estado;
+      op.fila.asignado_a = o[caso.key].asignado_a;
+      await _put('ops', op);
+    }
+  } catch (e) { /* si no hay op aún, insert-caso se encola por separado */ }
+  actualizarBadgePendientes();
+}
+
 /** ¿Estamos sin conexión? (expuesto para quien no incluye conexion.js) */
 function offlineSinConexion() { return _sinConexion(); }
 /** ¿El error parece de red? (expuesto para los puntos de escritura) */
@@ -172,6 +244,19 @@ function offlineEsErrorRed(e) { return _esErrorRed(e); }
  * dispositivos). Si no hay señal, encola.
  */
 async function persistirFotoResiliente(caso, ruta, desc) {
+  // Borrador: la referencia va dentro de su `datos` (sube con el insert-caso).
+  if (esBorrador(caso)) {
+    const datos = caso.datos || (caso.datos = {});
+    const lista = Array.isArray(datos['FOTOS SITIO']) ? datos['FOTOS SITIO'] : [];
+    if (!lista.includes(ruta)) lista.push(ruta);
+    datos['FOTOS SITIO'] = lista;
+    if (desc) {
+      const mapa = (datos['DESCRIPCION FOTOS'] && typeof datos['DESCRIPCION FOTOS'] === 'object') ? datos['DESCRIPCION FOTOS'] : {};
+      mapa[ruta] = desc; datos['DESCRIPCION FOTOS'] = mapa;
+    }
+    await guardarBorrador(caso);
+    return { encolado: true };
+  }
   const payload = { tipo: 'append-foto', numero_caso: caso.numero_caso, ruta, desc: desc || '' };
   if (_sinConexion()) { await _encolar(payload); return { encolado: true }; }
   try {
@@ -278,6 +363,15 @@ async function _ejecutarOp(op) {
     return;
   }
 
+  if (op.tipo === 'insert-caso') {
+    // upsert por key (columna única): si el insert llegó al servidor pero se
+    // cayó la red antes de la respuesta, el reintento no duplica el caso.
+    const { error } = await db.from('registro_asistencias')
+      .upsert(op.fila, { onConflict: 'key' });
+    if (error) throw error;
+    return;
+  }
+
   if (op.tipo === 'insert-tercero') {
     // upsert por id_registro (columna única): si el insert llegó al servidor
     // pero la red se cayó antes de la respuesta, el reintento no duplica.
@@ -311,6 +405,8 @@ async function sincronizarPendientes() {
       try {
         await _ejecutarOp(op);
         await _del('ops', op.id);
+        // Si acaba de subirse la creación del caso, el borrador local ya sobra.
+        if (op.tipo === 'insert-caso' && op.fila && op.fila.key) eliminarBorrador(op.fila.key);
         subidas++;
       } catch (e) {
         if (_esErrorRed(e)) break; // se cayó la red: reintenta en el próximo ciclo

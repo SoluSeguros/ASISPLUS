@@ -108,6 +108,28 @@ body {
   border-radius: inherit;
 }
 
+/* Logo SoluAsistencia (wordmark real) sobre tarjeta blanca para que se lea en
+   la cabecera azul oscura. */
+.brand-wordmark {
+  display: inline-flex;
+  align-items: center;
+  background: #fff;
+  border-radius: 10px;
+  padding: 5px 11px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+}
+.brand-wordmark img { height: 26px; width: auto; display: block; }
+/* En el login, más grande y centrado. */
+.login-wordmark {
+  display: inline-flex;
+  align-items: center;
+  background: #fff;
+  border-radius: 14px;
+  padding: 14px 22px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.16);
+}
+.login-wordmark img { height: 46px; width: auto; max-width: 78vw; display: block; }
+
 .brand-text {
   display: flex;
   flex-direction: column;
@@ -1199,6 +1221,22 @@ input[type="password"]:focus {
 }
 .tercero-contrato .docs-lista {
   margin-top: 10px;
+}
+
+/* Generador de contrato DENTRO de la sección de conciliación del tercero */
+.tercero-contrato-form {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+}
+.tercero-contrato-tipos {
+  display: grid;
+  gap: 8px;
+}
+.tercero-contrato-btn {
+  min-height: 46px;
+  font-weight: 700;
+  width: 100%;
 }
 
 /* Distintivo del tipo de tercero en la tarjeta */
@@ -2487,6 +2525,11 @@ button.danger-soft:hover { background: #fdecec; }
   border-radius: 8px;
   background: #fff;
 }
+.caso-firma-refirmar {
+  align-self: flex-start;
+  width: auto;
+  margin-top: 2px;
+}
 
 /* Secciones del formulario del asistente */
 .caso-seccion {
@@ -2867,6 +2910,16 @@ body.cat-modal-open { overflow: hidden; }
   position: relative;
   overflow: hidden;
   transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease;
+}
+/* Borrador local (creado sin señal, aún sin subir). */
+.caso-tarjeta.caso-borrador {
+  border-style: dashed;
+  border-color: #f59e0b;
+  background: #fffdf5;
+}
+.ct-borrador {
+  font-size: 10.5px; font-weight: 800; padding: 2px 8px; border-radius: 999px;
+  background: #fef3c7; color: #b45309; white-space: nowrap;
   box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
 }
 /* Franja de color a la izquierda según el estado */

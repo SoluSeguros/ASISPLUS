@@ -185,7 +185,7 @@ async function subirDocsRuta(event) {
     showLoader(true);
     for (const file of archivos) {
       const safe = file.name.replace(/[^a-zA-Z0-9._-]+/g, '_');
-      const ruta = `${caso.numero_caso}/docs/${Date.now()}_${safe}`;
+      const ruta = `${carpetaCaso(caso)}/docs/${Date.now()}_${safe}`;
       const { error } = await db.storage.from(BUCKET_DOCS).upload(ruta, file, { contentType: file.type || 'application/pdf', upsert: false });
       if (error) throw error;
       const nuevo = { ruta, nombre: file.name };
@@ -324,23 +324,50 @@ async function fetchContratosCaso(numeroCaso) {
 function construirPrefillContrato(caso, terceroDatos, tipo) {
   const d = (caso && caso.datos) || {};
   const t = terceroDatos || {};
-  return {
+  const ciudad = d['CIUDAD DEL SINIESTRO'] || '';
+  const esMenor = String(t['TERCERO ES MENOR'] || '').toUpperCase() === 'SI';
+
+  const pre = {
     contractKind: tipo || 'desistimiento',
     casoOrigen: (caso && caso.numero_caso) || '',
-    // Vehículo y conductor asegurado (del siniestro).
+    // Datos del hecho (del siniestro).
+    fecha: fechaContratoISO(d['FECHA DEL SINIESTRO'] || d['FECHA Y HORA']),
+    ciudadHecho: ciudad,
+    ciudadFirma: ciudad,
+    lugarHecho: d['DIRECCION DEL LUGAR DEL SINIESTRO'] || '',
+    // Vehículo 1 = asegurado (bus) · Vehículo 2 = tercero.
     placa: d['PLACA VEHICULO'] || '',
     interno: d['NUMERO INTERNO VEHICULO'] || '',
+    placa2: t['PLACA'] || '',
     empresa: d['EMPRESA'] || '',
+    // Conductor asegurado (bloque conductor del contrato).
     conductorNombre: d['NOMBRE CONDUCTOR'] || '',
     conductorCedula: d['CEDULA DEL CONDUCTOR'] || '',
-    fecha: fechaContratoISO(d['FECHA DEL SINIESTRO'] || d['FECHA Y HORA']),
-    lugarHecho: d['DIRECCION DEL LUGAR DEL SINIESTRO'] || '',
-    // Compareciente = tercero afectado.
+    // COMPARECIENTE = tercero afectado (en TODOS los tipos, criterio del cliente).
     nombre: t['NOMBRE COMPLETO'] || '',
     cedula: t['NUMERO DOCUMENTO'] || '',
     ciudadCedula: t['DE DONDE ES EL DOCUMENTO'] || '',
-    placa2: t['PLACA'] || ''
+    condicionComp: String(t['CONDICION TERCERO'] || '').toLowerCase(),
+    // IMPLICADO / otra parte = conductor asegurado (nuestro).
+    implicado: d['NOMBRE CONDUCTOR'] || '',
+    cedulaImp: d['CEDULA DEL CONDUCTOR'] || '',
+    ciudadCedulaImp: '',
+    condicionImp: (d['NOMBRE CONDUCTOR'] || '') ? 'conductor' : ''
   };
+
+  // Tercero menor de edad: firma su REPRESENTANTE (pasa a ser el compareciente)
+  // y el menor (el tercero) va en los campos del menor.
+  if (esMenor) {
+    pre.tipo = 'menor';
+    pre.nombreMenor = t['NOMBRE COMPLETO'] || '';
+    pre.docMenor = t['NUMERO DOCUMENTO'] || '';
+    pre.parentesco = t['REPRESENTANTE PARENTESCO'] || '';
+    pre.nombre = t['REPRESENTANTE NOMBRE'] || '';
+    pre.cedula = t['REPRESENTANTE DOCUMENTO'] || '';
+    pre.ciudadCedula = '';
+  }
+
+  return pre;
 }
 
 /** Codifica el prefill y navega al formulario de contratos. */

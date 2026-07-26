@@ -39,6 +39,8 @@ async function cargarPerfil(user) {
   state.perfil.id = user.id; // se usa para el heartbeat de presencia
   aplicarRol();
   abrirCasoDesdeURL(); // deep-link: ?caso=CASO-... abre ese caso directo
+  // Deja lista una copia del parque en el dispositivo, por si luego no hay señal.
+  if (typeof precacheParqueSiHaceFalta === 'function') precacheParqueSiHaceFalta();
 }
 
 // Deep-link: si la URL trae ?caso=CASO-XXXX (p. ej. al volver desde el módulo
@@ -67,6 +69,15 @@ async function abrirCasoDesdeURL() {
  * evidencia (fotos, documentos) subida en tiempo real desde otro dispositivo.
  */
 async function persistirDatosCaso(caso, mutar) {
+  // Borrador local: aplica el cambio sobre su `datos` y lo guarda en el
+  // dispositivo (subirá entero con la creación del caso al reconectar).
+  if (typeof esBorrador === 'function' && esBorrador(caso)) {
+    caso.datos = Object.assign({}, caso.datos || {});
+    mutar(caso.datos);
+    await guardarBorrador(caso);
+    return { encolado: true };
+  }
+
   const offline = (typeof offlineSinConexion === 'function') ? offlineSinConexion() : !navigator.onLine;
 
   // ONLINE: relee fresco, aplica `mutar` SOBRE lo fresco (así un append no pisa
@@ -379,6 +390,15 @@ function generarKey() {
   return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+/**
+ * Carpeta de storage del caso: su N.º de caso si ya existe; si no (borrador
+ * creado sin señal), su `key`. Como la ruta se guarda tal cual en `datos`, sigue
+ * siendo válida aunque después el caso reciba su número.
+ */
+function carpetaCaso(caso) {
+  return (caso && (caso.numero_caso || caso.key)) || 'sin-id';
+}
+
 /** Oculta todas las pantallas (vistas de tabla y pantallas de casos). */
 function ocultarPantallas() {
   ['statsBox', 'tabsBox', 'controlsBox', 'tableCard', 'btnDownloadInforme',
@@ -536,13 +556,13 @@ async function abrirCrearCaso() {
   ponerFechaHoraActual();
 
   if (!state.parqueRows.length) {
-    try {
-      showLoader(true);
-      state.parqueRows = await fetchParque();
-    } catch (error) {
-      showStatus('No se pudo cargar el parque: ' + (error.message || error), 'error');
-    } finally {
-      showLoader(false);
+    showLoader(true);
+    const r = await asegurarParqueDisponible();
+    showLoader(false);
+    if (r.origen === 'cache') {
+      showStatus('Sin conexión: usando el parque guardado en el dispositivo para buscar el vehículo.', 'ok');
+    } else if (r.origen === 'vacio') {
+      showStatus('No se pudo cargar el parque (sin señal y sin copia local). Puedes escribir la placa a mano.', 'error');
     }
   }
   llenarListasVehiculo();
@@ -554,79 +574,49 @@ async function abrirCrearCaso() {
 }
 
 /* ------------------------------------------------------------------ *
- *  Asistente por pasos (wizard) para crear el caso
+ *  Formulario de crear caso (directo, sin pasos)
  * ------------------------------------------------------------------ */
 
-const CASO_PASOS = 3;
-
-/** Muestra el paso indicado y actualiza el indicador y los botones. */
+/**
+ * Compatibilidad: el formulario de crear caso ya NO es por pasos, es un solo
+ * formulario directo con todas las secciones visibles. Se conserva la función
+ * porque otras partes la invocan (al abrir el formulario y tras crear un caso).
+ */
 function mostrarPasoCaso(n) {
-  state.casoPaso = n;
-
-  document.querySelectorAll('#formCaso .wizard-step').forEach(sec => {
-    sec.classList.toggle('active', Number(sec.dataset.paso) === n);
-  });
-  document.querySelectorAll('#wizardSteps .wz-step').forEach(st => {
-    const s = Number(st.dataset.wz);
-    st.classList.toggle('active', s === n);
-    st.classList.toggle('done', s < n);
-  });
-
-  els.btnPasoAnterior.classList.toggle('hidden', n === 1);
-  els.btnPasoSiguiente.classList.toggle('hidden', n === CASO_PASOS);
-  els.btnGuardarCaso.classList.toggle('hidden', n !== CASO_PASOS);
+  state.casoPaso = n || 1;
 }
 
-/** Valida los campos obligatorios del paso antes de avanzar. */
-function validarPasoCaso(n) {
-  if (n === 1) {
-    if (!els.casoPlaca.value.trim()) {
-      showStatus('Selecciona el vehículo en el parque o regístralo manualmente (placa).', 'error');
-      els.casoVehiculoBuscar.focus();
-      return false;
-    }
-    const conductor = els.casoConductor.value.trim();
-    if (conductor.length < 3 || !/[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/.test(conductor)) {
-      showStatus('Ingresa el nombre del conductor (solo letras).', 'error');
-      els.casoConductor.focus();
-      return false;
-    }
-    const cedula = els.casoCedulaConductor.value.trim();
-    if (!/^\d{4,}$/.test(cedula)) {
-      showStatus('Ingresa una cédula válida (solo números, mínimo 4 dígitos).', 'error');
-      els.casoCedulaConductor.focus();
-      return false;
-    }
+/** Enfoca y desplaza a un campo (usado al validar el formulario directo). */
+function irACampoCaso(el, mensaje) {
+  showStatus(mensaje, 'error');
+  if (el) {
+    el.focus();
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
-  if (n === 2) {
-    if (!els.casoFecha.value) {
-      showStatus('Indica la fecha del siniestro.', 'error');
-      els.casoFecha.focus();
-      return false;
-    }
-    if (!els.casoHora.value) {
-      showStatus('Indica la hora del siniestro.', 'error');
-      els.casoHora.focus();
-      return false;
-    }
-    if (!els.casoReportadoPor.value.trim()) {
-      showStatus('Indica quién reporta el caso.', 'error');
-      els.casoReportadoPor.focus();
-      return false;
-    }
+}
+
+/**
+ * Valida TODO el formulario (ya no hay pasos). Devuelve true si está completo;
+ * si no, muestra el mensaje y lleva al primer campo que falta.
+ */
+function validarCasoCompleto() {
+  if (!els.casoPlaca.value.trim()) {
+    irACampoCaso(els.casoVehiculoBuscar, 'Selecciona el vehículo en el parque o registra la placa manualmente.');
+    return false;
   }
+  const conductor = els.casoConductor.value.trim();
+  if (conductor.length < 3 || !/[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/.test(conductor)) {
+    irACampoCaso(els.casoConductor, 'Ingresa el nombre del conductor (solo letras).');
+    return false;
+  }
+  if (!/^\d{4,}$/.test(els.casoCedulaConductor.value.trim())) {
+    irACampoCaso(els.casoCedulaConductor, 'Ingresa una cédula válida (solo números, mínimo 4 dígitos).');
+    return false;
+  }
+  if (!els.casoFecha.value) { irACampoCaso(els.casoFecha, 'Indica la fecha del siniestro.'); return false; }
+  if (!els.casoHora.value) { irACampoCaso(els.casoHora, 'Indica la hora del siniestro.'); return false; }
+  if (!els.casoReportadoPor.value.trim()) { irACampoCaso(els.casoReportadoPor, 'Indica quién reporta el caso.'); return false; }
   return true;
-}
-
-/** Avanza al siguiente paso (si el actual es válido). */
-function pasoSiguienteCaso() {
-  if (!validarPasoCaso(state.casoPaso)) return;
-  mostrarPasoCaso(Math.min(CASO_PASOS, state.casoPaso + 1));
-}
-
-/** Retrocede un paso. */
-function pasoAnteriorCaso() {
-  mostrarPasoCaso(Math.max(1, state.casoPaso - 1));
 }
 
 /** Llena la lista de empresas y el desplegable de tipos con valores del parque. */
@@ -684,12 +674,17 @@ function tiposDeVehiculoLimpios() {
   return [...porClave.values()].sort((a, b) => a.localeCompare(b, 'es'));
 }
 
-/** Pone la fecha y hora actuales en el formulario. */
+/** Pone la fecha y hora actuales en el formulario (siniestro y reporte). */
 function ponerFechaHoraActual() {
   const now = new Date();
   const pad = n => String(n).padStart(2, '0');
-  els.casoFecha.value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-  els.casoHora.value = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const fecha = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const hora = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  els.casoFecha.value = fecha;
+  els.casoHora.value = hora;
+  // Hora de reporte: se llena sola con "ahora", pero queda editable.
+  if (els.casoFechaReporte) els.casoFechaReporte.value = fecha;
+  if (els.casoHoraReporte) els.casoHoraReporte.value = hora;
 }
 
 /** Filtra el parque por placa/empresa/N.º interno y muestra coincidencias. */
@@ -840,23 +835,10 @@ function limpiarAutocompletado() {
 async function guardarCaso(event) {
   event.preventDefault();
 
-  // Si aún no está en el último paso, avanzar en vez de crear (evita envíos con Enter).
-  if (state.casoPaso < CASO_PASOS) {
-    pasoSiguienteCaso();
-    return;
-  }
+  // Formulario directo (sin pasos): validar todo de una vez y crear.
+  if (!validarCasoCompleto()) return;
 
   const placa = els.casoPlaca.value.trim();
-  if (!placa || !els.casoConductor.value.trim() || !els.casoCedulaConductor.value.trim()) {
-    mostrarPasoCaso(1);
-    showStatus('Completa la placa, el nombre y la cédula del conductor.', 'error');
-    return;
-  }
-  if (!els.casoFecha.value || !els.casoHora.value || !els.casoReportadoPor.value.trim()) {
-    mostrarPasoCaso(2);
-    showStatus('Completa la fecha y hora del siniestro y quién lo reporta.', 'error');
-    return;
-  }
 
   const vSel = state.parqueRows.find(x => x.key === els.casoVehiculo.value);
 
@@ -872,9 +854,12 @@ async function guardarCaso(event) {
     'CORREO AFILIADO': vSel ? (vSel.correo_empresa || '') : '',
     'ORIGEN VEHICULO': vSel ? 'PARQUE' : 'MANUAL',
     'REPORTADO POR': els.casoReportadoPor.value.trim(),
+    'FECHA DE REPORTE': els.casoFechaReporte ? els.casoFechaReporte.value : '',
+    'HORA DE REPORTE': els.casoHoraReporte ? els.casoHoraReporte.value : '',
     'FECHA DEL SINIESTRO': els.casoFecha.value,
     'HORA DEL SINIESTRO': els.casoHora.value,
     'RUTA': els.casoRuta.value.trim(),
+    'CIUDAD DEL SINIESTRO': els.casoCiudad ? els.casoCiudad.value.trim() : '',
     'DIRECCION DEL LUGAR DEL SINIESTRO': els.casoDireccion.value.trim(),
     'NUMERO DE CONTACTO': els.casoContacto.value.trim(),
     'OBSERVACIONES': els.casoObservaciones.value.trim()
@@ -887,25 +872,18 @@ async function guardarCaso(event) {
   let estadoInicial = els.casoEstadoInicial.value || 'REPORTADO';
   if (asignado && estadoInicial === 'REPORTADO') estadoInicial = 'ASIGNADO';
 
-  try {
-    showLoader(true);
-    const { data: userData } = await db.auth.getUser();
-    const payload = {
-      key: generarKey(),
-      estado: estadoInicial,
-      creado_por: userData.user.id,
-      asignado_a: asignado,
-      datos
-    };
-    const { data, error } = await db
-      .from('registro_asistencias')
-      .insert(payload)
-      .select('numero_caso')
-      .single();
-    if (error) throw error;
+  // creado_por desde el perfil ya cargado (funciona sin señal; no llama a la red).
+  const payload = {
+    key: generarKey(),
+    estado: estadoInicial,
+    creado_por: (state.perfil && state.perfil.id) || null,
+    asignado_a: asignado,
+    datos
+  };
+  const quien = asignado ? (state.usuariosPorId[asignado] || 'un asistente') : null;
 
-    const quien = asignado ? (state.usuariosPorId[asignado] || 'un asistente') : null;
-    mostrarCasoCreado(data.numero_caso, datos, quien, payload.estado);
+  // Deja el formulario limpio tras crear el caso o guardar el borrador.
+  const limpiarTrasCrear = () => {
     els.formCaso.reset();
     limpiarAutocompletado();
     els.casoVehiculo.value = '';
@@ -914,8 +892,46 @@ async function guardarCaso(event) {
     llenarSelectAsistentes(els.casoAsignar, '');
     mostrarPasoCaso(1);
     actualizarNotificaciones();
+  };
+  // Guarda el caso como BORRADOR en el dispositivo (se creará al reconectar) y
+  // lo deja disponible en la bandeja para seguir trabajándolo sin señal.
+  const guardarComoBorrador = async () => {
+    await encolarInsertCaso(payload);
+    if (typeof guardarBorrador === 'function') {
+      await guardarBorrador({
+        key: payload.key, estado: payload.estado, asignado_a: payload.asignado_a,
+        datos: datos, creado_en: new Date().toISOString()
+      });
+    }
+    mostrarCasoCreado('⏳ Borrador — se subirá al reconectar', datos, quien, payload.estado);
+    limpiarTrasCrear();
+  };
+
+  // Sin señal: no llamamos al servidor; guardamos el borrador de una vez.
+  if (typeof offlineSinConexion === 'function' && offlineSinConexion()) {
+    try { await guardarComoBorrador(); }
+    catch (e) { showStatus('No se pudo guardar el borrador local: ' + (e.message || e), 'error'); }
+    return;
+  }
+
+  try {
+    showLoader(true);
+    const { data, error } = await db
+      .from('registro_asistencias')
+      .insert(payload)
+      .select('numero_caso')
+      .single();
+    if (error) throw error;
+    mostrarCasoCreado(data.numero_caso, datos, quien, payload.estado);
+    limpiarTrasCrear();
   } catch (error) {
-    showStatus('Error al crear el caso: ' + (error.message || error), 'error');
+    // Si el fallo fue de red, no perder el caso: guardarlo como borrador local.
+    if (typeof offlineEsErrorRed === 'function' && offlineEsErrorRed(error)) {
+      try { await guardarBorrador(); }
+      catch (e) { showStatus('No se pudo guardar el borrador local: ' + (e.message || e), 'error'); }
+    } else {
+      showStatus('Error al crear el caso: ' + (error.message || error), 'error');
+    }
   } finally {
     showLoader(false);
   }
@@ -1005,30 +1021,42 @@ async function abrirBandeja() {
 async function cargarBandeja() {
   try {
     showLoader(true);
-    let query = db
-      .from('registro_asistencias')
-      .select('numero_caso, estado, key, creado_en, asignado_a, datos')
-      .neq('estado', 'HISTORICO')
-      .order('creado_en', { ascending: false })
-      .limit(500);
-
     const rol = state.perfil && state.perfil.rol;
     const esArea = AREA_ROLES.includes(rol);
 
-    // "Solo los míos": casos asignados al usuario actual (no aplica a las áreas).
-    if (!esArea && els.filtroMisCasos && els.filtroMisCasos.checked) {
-      const { data: u } = await db.auth.getUser();
-      query = query.eq('asignado_a', u.user.id);
+    // Trae los casos del servidor. Sin señal esto falla: no es fatal, seguimos
+    // con los borradores locales.
+    let servidor = [];
+    try {
+      let query = db
+        .from('registro_asistencias')
+        .select('numero_caso, estado, key, creado_en, asignado_a, datos')
+        .neq('estado', 'HISTORICO')
+        .order('creado_en', { ascending: false })
+        .limit(500);
+      // "Solo los míos": casos asignados al usuario (no aplica a las áreas).
+      if (!esArea && els.filtroMisCasos && els.filtroMisCasos.checked) {
+        const { data: u } = await db.auth.getUser();
+        query = query.eq('asignado_a', u.user.id);
+      }
+      const { data, error } = await query;
+      if (error) throw error;
+      servidor = data || [];
+    } catch (e) {
+      if (!(typeof offlineEsErrorRed === 'function' && offlineEsErrorRed(e))) throw e;
     }
 
-    const { data, error } = await query;
-    if (error) throw error;
-
     // Las áreas solo ven los casos enrutados a sus rutas de cierre.
-    let filas = data || [];
     if (esArea) {
       const rutas = RUTAS_POR_ROL[rol] || [];
-      filas = filas.filter(c => rutas.includes((c.datos || {})['RUTA CIERRE']));
+      servidor = servidor.filter(c => rutas.includes((c.datos || {})['RUTA CIERRE']));
+    }
+
+    // Antepone los BORRADORES locales (creados sin señal, aún sin subir).
+    let filas = servidor;
+    if (typeof listarBorradores === 'function') {
+      const borr = listarBorradores();
+      if (borr.length) filas = borr.concat(servidor);
     }
 
     // Set base de la bandeja (sin filtros de estado/ruta). Alimenta el resumen
@@ -1156,6 +1184,7 @@ function renderBandeja(casos) {
     const d = caso.datos || {};
     const card = document.createElement('article');
     card.className = 'caso-tarjeta';
+    if (caso._borrador) card.classList.add('caso-borrador');
     card.dataset.estado = caso.estado || 'REPORTADO';
     card.tabIndex = 0;
     card.setAttribute('role', 'button');
@@ -1175,8 +1204,8 @@ function renderBandeja(casos) {
 
     card.innerHTML = `
       <div class="ct-top">
-        <span class="ct-num">${escBandeja(caso.numero_caso)}</span>
-        ${badgeEstado(caso.estado)}
+        <span class="ct-num">${caso._borrador ? '⏳ Borrador' : escBandeja(caso.numero_caso)}</span>
+        ${badgeEstado(caso.estado)}${caso._borrador ? '<span class="ct-borrador">sin subir</span>' : ''}
       </div>
       <div class="ct-empresa">${escBandeja(d['EMPRESA'] || 'Sin empresa')}</div>
       <div class="ct-veh">
@@ -1301,11 +1330,12 @@ async function abrirCaso(caso) {
   state.casoActual = caso;
   ocultarPantallas();
   els.casoDetalleCard.classList.remove('hidden');
-  marcarUbicacion('btnMenuBandeja', `Caso ${caso.numero_caso || ''}`);
+  const idMostrar = caso._borrador ? '⏳ Borrador (sin subir)' : (caso.numero_caso || '');
+  marcarUbicacion('btnMenuBandeja', `Caso ${idMostrar}`);
 
   const d = caso.datos || {};
   els.detalleTitulo.textContent =
-    `${caso.numero_caso} · ${d['EMPRESA'] || ''} · ${d['PLACA VEHICULO'] || ''}`;
+    `${idMostrar} · ${d['EMPRESA'] || ''} · ${d['PLACA VEHICULO'] || ''}`;
   els.detalleEstado.value = caso.estado || 'REPORTADO';
 
   if (!state.perfilesLista.length) await cargarPerfilesLista();
@@ -1320,12 +1350,14 @@ async function abrirCaso(caso) {
   renderChecklistCaso(caso);
   renderDuracionCaso(caso);
   cargarVersionesCaso(caso);
-  await cargarAudiosCaso(caso);
-  await cargarFotosCaso(caso);
-  await cargarCroquisCaso(caso);
-  await cargarFirmasCaso(caso);
+  // Las evidencias necesitan señal para su previsualización; si no hay, no deben
+  // impedir abrir/editar el caso (importante para borradores y trabajo offline).
+  try { await cargarAudiosCaso(caso); } catch (_) { /* sin señal */ }
+  try { await cargarFotosCaso(caso); } catch (_) { /* sin señal */ }
+  try { await cargarCroquisCaso(caso); } catch (_) { /* sin señal */ }
+  try { await cargarFirmasCaso(caso); } catch (_) { /* sin señal */ }
   cargarCierreCaso(caso);
-  await cargarTercerosDeCaso(caso.key);
+  try { await cargarTercerosDeCaso(caso.key, caso); } catch (_) { /* sin señal */ }
 
   const rol = state.perfil && state.perfil.rol;
   const esArea = AREA_ROLES.includes(rol);
@@ -1333,7 +1365,8 @@ async function abrirCaso(caso) {
   const tieneCoords = !!String(d['COORDENADAS ASISTENCIA'] || '').trim();
   // Los casos cerrados/cancelados y las áreas (back-office) NO requieren check-in
   // de llegada al sitio: editan directamente su gestión.
-  const requiereCheckin = !esArea && !['CERRADO', 'CANCELADO'].includes(caso.estado);
+  // Un borrador no exige check-in: el asistente acaba de crearlo en el sitio.
+  const requiereCheckin = !esArea && !caso._borrador && !['CERRADO', 'CANCELADO'].includes(caso.estado);
   const enSitio = tieneCoords || !requiereCheckin;
 
   // Regla clave: el asistente, sin reportar la llegada al sitio, no puede editar.
@@ -1579,7 +1612,11 @@ async function reportarLlegada() {
     // Check-in resiliente: aunque llegues sin señal, la llegada se registra en
     // el dispositivo y se sube al reconectar; así puedes completar el caso ya.
     let encolado = false;
-    if (typeof guardarCasoResiliente === 'function') {
+    if (typeof esBorrador === 'function' && esBorrador(caso)) {
+      caso.datos = datos; caso.estado = nuevoEstado;
+      await guardarBorrador(caso);
+      encolado = true;
+    } else if (typeof guardarCasoResiliente === 'function') {
       const r = await guardarCasoResiliente(caso.numero_caso,
         { cambios: datos, estado: nuevoEstado, baseDatos: caso.datos || {} });
       encolado = r.encolado;
@@ -1650,9 +1687,10 @@ async function prepararDatosVistaCaso(caso) {
 
 // Campos que el asistente NO edita a mano (se llenan solos):
 // - USUARIO ASISTENCIA / USUARIO LOGISTICA = usuario logueado que edita.
-// - COORDENADAS ASISTENCIA y HORA DE ATENCION = se capturan con el GPS al
-//   reportar la llegada (check-in); no se pueden modificar.
-const CAMPOS_SOLO_LECTURA = new Set(['USUARIO ASISTENCIA', 'USUARIO LOGISTICA', 'COORDENADAS ASISTENCIA', 'HORA DE ATENCION']);
+// - COORDENADAS ASISTENCIA = se captura con el GPS al reportar la llegada.
+// HORA DE ATENCION se llena sola con el check-in, pero SÍ es editable (por si el
+// asistente no usó el check-in o hay que corregirla).
+const CAMPOS_SOLO_LECTURA = new Set(['USUARIO ASISTENCIA', 'USUARIO LOGISTICA', 'COORDENADAS ASISTENCIA']);
 
 // Campos que se capturan con un catálogo cerrado (selector) en vez de texto libre.
 const CAMPOS_OPCIONES = {
@@ -1665,6 +1703,7 @@ const CAMPOS_OPCIONES = {
 const CAMPOS_ETIQUETA = {
   'HORA Y FECHA DE ACCION USUARIO': 'Hora y fecha de acción',
   'NOMBRE ASISTENTE EN SITIO': 'Nombre del asistente en sitio',
+  'HORA DE ATENCION': 'Hora de atención (check-in · editable)',
   'LESIONADOS': '¿Hay lesionados?'
 };
 
@@ -1841,7 +1880,13 @@ async function guardarDetalleCaso() {
     // Guardado resiliente: si no hay señal, el caso (datos + estado + asignado)
     // queda en la cola y se sube solo al reconectar. El camino online es igual.
     let encolado = false;
-    if (typeof guardarCasoResiliente === 'function') {
+    if (typeof esBorrador === 'function' && esBorrador(caso)) {
+      // Borrador local: guardamos datos/estado/asignado en el dispositivo; todo
+      // sube junto con la creación del caso al reconectar.
+      caso.datos = datos; caso.estado = nuevoEstado; caso.asignado_a = asignado;
+      await guardarBorrador(caso);
+      encolado = true;
+    } else if (typeof guardarCasoResiliente === 'function') {
       const r = await guardarCasoResiliente(caso.numero_caso,
         { cambios: datos, estado: nuevoEstado, asignado_a: asignado, baseDatos: base });
       encolado = r.encolado;
@@ -1872,7 +1917,8 @@ async function guardarDetalleCaso() {
 }
 
 /** Carga los terceros del caso y los muestra como tarjetas (ficha completa). */
-async function cargarTercerosDeCaso(key) {
+async function cargarTercerosDeCaso(key, caso) {
+  caso = caso || state.casoActual;
   const cont = els.tercerosCasoCont;
   cont.innerHTML = '<div class="tercero-estado">Cargando terceros…</div>';
   els.tercerosCasoTit.textContent = 'Terceros del caso';
@@ -1880,6 +1926,33 @@ async function cargarTercerosDeCaso(key) {
   if (els.terceroFormWrap) els.terceroFormWrap.classList.add('hidden');
   if (els.btnTerceroSi) els.btnTerceroSi.classList.remove('active');
   if (els.btnTerceroNo) els.btnTerceroNo.classList.remove('active');
+
+  // Borrador: sus terceros viven en el dispositivo (aún no están en el servidor).
+  if (caso && caso._borrador) {
+    const b = (typeof obtenerBorrador === 'function') ? obtenerBorrador(key) : null;
+    const locales = (b && Array.isArray(b.terceros)) ? b.terceros : [];
+    cont.innerHTML = '';
+    els.tercerosCasoTit.textContent = `Terceros del caso (${locales.length})`;
+    if (!locales.length) {
+      cont.innerHTML = '<div class="tercero-estado">Sin terceros aún. Agrégalos abajo: se guardan en el dispositivo y subirán con el caso.</div>';
+      return;
+    }
+    locales.forEach((t, i) => {
+      const card = construirTerceroCard(t.datos || {}, i);
+      cont.appendChild(card);
+      try { agregarEvidenciaTerceroCard(card, t.datos || {}); } catch (_) { /* sin señal */ }
+      if (typeof editarTerceroEnForm === 'function') {
+        const acc = document.createElement('div');
+        acc.className = 'tercero-card-acc';
+        const btnEd = document.createElement('button');
+        btnEd.type = 'button'; btnEd.className = 'secondary'; btnEd.textContent = '✏️ Editar tercero';
+        btnEd.addEventListener('click', () => editarTerceroEnForm(t.id_registro, t.datos || {}));
+        acc.appendChild(btnEd);
+        card.appendChild(acc);
+      }
+    });
+    return;
+  }
 
   try {
     const { data, error } = await db
@@ -1918,10 +1991,10 @@ async function cargarTercerosDeCaso(key) {
         acc.appendChild(btnEd);
         card.appendChild(acc);
       }
-      // Generador de contrato legal: sólo para terceros que desean conciliar
-      // en sitio (SI). Sin conciliación no hay contrato que generar.
-      const concilia = String((t.datos || {})['DESEA CONCILIAR EN SITIO'] || '').toUpperCase() === 'SI';
-      if (puedeContratos && concilia && typeof bloqueContratoTercero === 'function') {
+      // Generador de contrato legal del tercero (desistimiento / a favor / en
+      // contra / mutuo acuerdo). NO se limita a la conciliación: un desistimiento
+      // o un "en contra" no son conciliaciones y también necesitan su contrato.
+      if (puedeContratos && typeof bloqueContratoTercero === 'function') {
         card.appendChild(bloqueContratoTercero(state.casoActual, t.datos || {}, contratosCaso));
       }
     });
@@ -1973,6 +2046,21 @@ function cargarVersionesCaso(caso) {
   });
 }
 
+/**
+ * Cambia una caja de firma entre "ver" (muestra la firma guardada) y "dibujar"
+ * (muestra el lienzo). Sólo se ve UNA caja a la vez para no confundir.
+ */
+function setModoFirma(box, modo) {
+  if (!box) return;
+  const verFirma = modo === 'ver';
+  const canvas = box.querySelector('.caso-firma-canvas');
+  const prev = box.querySelector('.caso-firma-prev');
+  const limpiar = box.querySelector('.tercero-firma-limpiar');
+  if (canvas) canvas.classList.toggle('hidden', verFirma);   // lienzo sólo al dibujar
+  if (prev) prev.classList.toggle('hidden', !verFirma);      // preview sólo al ver
+  if (limpiar) limpiar.classList.toggle('hidden', verFirma); // "Limpiar" sólo al dibujar
+}
+
 /** Inicializa los pads de firma del caso (conductor / asistente). */
 function initCasoFirmas() {
   document.querySelectorAll('.caso-firma-canvas').forEach(canvas => {
@@ -1980,11 +2068,7 @@ function initCasoFirmas() {
     casoFirmaPads[campo] = iniciarPadFirma(canvas); // helper de terceros.js
     const box = canvas.closest('.tercero-firma-box');
     const limpiar = box && box.querySelector('.tercero-firma-limpiar');
-    if (limpiar) limpiar.addEventListener('click', () => {
-      limpiarPadFirma(casoFirmaPads[campo]);
-      const prev = box.querySelector('.caso-firma-prev');
-      if (prev) prev.innerHTML = '';
-    });
+    if (limpiar) limpiar.addEventListener('click', () => limpiarPadFirma(casoFirmaPads[campo]));
   });
 }
 
@@ -1999,14 +2083,22 @@ async function cargarFirmasCaso(caso) {
     const prev = box && box.querySelector('.caso-firma-prev');
     if (prev) prev.innerHTML = '';
     const ruta = d[campo];
+    let firmada = false;
     if (prev && ruta && /\.(png|jpe?g)$/i.test(String(ruta))) {
       try {
         const { data } = await db.storage.from(BUCKET_FOTOS).createSignedUrl(ruta, 3600);
         if (data && data.signedUrl) {
-          prev.innerHTML = `<img src="${data.signedUrl}" alt="${campo}"><span>Firmada ✓ · dibuja de nuevo para reemplazar</span>`;
+          prev.innerHTML =
+            `<img src="${data.signedUrl}" alt="${campo}"><span>Firmada ✓</span>` +
+            `<button type="button" class="secondary caso-firma-refirmar">✏️ Volver a firmar</button>`;
+          const btn = prev.querySelector('.caso-firma-refirmar');
+          if (btn) btn.addEventListener('click', () => setModoFirma(box, 'dibujar'));
+          firmada = true;
         }
       } catch (e) { /* sin firma */ }
     }
+    // Firmada → muestra la imagen; sin firma → muestra el lienzo. Nunca las dos.
+    setModoFirma(box, firmada ? 'ver' : 'dibujar');
   }
 }
 
@@ -2016,7 +2108,7 @@ async function subirFirmasCaso(caso, datos) {
     const blob = await firmaABlob(casoFirmaPads[campo]); // helper de terceros.js
     if (!blob) continue; // sin trazo nuevo → no se modifica
     const slug = campo.replace(/\s+/g, '_');
-    const ruta = `${caso.numero_caso}/firmas/${slug}.png`;
+    const ruta = `${carpetaCaso(caso)}/firmas/${slug}.png`;
     // Sube la firma (o la encola si no hay señal para subirla al reconectar).
     if (typeof subirArchivoResiliente === 'function') {
       await subirArchivoResiliente(BUCKET_FOTOS, ruta, blob, 'image/png');
