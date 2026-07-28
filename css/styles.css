@@ -1711,6 +1711,20 @@ input[type="password"]:focus {
 
 .croquis-colores { display: inline-flex; gap: 6px; align-items: center; }
 
+/* Casilla "Atenuar" de la foto de fondo del croquis */
+.croquis-atenuar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+  padding: 0 6px;
+  user-select: none;
+  white-space: nowrap;
+}
+.croquis-atenuar input { width: 17px; height: 17px; margin: 0; }
+
 .croquis-color {
   width: 24px;
   height: 24px;

@@ -903,7 +903,7 @@
             <button class="secondary" id="btnCroquisTutorialCerrar">✕</button>
           </div>
           <ol class="croquis-tut-lista">
-            <li><b>Elige una base.</b> En <i>Fondo</i> puedes usar una vía predefinida (cruce, glorieta, curva, puente…) o poner <b>«En blanco»</b> para dibujarla tú.</li>
+            <li><b>Elige una base.</b> En <i>Fondo</i> puedes usar una vía predefinida (cruce, glorieta, curva, puente…) o poner <b>«En blanco»</b> para dibujarla tú. También puedes tocar <b>📷 Foto de fondo</b> para usar una <b>foto real del sitio</b> y dibujar los vehículos y trayectorias <b>encima</b> (usa <b>Atenuar</b> si quieres que resalten los dibujos).</li>
             <li><b>Construye la vía.</b> Toca <b>🛣️ Vía</b>, escoge el ancho (angosta / calle / avenida) y <b>arrastra</b> sobre el lienzo para trazar cada tramo. Repite para armar el cruce completo.</li>
             <li><b>Cúrvala si es necesario.</b> Con <b>✋ Mover</b>, toca la vía: aparecen <b>3 manijas</b>. Arrastra los <b>cuadros</b> de los extremos para moverlos, y el <b>círculo del centro</b> para <b>convertirla en curva</b>. Arrastrando el cuerpo mueves toda la vía.</li>
             <li><b>Ubica los vehículos.</b> Toca un ícono (🚌 🚐 🚗 🏍️…) y aparece en el centro; arrástralo a su posición. Usa <b>⟲ ⟳ Girar</b> para orientarlo según cómo iba.</li>
@@ -950,6 +950,10 @@
             <option value="ciclo">Ciclorruta</option>
             <option value="blanco">En blanco</option>
           </select>
+          <button type="button" class="secondary" id="croquisFotoFondo" title="Usar una foto real del sitio como fondo y dibujar encima">📷 Foto de fondo</button>
+          <button type="button" class="secondary hidden" id="croquisQuitarFoto">🚫 Quitar foto</button>
+          <label class="croquis-atenuar hidden" id="croquisAtenuarWrap" title="Aclara la foto para que resalten los dibujos"><input type="checkbox" id="croquisAtenuar" /> Atenuar</label>
+          <input type="file" id="inputCroquisFoto" accept="image/*" hidden />
           <button type="button" class="secondary" id="croquisGirarIzq" title="Girar a la izquierda">⟲ Girar</button>
           <button type="button" class="secondary" id="croquisGirarDer" title="Girar a la derecha">⟳ Girar</button>
           <button type="button" class="secondary" id="croquisDeshacer">↩ Deshacer</button>

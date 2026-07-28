@@ -4,4 +4,4 @@
  * worker usa este valor para renovar la caché y avisar al usuario que hay
  * una nueva versión disponible. Este archivo lo comparten la página y el SW.
  */
-const APP_VERSION = '2.10.0';
+const APP_VERSION = '2.10.1';

@@ -38,7 +38,14 @@ const cq = {
   flechaTemp: null,
   viaTemp: null,
   viaHandle: null,
-  arrastrandoVia: false
+  arrastrandoVia: false,
+  // Foto real de fondo (opcional): se dibuja debajo de los objetos y se puede
+  // atenuar. Se guarda en Storage (no en `datos`) y el modelo solo lleva su ruta.
+  fondoImg: null,        // Image mostrada en el lienzo
+  fondoImgBlob: null,    // blob JPEG de una foto NUEVA aún sin subir
+  fondoImgRuta: null,    // ruta en Storage (al reeditar o tras subir)
+  fondoObjUrl: null,     // object URL temporal para liberar memoria
+  atenuar: false
 };
 
 /** Inicializa el editor: paleta, colores, herramientas y eventos del lienzo. */
@@ -89,6 +96,16 @@ function initCroquis() {
   els.croquisGirarDer.addEventListener('click', () => rotarSeleccion(Math.PI / 12));
   els.croquisAncho.addEventListener('change', () => { cq.anchoVia = Number(els.croquisAncho.value) || 58; });
   els.croquisFondo.addEventListener('change', () => { cq.fondo = els.croquisFondo.value; redibujarCroquis(); });
+
+  // Foto real de fondo (dibujar encima de una imagen del sitio).
+  if (els.croquisFotoFondo && els.inputCroquisFoto) {
+    els.croquisFotoFondo.addEventListener('click', () => els.inputCroquisFoto.click());
+    els.inputCroquisFoto.addEventListener('change', onCroquisFotoElegida);
+  }
+  if (els.croquisQuitarFoto) els.croquisQuitarFoto.addEventListener('click', quitarFotoFondo);
+  if (els.croquisAtenuar) {
+    els.croquisAtenuar.addEventListener('change', () => { cq.atenuar = els.croquisAtenuar.checked; redibujarCroquis(); });
+  }
   els.croquisDeshacer.addEventListener('click', () => { cq.objetos.pop(); cq.seleccionado = null; redibujarCroquis(); });
   els.croquisBorrarSel.addEventListener('click', borrarSeleccion);
   els.croquisLimpiar.addEventListener('click', () => {
@@ -131,6 +148,20 @@ function redibujarCroquis() {
 
 function dibujarFondoCroquis() {
   const ctx = cq.ctx, W = cq.W, H = cq.H, road = '#c7ced6';
+
+  // Si hay una foto real de fondo, se dibuja "contain" (se ve completa) y se
+  // omite la vía sintética; el resto del croquis va encima.
+  if (cq.fondoImg) {
+    ctx.fillStyle = '#e9edf1';
+    ctx.fillRect(0, 0, W, H);
+    const iw = cq.fondoImg.naturalWidth, ih = cq.fondoImg.naturalHeight;
+    const s = Math.min(W / iw, H / ih);
+    const dw = iw * s, dh = ih * s;
+    ctx.drawImage(cq.fondoImg, (W - dw) / 2, (H - dh) / 2, dw, dh);
+    if (cq.atenuar) { ctx.fillStyle = 'rgba(255, 255, 255, 0.34)'; ctx.fillRect(0, 0, W, H); }
+    return;
+  }
+
   ctx.fillStyle = '#eef2f6';
   ctx.fillRect(0, 0, W, H);
 
@@ -618,18 +649,107 @@ function borrarSeleccion() {
   redibujarCroquis();
 }
 
+/* ---------------- Foto real de fondo ---------------- */
+
+/** Lee un archivo de imagen a un elemento Image (promesa). */
+function _leerImagenArchivo(file) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => { const img = new Image(); img.onload = () => resolve(img); img.onerror = reject; img.src = fr.result; };
+    fr.onerror = reject;
+    fr.readAsDataURL(file);
+  });
+}
+
+/** El usuario eligió una foto: se reduce de tamaño y se usa como fondo. */
+async function onCroquisFotoElegida(e) {
+  const file = (e.target.files || [])[0];
+  e.target.value = ''; // permite volver a elegir la misma foto
+  if (!file || !file.type || !file.type.startsWith('image/')) return;
+  try {
+    showLoader(true);
+    const img = await _leerImagenArchivo(file);
+    // Reduce a un lado máximo de 1400px para que pese poco (JPEG ~0.72).
+    const maxLado = 1400;
+    const esc = Math.min(1, maxLado / Math.max(img.naturalWidth, img.naturalHeight));
+    const w = Math.round(img.naturalWidth * esc), h = Math.round(img.naturalHeight * esc);
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    c.getContext('2d').drawImage(img, 0, 0, w, h);
+    const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', 0.72));
+    if (!blob) throw new Error('No se pudo procesar la imagen.');
+    // Muestra la foto ya (object URL local, mismo origen → el canvas no se
+    // "contamina" y el PNG se puede exportar). Se subirá al guardar el croquis.
+    _fijarFondoDesdeBlob(blob, null);
+  } catch (err) {
+    showStatus('No se pudo cargar la foto: ' + (err.message || err), 'error');
+  } finally {
+    showLoader(false);
+  }
+}
+
+/** Fija la foto de fondo desde un blob (nuevo) o marca su ruta (ya guardada). */
+function _fijarFondoDesdeBlob(blob, ruta) {
+  if (cq.fondoObjUrl) { try { URL.revokeObjectURL(cq.fondoObjUrl); } catch (_) {} }
+  const url = URL.createObjectURL(blob);
+  cq.fondoObjUrl = url;
+  cq.fondoImgBlob = ruta ? null : blob; // si viene de Storage no hay que resubir
+  cq.fondoImgRuta = ruta || null;
+  const img = new Image();
+  img.onload = () => { cq.fondoImg = img; actualizarUiFotoFondo(); redibujarCroquis(); };
+  img.src = url;
+}
+
+/** Quita la foto de fondo (vuelve a la vía dibujada). */
+function quitarFotoFondo() {
+  if (cq.fondoObjUrl) { try { URL.revokeObjectURL(cq.fondoObjUrl); } catch (_) {} }
+  cq.fondoImg = null; cq.fondoImgBlob = null; cq.fondoImgRuta = null; cq.fondoObjUrl = null;
+  cq.atenuar = false;
+  if (els.croquisAtenuar) els.croquisAtenuar.checked = false;
+  actualizarUiFotoFondo();
+  redibujarCroquis();
+}
+
+/** Muestra/oculta los controles según si hay foto de fondo. */
+function actualizarUiFotoFondo() {
+  const hay = !!cq.fondoImg;
+  if (els.croquisQuitarFoto) els.croquisQuitarFoto.classList.toggle('hidden', !hay);
+  if (els.croquisAtenuarWrap) els.croquisAtenuarWrap.classList.toggle('hidden', !hay);
+  // Con foto, el selector de vía de fondo no aplica.
+  if (els.croquisFondo) els.croquisFondo.disabled = hay;
+}
+
+/** Reeditar: carga la foto de fondo desde Storage (fetch→blob, sin contaminar). */
+async function _cargarFondoGuardado(ruta) {
+  try {
+    const { data } = await db.storage.from(BUCKET_FOTOS).createSignedUrl(ruta, 3600);
+    if (!data || !data.signedUrl) return;
+    const resp = await fetch(data.signedUrl);
+    const blob = await resp.blob();
+    _fijarFondoDesdeBlob(blob, ruta); // ruta conocida → no se resube al guardar
+  } catch (_) { /* sin señal: se re-editará sin la foto de fondo */ }
+}
+
 /* ---------------- Abrir / guardar ---------------- */
 
 /** Abre el editor de croquis (carga el modelo guardado si existe). */
 function abrirEditorCroquis() {
   const caso = state.casoActual;
   if (!caso) return;
+
+  // Limpia cualquier foto de fondo de un caso anterior (cq es global).
+  if (cq.fondoObjUrl) { try { URL.revokeObjectURL(cq.fondoObjUrl); } catch (_) {} }
+  cq.fondoImg = null; cq.fondoImgBlob = null; cq.fondoImgRuta = null; cq.fondoObjUrl = null;
+  cq.atenuar = false;
+  let fotoFondoRuta = null;
+
   const guardado = caso.datos && caso.datos['CROQUIS DATOS'];
   if (guardado) {
     try {
       const m = JSON.parse(guardado);
       cq.objetos = Array.isArray(m.objetos) ? m.objetos : [];
       cq.fondo = m.fondo || 'cruce';
+      cq.atenuar = !!m.atenuarFondo;
+      fotoFondoRuta = m.fotoFondoRuta || null;
     } catch (e) { cq.objetos = []; cq.fondo = 'cruce'; }
   } else {
     cq.objetos = []; cq.fondo = 'cruce';
@@ -637,9 +757,14 @@ function abrirEditorCroquis() {
   cq.seleccionado = null;
   cq.herramienta = 'sel';
   els.croquisFondo.value = cq.fondo;
+  if (els.croquisAtenuar) els.croquisAtenuar.checked = cq.atenuar;
+  actualizarUiFotoFondo();
   document.querySelectorAll('.croquis-tool').forEach(b => b.classList.toggle('active', b.dataset.tool === 'sel'));
   redibujarCroquis();
   els.croquisModal.classList.add('show');
+
+  // Reeditar con foto: se recarga desde Storage (async; redibuja al llegar).
+  if (fotoFondoRuta) _cargarFondoGuardado(fotoFondoRuta);
 }
 
 function cerrarEditorCroquis() {
@@ -661,20 +786,42 @@ async function guardarCroquis() {
   if (!caso.datos) caso.datos = {};
   try {
     showLoader(true);
+
+    // Sube la foto de fondo NUEVA (si se agregó una) a Storage; el modelo solo
+    // guarda su RUTA para no inflar `datos`. Si ya venía de Storage, se conserva.
+    let encolado = false;
+    if (cq.fondoImgBlob) {
+      const rutaFondo = `${carpetaCaso(caso)}/croquis-fondo.jpg`;
+      if (typeof subirArchivoResiliente === 'function') {
+        const up = await subirArchivoResiliente(BUCKET_FOTOS, rutaFondo, cq.fondoImgBlob, 'image/jpeg');
+        if (up && up.encolado) encolado = true;
+      } else {
+        const { error } = await db.storage.from(BUCKET_FOTOS)
+          .upload(rutaFondo, cq.fondoImgBlob, { contentType: 'image/jpeg', upsert: true });
+        if (error) throw error;
+      }
+      cq.fondoImgRuta = rutaFondo;
+      cq.fondoImgBlob = null; // ya subida (o encolada)
+    }
+
     const blob = await exportarCroquisBlob();
     const ruta = `${carpetaCaso(caso)}/croquis.png`;
     // Sube el PNG (o lo encola si no hay señal para subirlo al reconectar).
-    let encolado = false;
     if (typeof subirArchivoResiliente === 'function') {
       const up = await subirArchivoResiliente(BUCKET_FOTOS, ruta, blob, 'image/png');
-      encolado = up.encolado;
+      if (up && up.encolado) encolado = true;
     } else {
       const { error } = await db.storage.from(BUCKET_FOTOS)
         .upload(ruta, blob, { contentType: 'image/png', upsert: true });
       if (error) throw error;
     }
 
-    const croquisDatos = JSON.stringify({ fondo: cq.fondo, objetos: cq.objetos });
+    const croquisDatos = JSON.stringify({
+      fondo: cq.fondo,
+      objetos: cq.objetos,
+      fotoFondoRuta: cq.fondoImgRuta || null,
+      atenuarFondo: !!cq.atenuar
+    });
     // Relee fresco y solo cambia las claves del croquis (no pisa otras); si no
     // hay señal, queda en la cola de sincronización.
     caso.datos['CROQUIS'] = ruta;
