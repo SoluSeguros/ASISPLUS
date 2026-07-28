@@ -27,6 +27,8 @@ const state = {
   casoActual: null,
   filtroAnio: '',
   filtroEmpresa: '',
+  filtroDesde: '', // rango de fechas del Registro de Asistencias (YYYY-MM-DD)
+  filtroHasta: '',
   filtroEstadoSin: '', // filtro por ESTADO DEL SINIESTRO (resumen del registro)
   filtroGravedad: '',  // filtro por GRAVEDAD DEL SINIESTRO (resumen del registro)
   perfilesLista: [],

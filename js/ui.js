@@ -34,6 +34,20 @@ function anioDeFila(row) {
   return m ? m[1] : '';
 }
 
+/**
+ * Fecha del siniestro como clave comparable 'YYYY-MM-DD' ('' si no se reconoce).
+ * Acepta 'YYYY-MM-DD' y 'DD/MM/YYYY'. La comparación es lexicográfica, sin
+ * zonas horarias.
+ */
+function fechaKeyDeFila(row) {
+  const s = String(row['FECHA DEL SINIESTRO'] || '');
+  let m = s.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  m = s.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+  return '';
+}
+
 /** ESTADO DEL SINIESTRO de una fila, normalizado ('' = sin dato). */
 function estadoSinDeFila(row) {
   return String(row['ESTADO DEL SINIESTRO'] || '').trim().toUpperCase();
@@ -55,6 +69,15 @@ function getResumenBaseRows() {
   if (state.currentView === 'asistenciasBD') {
     if (state.filtroAnio) rows = rows.filter(r => anioDeFila(r) === state.filtroAnio);
     if (state.filtroEmpresa) rows = rows.filter(r => String(r['EMPRESA'] || '').trim() === state.filtroEmpresa);
+    if (state.filtroDesde || state.filtroHasta) {
+      rows = rows.filter(r => {
+        const k = fechaKeyDeFila(r);
+        if (!k) return false;
+        if (state.filtroDesde && k < state.filtroDesde) return false;
+        if (state.filtroHasta && k > state.filtroHasta) return false;
+        return true;
+      });
+    }
   }
 
   if (!state.search) return rows;

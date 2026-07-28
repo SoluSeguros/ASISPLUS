@@ -885,7 +885,7 @@ async function guardarCaso(event) {
   // Formulario directo (sin pasos): validar todo de una vez y crear.
   if (!validarCasoCompleto()) return;
 
-  const placa = els.casoPlaca.value.trim();
+  const placa = els.casoPlaca.value.trim().toUpperCase();
 
   const vSel = state.parqueRows.find(x => x.key === els.casoVehiculo.value);
 
@@ -895,7 +895,7 @@ async function guardarCaso(event) {
     'NUMERO INTERNO VEHICULO': els.casoInterno.value.trim(),
     'TIPO DE VEHICULO': els.casoTipo.value.trim(),
     'CEDULA DEL CONDUCTOR': els.casoCedulaConductor.value.trim(),
-    'NOMBRE CONDUCTOR': els.casoConductor.value.trim(),
+    'NOMBRE CONDUCTOR': els.casoConductor.value.trim().toUpperCase(),
     'PROPIETARIO': els.casoPropietario.value.trim(),
     'ASEGURADORA': els.casoAseguradora.value.trim(),
     'CORREO AFILIADO': vSel ? (vSel.correo_empresa || '') : '',

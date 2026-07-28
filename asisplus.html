@@ -208,6 +208,11 @@
           <input type="text" id="searchInput" placeholder="Buscar por placa, conductor, observaciones..." />
           <select id="filtroAnio" class="hidden"></select>
           <select id="filtroEmpresa" class="hidden"></select>
+          <span id="filtroFechasBox" class="filtro-fechas hidden">
+            <label>Desde <input type="date" id="filtroDesde"></label>
+            <label>Hasta <input type="date" id="filtroHasta"></label>
+            <button type="button" class="secondary" id="btnLimpiarFechas" title="Quitar el filtro de fechas">✕</button>
+          </span>
           <select id="pageSizeSelect">
             <option value="25">25 filas</option>
             <option value="50" selected>50 filas</option>

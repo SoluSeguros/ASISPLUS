@@ -48,7 +48,10 @@ const soloDigitos = v => v.replace(/\D/g, '');
 els.casoConductor.addEventListener('input', e => { e.target.value = soloLetras(e.target.value).toUpperCase(); });
 els.casoCedulaConductor.addEventListener('input', e => { e.target.value = soloDigitos(e.target.value); });
 // Si editan la placa a mano, recalcula el aviso de "vehículo fuera del parque".
-if (els.casoPlaca) els.casoPlaca.addEventListener('input', () => { if (typeof actualizarAvisoParque === 'function') actualizarAvisoParque(); });
+if (els.casoPlaca) els.casoPlaca.addEventListener('input', e => {
+  e.target.value = e.target.value.toUpperCase(); // la placa siempre en mayúscula
+  if (typeof actualizarAvisoParque === 'function') actualizarAvisoParque();
+});
 els.casoContacto.addEventListener('input', e => { e.target.value = soloDigitos(e.target.value); });
 els.filtroEstado.addEventListener('change', aplicarFiltrosBandeja);
 els.filtroMisCasos.addEventListener('change', cargarBandeja);
@@ -171,6 +174,29 @@ els.filtroAnio.addEventListener('change', event => {
 
 els.filtroEmpresa.addEventListener('change', event => {
   state.filtroEmpresa = event.target.value;
+  state.page = 1;
+  renderTable();
+});
+
+// Rango de fechas del Registro de Asistencias. Al usarlo, se suelta el filtro de
+// año (que por defecto es el año actual) para que no oculte otros periodos.
+function onFiltroFechaChange() {
+  state.filtroDesde = els.filtroDesde ? els.filtroDesde.value : '';
+  state.filtroHasta = els.filtroHasta ? els.filtroHasta.value : '';
+  if (state.filtroDesde || state.filtroHasta) {
+    state.filtroAnio = '';
+    if (els.filtroAnio) els.filtroAnio.value = '';
+  }
+  state.page = 1;
+  renderTable();
+}
+if (els.filtroDesde) els.filtroDesde.addEventListener('change', onFiltroFechaChange);
+if (els.filtroHasta) els.filtroHasta.addEventListener('change', onFiltroFechaChange);
+if (els.btnLimpiarFechas) els.btnLimpiarFechas.addEventListener('click', () => {
+  if (els.filtroDesde) els.filtroDesde.value = '';
+  if (els.filtroHasta) els.filtroHasta.value = '';
+  state.filtroDesde = '';
+  state.filtroHasta = '';
   state.page = 1;
   renderTable();
 });

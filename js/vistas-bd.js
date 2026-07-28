@@ -137,6 +137,12 @@ function mostrarVistaBD(view) {
   els.tableCard.classList.remove('hidden');
   els.filtroAnio.classList.toggle('hidden', view !== 'asistenciasBD');
   els.filtroEmpresa.classList.toggle('hidden', view !== 'asistenciasBD');
+  if (els.filtroFechasBox) els.filtroFechasBox.classList.toggle('hidden', view !== 'asistenciasBD');
+  // El rango de fechas arranca vacío (sin filtrar) cada vez que se entra.
+  state.filtroDesde = '';
+  state.filtroHasta = '';
+  if (els.filtroDesde) els.filtroDesde.value = '';
+  if (els.filtroHasta) els.filtroHasta.value = '';
   const info = {
     parque: ['btnVerParque', 'Parque automotor'],
     asistenciasBD: ['btnVerAsistenciasBD', 'Registro de Asistencias'],
@@ -225,6 +231,7 @@ async function cargarCruceDesdeBD() {
     els.tableCard.classList.remove('hidden');
     els.filtroAnio.classList.add('hidden');
     els.filtroEmpresa.classList.add('hidden');
+    if (els.filtroFechasBox) els.filtroFechasBox.classList.add('hidden');
     marcarUbicacion('btnVerCruce', 'Cruce Asistencias ↔ Terceros');
 
     state.currentView = 'unidos';
