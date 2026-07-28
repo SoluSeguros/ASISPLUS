@@ -294,6 +294,10 @@
               <span class="hint">Empieza a escribir y elige el vehículo de la lista.</span>
             </div>
 
+            <div class="caso-aviso-parque hidden" id="casoVehiculoAviso" role="alert">
+              ⚠️ <b>Este vehículo no está en el parque automotor.</b> Debes diligenciar <b>todos</b> los campos del vehículo (empresa, tipo, propietario y aseguradora). El caso quedará <b>marcado para revisión</b>: verifica si el vehículo pertenece a alguna empresa afiliada.
+            </div>
+
             <div class="form-grid">
               <div class="form-field"><label for="casoEmpresa">Empresa</label><input type="text" id="casoEmpresa" list="listaEmpresas" placeholder="No se encontró en la base de datos" /><datalist id="listaEmpresas"></datalist></div>
               <div class="form-field"><label for="casoPlaca">Placa</label><input type="text" id="casoPlaca" placeholder="No se encontró en la base de datos" /></div>
@@ -811,6 +815,27 @@
         <div id="conectadosLista" class="conectados-lista"></div>
       </div>
     </section>
+
+    <!-- Barra inferior de navegación (solo móvil, solo con sesión). Al estar
+         dentro de #appContent se oculta sola en el login. -->
+    <nav class="bottom-nav" id="bottomNav" aria-label="Navegación principal">
+      <button type="button" class="bn-item" id="bnInicio">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-6h6v6"/></svg>
+        <span class="bn-lab">Inicio</span>
+      </button>
+      <button type="button" class="bn-item" id="bnBandeja">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+        <span class="bn-lab">Bandeja</span>
+      </button>
+      <button type="button" class="bn-item bn-crear" id="bnCrear">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 12v6"/><path d="M9 15h6"/></svg>
+        <span class="bn-lab">Crear</span>
+      </button>
+      <button type="button" class="bn-item bn-salir" id="bnSalir">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+        <span class="bn-lab">Salir</span>
+      </button>
+    </nav>
   </main>
 
   <!-- Cámara (captura de foto en web y móvil) -->

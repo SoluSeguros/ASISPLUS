@@ -27,7 +27,10 @@ const SV_CAT_POR_KEY = SV_CATS.reduce((m, c) => { m[c.key] = c; return m; }, {})
 function _clasificarAuto(d) {
   d = d || {};
   const up = v => String(v || '').trim().toUpperCase();
-  const les = String(d['LESIONADOS'] || '').trim().toLowerCase();
+  // Normaliza tildes para comparar ("SÍ" → "si") y evita falsos positivos como
+  // "SIN LESIONADOS" (que empieza por "si" pero significa lo contrario).
+  const les = String(d['LESIONADOS'] || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const hayLesionados = /^si\b/.test(les); // "si", "sí", "si hay…" pero NO "sin…"
   const grav = up(d['GRAVEDAD DEL SINIESTRO']);
   const resp = up(d['RESPONSABILIDAD DEL CONDUCTOR']);
   const est = up(d['ESTADO DEL SINIESTRO']);
@@ -35,7 +38,7 @@ function _clasificarAuto(d) {
   if (up(d['PREJUDICIAL']) === 'SI' || up(d['RUTA CIERRE']) === 'SEG_VIAL_PREJUDICIALES') return 'PREJUDICIAL';
   // Hay lesiones si LO indica el campo "¿Hay lesionados?" o si es homicidio.
   // ('HERIDOS' se mantiene por compatibilidad con datos antiguos.)
-  if (les.startsWith('si') || grav === 'HERIDOS' || grav === 'HOMICIDIO') return 'LESIONES';
+  if (hayLesionados || grav === 'HERIDOS' || grav === 'HOMICIDIO') return 'LESIONES';
   if (resp === 'SI') return 'EN_CONTRA';
   if (resp === 'NO') return 'A_FAVOR';
   // Solo daños (sin lesionados): la gravedad ahora es "DAÑOS Y LESIONES"; el

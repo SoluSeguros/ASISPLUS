@@ -38,7 +38,9 @@ const DETALLE_SECCIONES = [
       ['NUMERO INTERNO VEHICULO', 'N.º interno'],
       ['TIPO DE VEHICULO', 'Tipo de vehículo'],
       ['PROPIETARIO', 'Propietario'],
-      ['ASEGURADORA', 'Aseguradora']
+      ['ASEGURADORA', 'Aseguradora'],
+      ['ORIGEN VEHICULO', 'Origen del vehículo'],
+      ['VEHICULO POR REVISAR', '¿Vehículo por revisar?']
     ]
   },
   {

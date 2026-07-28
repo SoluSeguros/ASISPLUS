@@ -59,6 +59,12 @@ const els = {
   rolUsuario: document.getElementById('rolUsuario'),
   btnLogout: document.getElementById('btnLogout'),
 
+  // Barra inferior de navegación (móvil)
+  bnInicio: document.getElementById('bnInicio'),
+  bnBandeja: document.getElementById('bnBandeja'),
+  bnCrear: document.getElementById('bnCrear'),
+  bnSalir: document.getElementById('bnSalir'),
+
   // Menú de casos
   btnMenuCrearCaso: document.getElementById('btnMenuCrearCaso'),
   btnMenuBandeja: document.getElementById('btnMenuBandeja'),
@@ -102,6 +108,7 @@ const els = {
   casoVehiculo: document.getElementById('casoVehiculo'),
   casoVehiculoBuscar: document.getElementById('casoVehiculoBuscar'),
   casoVehiculoLista: document.getElementById('casoVehiculoLista'),
+  casoVehiculoAviso: document.getElementById('casoVehiculoAviso'),
   casoEmpresa: document.getElementById('casoEmpresa'),
   casoPlaca: document.getElementById('casoPlaca'),
   casoInterno: document.getElementById('casoInterno'),

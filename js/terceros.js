@@ -48,6 +48,9 @@ const TERCERO_CATEGORIAS = {
 //   { blob, previewUrl, desc }            → foto nueva aún sin subir
 //   { ruta, previewUrl, desc, existente } → foto ya guardada (modo edición)
 let terceroFotosLibres = [];
+// true mientras se recuperan (async) las URLs firmadas de las fotos ya guardadas
+// al entrar en modo edición: evita guardar con la lista de fotos a medio poblar.
+let terceroFotosCargando = false;
 // Estado de cada pad de firma (col → {canvas, ctx, dibujando, hayTrazo}).
 const terceroFirmas = {};
 // id_registro del tercero que se está EDITANDO (null = alta de uno nuevo).
@@ -171,7 +174,11 @@ function mostrarFormTercero(mostrar) {
  */
 function adaptarLesionTercero() {
   if (!els.terTieneLesion || !els.terTipoLesionCampo) return;
-  const tieneLesion = els.terTieneLesion.value === 'SI';
+  // Si el tipo de tercero ocultó TODA la sección de lesión (animal / propiedad),
+  // no hay lesión posible: nada visible ni obligatorio (un required oculto
+  // bloquea el envío en silencio).
+  const seccionVisible = !(els.terceroSeccionLesion && els.terceroSeccionLesion.classList.contains('hidden'));
+  const tieneLesion = seccionVisible && els.terTieneLesion.value === 'SI';
   els.terTipoLesionCampo.classList.toggle('hidden', !tieneLesion);
   if (els.terTipoLesion) {
     // 'required' sólo cuando es visible (un required oculto bloquea el envío).
@@ -238,6 +245,11 @@ function adaptarFormTercero() {
     els.terceroDatosTit.textContent = '👤 Datos del tercero';
     els.terNombre.previousElementSibling.textContent = 'Nombre completo *';
   }
+
+  // Recalcula el estado de "Tipo de lesión" (visibilidad + required) por si el
+  // nuevo tipo ocultó la sección de lesión: así no queda un required oculto que
+  // bloquee el guardado en silencio.
+  adaptarLesionTercero();
 }
 
 /* ---------------- Fotos (captura libre, como el formulario de asistencias) --- */
@@ -339,28 +351,33 @@ function descartarFotosLibres() {
 }
 
 async function cargarFotosTerceroExistentes(datos) {
-  descartarFotosLibres();
-  renderFotosTercero();
-  const items = [];
+  terceroFotosCargando = true;
+  try {
+    descartarFotosLibres();
+    renderFotosTercero();
+    const items = [];
 
-  const nuevas = Array.isArray(datos['FOTOS TERCERO']) ? datos['FOTOS TERCERO'] : [];
-  nuevas.forEach(f => { if (f && f.ruta) items.push({ ruta: f.ruta, desc: f.desc || '' }); });
+    const nuevas = Array.isArray(datos['FOTOS TERCERO']) ? datos['FOTOS TERCERO'] : [];
+    nuevas.forEach(f => { if (f && f.ruta) items.push({ ruta: f.ruta, desc: f.desc || '' }); });
 
-  // Compatibilidad: fotos antiguas guardadas en columnas nombradas.
-  TERCERO_FOTOS.forEach(([col, label]) => {
-    const ruta = datos[col];
-    if (ruta && typeof ruta === 'string') items.push({ ruta, desc: label });
-  });
+    // Compatibilidad: fotos antiguas guardadas en columnas nombradas.
+    TERCERO_FOTOS.forEach(([col, label]) => {
+      const ruta = datos[col];
+      if (ruta && typeof ruta === 'string') items.push({ ruta, desc: label });
+    });
 
-  for (const it of items) {
-    let previewUrl = '';
-    try {
-      const { data } = await db.storage.from(BUCKET_FOTOS).createSignedUrl(it.ruta, 3600);
-      if (data && data.signedUrl) previewUrl = data.signedUrl;
-    } catch (_) { /* sin url */ }
-    terceroFotosLibres.push({ ruta: it.ruta, desc: it.desc, previewUrl, existente: true });
+    for (const it of items) {
+      let previewUrl = '';
+      try {
+        const { data } = await db.storage.from(BUCKET_FOTOS).createSignedUrl(it.ruta, 3600);
+        if (data && data.signedUrl) previewUrl = data.signedUrl;
+      } catch (_) { /* sin url */ }
+      terceroFotosLibres.push({ ruta: it.ruta, desc: it.desc, previewUrl, existente: true });
+    }
+    renderFotosTercero();
+  } finally {
+    terceroFotosCargando = false;
   }
-  renderFotosTercero();
 }
 
 /* ---------------- Firmas (pad de dibujo) ---------------- */
@@ -444,23 +461,47 @@ async function guardarTerceroCompleto(event, opciones) {
   const nombre = (els.terNombre.value || '').trim();
   if (!nombre) { showStatus('El nombre del tercero es obligatorio.', 'error'); return null; }
 
-  // 1) Campos de texto/selección/checkbox (data-col).
-  let datos = {};
+  // Si aún se están recuperando las fotos ya guardadas (modo edición), esperar:
+  // guardar ahora reconstruiría 'FOTOS TERCERO' con la lista a medio poblar y
+  // borraría fotos existentes.
+  if (terceroFotosCargando) {
+    showStatus('Espera un momento: aún se cargan las fotos guardadas del tercero.', 'info');
+    return null;
+  }
+
+  // 1) Campos de texto/selección/checkbox (data-col). Se separan los VISIBLES
+  // (aplican a este tipo) de los OCULTOS (no aplican: p. ej. vehículo en un
+  // peatón). Los visibles mandan aunque queden vacíos; los ocultos se descartan.
+  const visibles = {};
+  const ocultos = [];
   els.formTercero.querySelectorAll('[data-col]').forEach(el => {
-    if (el.closest('.hidden')) return; // ignora secciones ocultas (no aplican a este tipo)
-    if (el.type === 'checkbox') { datos[el.dataset.col] = el.checked ? 'SI' : 'NO'; return; }
-    const v = (el.value || '').trim();
-    if (v) datos[el.dataset.col] = v;
+    const col = el.dataset.col;
+    if (el.closest('.hidden')) { ocultos.push(col); return; }
+    if (el.type === 'checkbox') { visibles[col] = el.checked ? 'SI' : 'NO'; return; }
+    visibles[col] = (el.value || '').trim();
   });
 
   // ¿Alta nueva o edición de uno existente?
   const editando = Boolean(terceroEditando);
   const idReg = editando ? terceroEditando : (generarKey() + generarKey());
 
-  // En edición: partimos de los datos originales (read-modify-write) para NO
-  // perder fotos/firmas ni campos que no estén visibles en el formulario.
+  let datos;
   if (editando && terceroDatosOriginal) {
-    datos = Object.assign({}, terceroDatosOriginal, datos);
+    // Edición (read-modify-write): partimos del original para NO perder fotos/
+    // firmas ni campos automáticos. Los campos VISIBLES del formulario mandan
+    // (incluye vacíos → así se pueden borrar/cambiar), y los campos que ahora
+    // están OCULTOS (porque cambió el tipo) se eliminan para no dejar datos
+    // contradictorios (p. ej. un peatón con placa/SOAT del tipo anterior).
+    datos = Object.assign({}, terceroDatosOriginal);
+    ocultos.forEach(col => { delete datos[col]; });
+    Object.assign(datos, visibles);
+  } else {
+    // Alta: sólo se guardan los campos con valor (no ensuciar con vacíos). Los
+    // checkbox aportan 'SI'/'NO' (nunca vacío), así que se guardan siempre.
+    datos = {};
+    Object.keys(visibles).forEach(col => {
+      if (visibles[col] !== '') datos[col] = visibles[col];
+    });
   }
 
   // 2) Campos automáticos (del caso / asistente). Al editar se conserva el

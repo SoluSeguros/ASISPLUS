@@ -12,11 +12,18 @@
   --text: #0f172a;
   --muted: #64748b;
   --border: #e2e8f0;
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.05);
-  --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.04);
+  --shadow: 0 6px 22px rgba(15, 23, 42, 0.07), 0 2px 6px rgba(15, 23, 42, 0.05);
   --shadow-lg: 0 24px 60px rgba(15, 23, 42, 0.14);
   --radius: 16px;
   --radius-sm: 12px;
+  /* Nuevos tokens (refinamiento nativo iOS/Android) */
+  --radius-lg: 22px;
+  --radius-pill: 999px;
+  --nav-h: 60px;                                   /* alto de la barra inferior */
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);   /* salida tipo "spring" */
+  --tap: 44px;                                      /* área mínima táctil (iOS HIG) */
+  --ring: 0 0 0 4px rgba(20, 85, 217, 0.18);       /* aro de foco accesible */
 }
 
 * {
@@ -1837,6 +1844,26 @@ input[type="password"]:focus {
   margin-bottom: 16px;
 }
 .rs-tit { font-weight: 800; font-size: 13.5px; color: #0b2a55; margin-bottom: 10px; }
+.rs-lock { font-weight: 600; font-size: 11px; color: var(--muted); text-transform: none; letter-spacing: 0; margin-left: 6px; }
+.rs-aviso {
+  background: #fff6e6; border: 1px solid #f4c877; color: #7a4d05;
+  border-radius: 10px; padding: 9px 12px; font-size: 13px; margin-bottom: 12px;
+}
+
+/* Aviso "vehículo fuera del parque" (formulario de creación y modal) */
+.caso-aviso-parque {
+  background: #fff6e6; border: 1px solid #f4c877; color: #7a4d05;
+  border-radius: 12px; padding: 11px 14px; font-size: 13.5px; line-height: 1.45;
+  margin: 4px 0 14px;
+}
+.caso-aviso-parque.hidden { display: none; }
+
+/* Chip "revisar vehículo" en la tarjeta de la bandeja */
+.ct-revisar {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: #fff2d6; color: #8a5300; border: 1px solid #f0c980;
+  border-radius: 999px; padding: 2px 9px; font-size: 11.5px; font-weight: 700;
+}
 .rs-top {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -3003,6 +3030,7 @@ body.cat-modal-open { overflow: hidden; }
 .caso-tarjeta[data-estado="REPORTADO"]::before  { background: #dc4b4b; }
 .caso-tarjeta[data-estado="ASIGNADO"]::before    { background: #2563eb; }
 .caso-tarjeta[data-estado="EN_SITIO"]::before    { background: #7c3aed; }
+.caso-tarjeta[data-estado="TELEFONICA"]::before  { background: #1e4fb8; }
 .caso-tarjeta[data-estado="EN_PROCESO"]::before  { background: #f59e0b; }
 .caso-tarjeta[data-estado="ASISTIDO"]::before    { background: #0ea5b7; }
 .caso-tarjeta[data-estado="CERRADO"]::before     { background: #16a34a; }
@@ -3268,5 +3296,138 @@ body.cat-modal-open { overflow: hidden; }
   }
 }
 
-/* La barra de navegación inferior/lateral se retiró: la app navega por los
-   mosaicos del panel y los botones "volver" de cada módulo. */
+/* =========================================================================
+   REFINAMIENTO NATIVO (iOS / Android / web) — tema claro.
+   Capa moderna añadida al final para tener prioridad de cascada sobre las
+   reglas previas de igual especificidad. No reescribe la app: la pule.
+   ========================================================================= */
+
+/* --- Comportamiento táctil y de scroll tipo app nativa --- */
+html { scroll-behavior: smooth; }
+body {
+  overscroll-behavior-y: none;            /* sin "rebote" que descubre el fondo */
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: 0.1px;
+}
+::selection { background: rgba(20, 85, 217, 0.18); }
+/* Inercia de scroll en contenedores desplazables */
+.modal-box, main, .table-wrap { -webkit-overflow-scrolling: touch; }
+
+/* Evita el zoom automático de iOS al enfocar un campo (< 16px lo dispara) */
+@media (max-width: 640px) {
+  input, select, textarea { font-size: 16px !important; }
+}
+
+/* --- Feedback de pulsación (spring) tipo iOS/Android --- */
+button, .btn, .tile, .tab, .caso-tarjeta, .vt-btn {
+  transition: transform .14s var(--ease-spring), box-shadow .18s ease, filter .18s ease, background .18s ease;
+}
+button:active, .btn:active, .tab:active, .vt-btn:active { transform: scale(.96); }
+.tile:active, .caso-tarjeta:active { transform: scale(.985); }
+/* En táctil no hay hover: evita "levantados" que se quedan pegados tras tocar */
+@media (hover: none) {
+  button:hover, .btn:hover { transform: none; filter: none; }
+  .tile:hover { transform: none; box-shadow: var(--shadow-sm); }
+}
+
+/* --- Áreas táctiles mínimas (44px) y foco accesible --- */
+button, .btn, button.secondary, .tab { min-height: var(--tap); }
+button, .btn { border-radius: 14px; }
+button:focus-visible, .btn:focus-visible, a:focus-visible,
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: none; box-shadow: var(--ring);
+}
+
+/* --- Campos de formulario tipo iOS (más aire, radio, foco claro) --- */
+select, input[type="text"], input[type="email"], input[type="password"],
+input[type="number"], input[type="date"], input[type="time"],
+input[type="search"], input[type="tel"], textarea {
+  border-radius: 14px;
+  min-height: 46px;
+  transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
+}
+select:focus, input:focus, textarea:focus { box-shadow: var(--ring); }
+
+/* --- App bar más limpia (menos "pesada") y mosaicos/tarjetas con más radio --- */
+.appbar { box-shadow: 0 2px 10px rgba(11, 34, 76, 0.16); }
+.tile, .card { border-radius: var(--radius-lg); }
+
+/* --- Chips y badges más "pill" --- */
+.estado-badge, .ct-grav, .ct-revisar, .rol-badge, .conexion-chip { border-radius: var(--radius-pill); }
+
+/* =========================================================================
+   Barra inferior de pestañas (solo móvil y solo con sesión). Va dentro de
+   #appContent, por lo que se oculta sola en el login.
+   ========================================================================= */
+.bottom-nav { display: none; }
+.bn-item {
+  flex: 1 1 0;
+  min-width: 0;
+  background: none;
+  border: none;
+  box-shadow: none;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 2px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 12px;
+  min-height: var(--tap);
+}
+.bn-item:hover { transform: none; filter: none; box-shadow: none; background: rgba(20, 85, 217, 0.06); }
+.bn-item:active { transform: scale(.9); }
+.bn-item svg { width: 24px; height: 24px; }
+.bn-item .bn-lab { line-height: 1; }
+.bn-item.bn-salir { color: #b91c1c; }
+/* "Crear" solo para gestor/admin (según data-rol del body) */
+.bn-crear { display: none; }
+body[data-rol="gestor"] .bn-crear,
+body[data-rol="admin"] .bn-crear { display: flex; }
+
+@media (max-width: 720px) {
+  body[data-rol] .bottom-nav {
+    display: flex;
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 9990;
+    gap: 4px;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    background: rgba(255, 255, 255, 0.88);
+    -webkit-backdrop-filter: saturate(1.7) blur(16px);
+    backdrop-filter: saturate(1.7) blur(16px);
+    border-top: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: 0 -6px 20px rgba(15, 23, 42, 0.06);
+  }
+  /* Espacio para que la barra no tape el contenido (solo con sesión). */
+  body[data-rol] { padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom)); }
+}
+
+/* =========================================================================
+   Modales como hoja inferior (bottom sheet) en móvil. Cámara y croquis se
+   excluyen: ocupan la pantalla por su cuenta.
+   ========================================================================= */
+@media (max-width: 640px) {
+  .modal-overlay { padding: 0; align-items: flex-end; }
+  .modal-box:not(.croquis-box):not(.camara-box) {
+    width: 100%;
+    max-height: 92dvh;
+    border-radius: 22px 22px 0 0;
+    animation: sheetUp .28s var(--ease-spring);
+  }
+  .modal-box:not(.croquis-box):not(.camara-box) .modal-head {
+    position: relative;
+    padding-top: 22px;
+  }
+  /* Agarradera de la hoja */
+  .modal-box:not(.croquis-box):not(.camara-box) .modal-head::before {
+    content: "";
+    position: absolute;
+    top: 8px; left: 50%; transform: translateX(-50%);
+    width: 40px; height: 4px; border-radius: 999px;
+    background: #cbd5e1;
+  }
+}
+@keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }

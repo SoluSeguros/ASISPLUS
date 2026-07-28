@@ -609,6 +609,20 @@ function validarCasoCompleto() {
     irACampoCaso(els.casoVehiculoBuscar, 'Selecciona el vehículo en el parque o registra la placa manualmente.');
     return false;
   }
+  // Vehículo MANUAL (no está en el parque): hay que diligenciar todos los campos
+  // del vehículo. El caso quedará marcado para revisión.
+  if (vehiculoEsManual()) {
+    actualizarAvisoParque();
+    const obligatorios = [
+      [els.casoEmpresa, 'Indica la empresa del vehículo (no está en el parque).'],
+      [els.casoTipo, 'Indica el tipo de vehículo (no está en el parque).'],
+      [els.casoPropietario, 'Indica el propietario del vehículo (no está en el parque).'],
+      [els.casoAseguradora, 'Indica la aseguradora del vehículo (no está en el parque).']
+    ];
+    for (const [campo, msg] of obligatorios) {
+      if (campo && !String(campo.value || '').trim()) { irACampoCaso(campo, msg); return false; }
+    }
+  }
   const conductor = els.casoConductor.value.trim();
   if (conductor.length < 3 || !/[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/.test(conductor)) {
     irACampoCaso(els.casoConductor, 'Ingresa el nombre del conductor (solo letras).');
@@ -782,6 +796,20 @@ function seleccionarVehiculo(v) {
   autocompletarVehiculo();
 }
 
+/**
+ * ¿El vehículo del formulario es MANUAL (no salió del parque automotor)? Es
+ * manual cuando hay una placa escrita pero no se eligió ningún vehículo de la
+ * lista del parque. Estos casos exigen diligenciar todo y quedan por revisar.
+ */
+function vehiculoEsManual() {
+  return !els.casoVehiculo.value && !!els.casoPlaca.value.trim();
+}
+
+/** Muestra u oculta el aviso de "vehículo fuera del parque" según corresponda. */
+function actualizarAvisoParque() {
+  if (els.casoVehiculoAviso) els.casoVehiculoAviso.classList.toggle('hidden', !vehiculoEsManual());
+}
+
 /** Activa el modo manual: la placa escrita se usa y los datos se llenan a mano. */
 function usarVehiculoManual() {
   const texto = els.casoVehiculoBuscar.value.trim().toUpperCase();
@@ -790,7 +818,8 @@ function usarVehiculoManual() {
   limpiarAutocompletado();
   els.casoVehiculoBuscar.value = `${texto} · (registro manual)`;
   els.casoPlaca.value = texto;
-  showStatus('Vehículo no encontrado en el parque. Completa los datos manualmente.', 'info');
+  showStatus('Vehículo no encontrado en el parque. Diligencia TODOS los campos: el vehículo quedará marcado para revisión.', 'info');
+  actualizarAvisoParque();
   els.casoEmpresa.focus();
 }
 
@@ -808,6 +837,7 @@ function autocompletarVehiculo() {
   els.casoCedulaConductor.value = '';
   els.casoPropietario.value = v.propietario || '';
   els.casoAseguradora.value = v.aseguradora || '';
+  actualizarAvisoParque(); // vehículo del parque → oculta el aviso de revisión
 }
 
 /**
@@ -837,6 +867,7 @@ function limpiarAutocompletado() {
    'casoCedulaConductor', 'casoPropietario', 'casoAseguradora'].forEach(id => {
     els[id].value = '';
   });
+  actualizarAvisoParque(); // sin placa ya no es "manual": oculta el aviso
 }
 
 /** Crea el caso en la base de datos (estado inicial REPORTADO). */
@@ -861,6 +892,9 @@ async function guardarCaso(event) {
     'ASEGURADORA': els.casoAseguradora.value.trim(),
     'CORREO AFILIADO': vSel ? (vSel.correo_empresa || '') : '',
     'ORIGEN VEHICULO': vSel ? 'PARQUE' : 'MANUAL',
+    // Marca de revisión: si el vehículo no salió del parque, el administrador
+    // debe revisar si pertenece a una empresa afiliada.
+    'VEHICULO POR REVISAR': vSel ? '' : 'SI',
     'REPORTADO POR': els.casoReportadoPor.value.trim(),
     'FECHA DE REPORTE': els.casoFechaReporte ? els.casoFechaReporte.value : '',
     'HORA DE REPORTE': els.casoHoraReporte ? els.casoHoraReporte.value : '',
@@ -933,9 +967,10 @@ async function guardarCaso(event) {
     mostrarCasoCreado(data.numero_caso, datos, quien, payload.estado);
     limpiarTrasCrear();
   } catch (error) {
-    // Si el fallo fue de red, no perder el caso: guardarlo como borrador local.
+    // Si el fallo fue de red, no perder el caso: guardarlo como borrador local
+    // (encola la creación + guarda el borrador + muestra el modal).
     if (typeof offlineEsErrorRed === 'function' && offlineEsErrorRed(error)) {
-      try { await guardarBorrador(); }
+      try { await guardarComoBorrador(); }
       catch (e) { showStatus('No se pudo guardar el borrador local: ' + (e.message || e), 'error'); }
     } else {
       showStatus('Error al crear el caso: ' + (error.message || error), 'error');
@@ -962,6 +997,10 @@ function mostrarCasoCreado(numeroCaso, datos, asignadoNombre, estado) {
     ? `<b>${asignadoNombre}</b> — le aparecerá como pendiente (campanita 🔔).`
     : 'Sin asignar todavía — queda disponible en la bandeja para que un asistente lo tome.';
 
+  const avisoRevisar = String(d['VEHICULO POR REVISAR'] || '').toUpperCase() === 'SI'
+    ? `<div class="caso-aviso-parque" role="alert">⚠️ <b>Vehículo fuera del parque automotor.</b> Este caso quedó <b>marcado para revisión</b>: verifica si la placa ${d['PLACA VEHICULO'] ? '<b>' + d['PLACA VEHICULO'] + '</b> ' : ''}pertenece a una empresa afiliada.</div>`
+    : '';
+
   els.casoCreadoBody.innerHTML = `
     <div class="caso-creado-banner">
       <div class="caso-creado-num">${numeroCaso}</div>
@@ -970,6 +1009,7 @@ function mostrarCasoCreado(numeroCaso, datos, asignadoNombre, estado) {
         <div class="caso-creado-asig">Asignado a: ${asignadoHtml}</div>
       </div>
     </div>
+    ${avisoRevisar}
 
     <h4 class="detalle-seccion-tit">Vehículo</h4>
     <div class="detalle-grid">
@@ -1209,6 +1249,8 @@ function renderBandeja(casos) {
     const fechaHora = [d['FECHA DEL SINIESTRO'], d['HORA DEL SINIESTRO']].filter(Boolean).join(' · ');
     const gravedad = d['GRAVEDAD DEL SINIESTRO'] || '';
     const rutaChip = (typeof chipRutaBandeja === 'function') ? chipRutaBandeja(d) : '';
+    const porRevisar = String(d['VEHICULO POR REVISAR'] || '').toUpperCase() === 'SI';
+    const revisarChip = porRevisar ? `<span class="ct-revisar" title="Vehículo fuera del parque automotor">⚠️ Revisar vehículo</span>` : '';
 
     card.innerHTML = `
       <div class="ct-top">
@@ -1224,9 +1266,10 @@ function renderBandeja(casos) {
       <div class="ct-body">
         ${direccion ? `<div class="ct-linea">📍 ${escBandeja(direccion)}</div>` : ''}
         ${fechaHora ? `<div class="ct-linea">🗓️ ${escBandeja(fechaHora)}</div>` : ''}
-        ${(gravedad || rutaChip) ? `<div class="ct-chips">
+        ${(gravedad || rutaChip || revisarChip) ? `<div class="ct-chips">
           ${gravedad ? `<span class="ct-grav ${claseGravedad(gravedad)}">${escBandeja(gravedad)}</span>` : ''}
           ${rutaChip}
+          ${revisarChip}
         </div>` : ''}
       </div>
       <div class="ct-foot">
@@ -1367,9 +1410,14 @@ function renderResumenSiniestro(caso) {
   ].filter(Boolean).join('');
 
   if (!destacados && !filas) { cont.classList.add('hidden'); cont.innerHTML = ''; return; }
+  const porRevisar = String(d['VEHICULO POR REVISAR'] || '').toUpperCase() === 'SI';
+  const avisoRevisar = porRevisar
+    ? `<div class="rs-aviso" role="alert">⚠️ <b>Vehículo fuera del parque automotor.</b> Marcado para revisión: verifica si pertenece a una empresa afiliada.</div>`
+    : '';
   cont.classList.remove('hidden');
   cont.innerHTML =
-    `<div class="rs-tit">📋 Datos del caso a asistir</div>` +
+    `<div class="rs-tit">📋 Datos del caso <span class="rs-lock">🔒 enviados por el administrador · solo lectura</span></div>` +
+    avisoRevisar +
     (destacados ? `<div class="rs-top">${destacados}</div>` : '') +
     (filas ? `<div class="rs-grid">${filas}</div>` : '');
 }
@@ -1531,8 +1579,21 @@ async function guardarReasignacion() {
   const asignado = els.detalleAsignar.value || null;
   // Si se asigna y el caso aún no arrancó, pasa a "Asignado".
   const nuevoEstado = (asignado && ['REPORTADO'].includes(caso.estado)) ? 'ASIGNADO' : caso.estado;
+  const quien = asignado ? (state.usuariosPorId[asignado] || 'un asistente') : 'nadie (sin asignar)';
   try {
     showLoader(true);
+    // Borrador local (sin numero_caso todavía): la reasignación se guarda en el
+    // dispositivo y sube con la creación del caso al reconectar. No se puede
+    // actualizar por numero_caso porque aún es null.
+    if (typeof esBorrador === 'function' && esBorrador(caso)) {
+      caso.asignado_a = asignado;
+      caso.estado = nuevoEstado;
+      if (typeof guardarBorrador === 'function') await guardarBorrador(caso);
+      els.detalleEstado.value = nuevoEstado;
+      showStatus(`Borrador reasignado a ${quien} (se subirá al reconectar).`, 'info');
+      actualizarNotificaciones();
+      return;
+    }
     const { error } = await db
       .from('registro_asistencias')
       .update({ asignado_a: asignado, estado: nuevoEstado })
@@ -1541,7 +1602,6 @@ async function guardarReasignacion() {
     caso.asignado_a = asignado;
     caso.estado = nuevoEstado;
     els.detalleEstado.value = nuevoEstado;
-    const quien = asignado ? (state.usuariosPorId[asignado] || 'un asistente') : 'nadie (sin asignar)';
     showStatus(`Caso ${caso.numero_caso} reasignado a ${quien}.`, 'ok');
     actualizarNotificaciones();
   } catch (error) {
@@ -1643,7 +1703,19 @@ async function reportarTelefonica() {
   if (!caso) return;
   if (!window.confirm('¿Confirmas que esta asistencia fue 100% telefónica (no fuiste al sitio)?')) return;
 
-  const datos = Object.assign({}, caso.datos || {});
+  // Relee los datos frescos de la BD para no pisar evidencia subida en tiempo
+  // real (fotos/documentos que el gestor u otro dispositivo agregó). Si falla o
+  // es un borrador, usa la copia local.
+  let base = caso.datos || {};
+  if (!(typeof esBorrador === 'function' && esBorrador(caso))) {
+    try {
+      const { data: fresco } = await db.from('registro_asistencias')
+        .select('datos').eq('numero_caso', caso.numero_caso).maybeSingle();
+      if (fresco && fresco.datos) base = fresco.datos;
+    } catch (_) { /* sin conexión: usa la copia local */ }
+  }
+
+  const datos = Object.assign({}, base);
   datos['ASISTENCIA TELEFONICA'] = 'SI';
   datos['HORA DE ATENCION'] = datos['HORA DE ATENCION'] || formatDate(new Date());
   datos['FECHA Y HORA DE LLEGADA'] = datos['FECHA Y HORA DE LLEGADA'] || formatDate(new Date());
@@ -1661,7 +1733,7 @@ async function reportarTelefonica() {
       encolado = true;
     } else if (typeof guardarCasoResiliente === 'function') {
       const r = await guardarCasoResiliente(caso.numero_caso,
-        { cambios: datos, estado: nuevoEstado, baseDatos: caso.datos || {} });
+        { cambios: datos, estado: nuevoEstado, baseDatos: base });
       encolado = r.encolado;
     } else {
       const { error } = await db
@@ -1712,7 +1784,17 @@ async function reportarLlegada() {
   }
 
   const coordStr = `${coords.lat}, ${coords.lng}`;
-  const datos = Object.assign({}, caso.datos || {});
+  // Relee los datos frescos de la BD para no pisar evidencia subida en tiempo
+  // real (fotos/documentos). Si falla o es un borrador, usa la copia local.
+  let base = caso.datos || {};
+  if (!(typeof esBorrador === 'function' && esBorrador(caso))) {
+    try {
+      const { data: fresco } = await db.from('registro_asistencias')
+        .select('datos').eq('numero_caso', caso.numero_caso).maybeSingle();
+      if (fresco && fresco.datos) base = fresco.datos;
+    } catch (_) { /* sin conexión: usa la copia local */ }
+  }
+  const datos = Object.assign({}, base);
   datos['COORDENADAS ASISTENCIA'] = coordStr;
   datos['FECHA Y HORA DE LLEGADA'] = formatDate(new Date());
   datos['HORA DE ATENCION'] = formatDate(new Date()); // hora de atención = momento del check-in
@@ -1735,7 +1817,7 @@ async function reportarLlegada() {
       encolado = true;
     } else if (typeof guardarCasoResiliente === 'function') {
       const r = await guardarCasoResiliente(caso.numero_caso,
-        { cambios: datos, estado: nuevoEstado, baseDatos: caso.datos || {} });
+        { cambios: datos, estado: nuevoEstado, baseDatos: base });
       encolado = r.encolado;
     } else {
       const { error } = await db

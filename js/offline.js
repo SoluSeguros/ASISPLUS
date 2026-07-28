@@ -314,12 +314,14 @@ async function _ejecutarOp(op) {
   }
 
   if (op.tipo === 'guardar-caso') {
+    // La base la aporta la relectura fresca (op.baseDatos casi siempre viene
+    // vacío). Si el SELECT falla, NO seguimos: escribir Object.assign({}, delta)
+    // borraría el resto de `datos` (fotos, etc.). Lanzamos para reintentar.
     let base = op.baseDatos || {};
-    try {
-      const { data } = await db.from('registro_asistencias')
-        .select('datos').eq('numero_caso', op.numero_caso).maybeSingle();
-      if (data && data.datos) base = data.datos;
-    } catch (_) { /* sin datos frescos */ }
+    const { data, error: errLeer } = await db.from('registro_asistencias')
+      .select('datos').eq('numero_caso', op.numero_caso).maybeSingle();
+    if (errLeer) throw errLeer;
+    if (data && data.datos) base = data.datos;
     const datos = Object.assign({}, base, op.cambios || {});
     const upd = { datos };
     if (op.estado) upd.estado = op.estado;
@@ -330,12 +332,13 @@ async function _ejecutarOp(op) {
   }
 
   if (op.tipo === 'merge') {
+    // Igual que 'guardar-caso': sin base fresca confirmada NO escribimos (un
+    // merge sobre {} borraría el resto de `datos`). Si el SELECT falla, reintenta.
     let base = {};
-    try {
-      const { data } = await db.from('registro_asistencias')
-        .select('datos').eq('numero_caso', op.numero_caso).maybeSingle();
-      if (data && data.datos) base = data.datos;
-    } catch (_) { /* nada */ }
+    const { data, error: errLeer } = await db.from('registro_asistencias')
+      .select('datos').eq('numero_caso', op.numero_caso).maybeSingle();
+    if (errLeer) throw errLeer;
+    if (data && data.datos) base = data.datos;
     const datos = Object.assign({}, base, op.cambios || {});
     const { error } = await db.from('registro_asistencias').update({ datos }).eq('numero_caso', op.numero_caso);
     if (error) throw error;
@@ -343,12 +346,12 @@ async function _ejecutarOp(op) {
   }
 
   if (op.tipo === 'append-foto') {
+    // Sin base fresca confirmada NO escribimos (se perderían otras fotos/campos).
     let base = {};
-    try {
-      const { data } = await db.from('registro_asistencias')
-        .select('datos').eq('numero_caso', op.numero_caso).maybeSingle();
-      if (data && data.datos) base = data.datos;
-    } catch (_) { /* nada */ }
+    const { data, error: errLeer } = await db.from('registro_asistencias')
+      .select('datos').eq('numero_caso', op.numero_caso).maybeSingle();
+    if (errLeer) throw errLeer;
+    if (data && data.datos) base = data.datos;
     const datos = Object.assign({}, base);
     const lista = Array.isArray(datos['FOTOS SITIO']) ? datos['FOTOS SITIO'].slice() : [];
     if (!lista.includes(op.ruta)) lista.push(op.ruta);

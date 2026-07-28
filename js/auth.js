@@ -72,6 +72,7 @@ async function cerrarSesion() {
   await db.auth.signOut();
   limpiarSesionLocal(); // detiene timers y borra el estado en memoria
   clearPreviousData();
+  document.body.removeAttribute('data-rol'); // oculta la barra inferior y su margen
   showAppSections(false);
 }
 

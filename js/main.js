@@ -5,6 +5,12 @@
  * Se carga en último lugar, cuando el resto ya está definido.
  */
 
+// --- Barra inferior de navegación (móvil): reutiliza los flujos existentes ---
+if (els.bnInicio) els.bnInicio.addEventListener('click', ocultarPantallas);
+if (els.bnBandeja) els.bnBandeja.addEventListener('click', abrirBandeja);
+if (els.bnCrear) els.bnCrear.addEventListener('click', abrirCrearCaso);
+if (els.bnSalir) els.bnSalir.addEventListener('click', cerrarSesion);
+
 // --- Gestión de casos ---
 els.btnMenuCrearCaso.addEventListener('click', abrirCrearCaso);
 els.btnMenuBandeja.addEventListener('click', abrirBandeja);
@@ -25,6 +31,8 @@ const soloLetras = v => v.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ .'-]/g, 
 const soloDigitos = v => v.replace(/\D/g, '');
 els.casoConductor.addEventListener('input', e => { e.target.value = soloLetras(e.target.value).toUpperCase(); });
 els.casoCedulaConductor.addEventListener('input', e => { e.target.value = soloDigitos(e.target.value); });
+// Si editan la placa a mano, recalcula el aviso de "vehículo fuera del parque".
+if (els.casoPlaca) els.casoPlaca.addEventListener('input', () => { if (typeof actualizarAvisoParque === 'function') actualizarAvisoParque(); });
 els.casoContacto.addEventListener('input', e => { e.target.value = soloDigitos(e.target.value); });
 els.filtroEstado.addEventListener('change', aplicarFiltrosBandeja);
 els.filtroMisCasos.addEventListener('change', cargarBandeja);
