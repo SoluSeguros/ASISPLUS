@@ -35,6 +35,98 @@ const RUTA_CHIP = {
   SEG_VIAL_PREJUDICIALES: { t: 'S.Vial Prejud.', c: 'rc-prejud' }
 };
 
+// Traduce la categoría automática (segvial.js · _clasificarAuto) a la ruta de
+// cierre (departamento). Es la base de la sugerencia automática de ruta.
+const CAT_A_RUTA = {
+  PREJUDICIAL: 'SEG_VIAL_PREJUDICIALES', // prejudicial / penal / demanda
+  LESIONES: 'SEG_VIAL_LESIONES',         // hay lesionados u homicidio
+  A_FAVOR: 'RECLAMACION_FAVOR',          // responsabilidad NO → se reclama a favor
+  EN_CONTRA: 'SEG_VIAL_2251',            // responsabilidad SÍ, solo daños → póliza/deducible
+  V2251: 'SEG_VIAL_2251',               // solo daños, sin lesionados
+  CERRADO: 'CERRADO'                     // conciliado / cerrado en sitio
+};
+
+// Estado del auto-relleno de la ruta: true = el usuario la eligió a mano (no la
+// cambiamos sola al editar la evaluación); false = sigue siendo automática.
+let _rutaManual = false;
+
+/**
+ * Sugiere la ruta de cierre (departamento) a partir de los datos del caso,
+ * reutilizando el clasificador de Seguridad Vial. Devuelve { ruta, motivo }.
+ */
+function sugerirRutaCierre(datos) {
+  const d = datos || {};
+  const cat = (typeof _clasificarAuto === 'function') ? _clasificarAuto(d) : 'SIN';
+  const ruta = CAT_A_RUTA[cat] || '';
+  return { ruta, motivo: _motivoSugerencia(d, cat) };
+}
+
+/** Explica en una frase por qué se sugiere esa ruta (transparencia). */
+function _motivoSugerencia(d, cat) {
+  const up = v => String(v || '').trim().toUpperCase();
+  const grav = up(d['GRAVEDAD DEL SINIESTRO']);
+  switch (cat) {
+    case 'PREJUDICIAL': return 'Marcado como prejudicial / proceso penal o demanda.';
+    case 'LESIONES': return grav === 'HOMICIDIO'
+      ? 'Hay homicidio → intervención de tránsito (audiencia contravencional).'
+      : 'Hay lesionados → intervención de tránsito (audiencia contravencional).';
+    case 'A_FAVOR': return 'Responsabilidad del conductor: NO (el tercero es responsable) → reclamación a favor.';
+    case 'EN_CONTRA': return 'Responsabilidad del conductor: SÍ y solo daños → afectación de póliza / deducible (2251).';
+    case 'V2251': return 'Solo daños, sin lesionados → 2251 (póliza / deducible).';
+    case 'CERRADO': return 'Conciliado o cerrado en sitio (transacción, desistimiento o mutuo acuerdo).';
+    default: return 'Falta información (gravedad, lesionados o responsabilidad) para sugerir la ruta automáticamente.';
+  }
+}
+
+/**
+ * Datos vigentes para la sugerencia: los del caso, sobrescritos con lo que el
+ * asistente tenga ELEGIDO ahora en la evaluación (gravedad/lesionados/resp.),
+ * aunque todavía no lo haya guardado.
+ */
+function _datosParaSugerencia() {
+  const d = Object.assign({}, (state.casoActual && state.casoActual.datos) || {});
+  ['GRAVEDAD DEL SINIESTRO', 'RESPONSABILIDAD DEL CONDUCTOR', 'LESIONADOS'].forEach(campo => {
+    const el = els.detalleCampos && els.detalleCampos.querySelector(`[data-campo="${campo}"]`);
+    if (el) d[campo] = el.value;
+  });
+  return d;
+}
+
+/** Aplica una ruta sugerida al selector (como si la hubiera elegido el sistema). */
+function aplicarSugerenciaRuta(ruta) {
+  els.rutaCierre.value = ruta;
+  _rutaManual = false;
+  renderRuta(ruta);
+  renderSugerenciaRuta();
+}
+
+/** Pinta el aviso de la sugerencia automática (coincide / sugerido / faltan datos). */
+function renderSugerenciaRuta() {
+  const cont = els.rutaSugerencia;
+  if (!cont) return;
+  const sug = sugerirRutaCierre(_datosParaSugerencia());
+  const actual = els.rutaCierre.value;
+
+  if (!sug.ruta) { // sin datos suficientes
+    cont.className = 'ruta-sugerencia rsg-neutral';
+    cont.innerHTML = `<span class="rsg-ico">🤖</span><span>${escC(sug.motivo)}</span>`;
+    return;
+  }
+  const info = RUTAS_CIERRE.find(r => r.val === sug.ruta);
+  const nombre = info ? `${info.label} · ${info.responsable}` : sug.ruta;
+  if (actual === sug.ruta) {
+    cont.className = 'ruta-sugerencia rsg-ok';
+    cont.innerHTML = `<span class="rsg-ico">✅</span><span>Ruta automática: <b>${escC(nombre)}</b>. ${escC(sug.motivo)}</span>`;
+  } else {
+    cont.className = 'ruta-sugerencia rsg-warn';
+    cont.innerHTML = `<span class="rsg-ico">🤖</span><span>Sugerido automáticamente: <b>${escC(nombre)}</b>. ${escC(sug.motivo)}</span>` +
+      `<button type="button" class="secondary rsg-aplicar" id="btnAplicarRuta">Aplicar</button>`;
+    const btn = cont.querySelector('#btnAplicarRuta');
+    if (btn && !els.rutaCierre.disabled) btn.addEventListener('click', () => aplicarSugerenciaRuta(sug.ruta));
+    if (btn) btn.disabled = els.rutaCierre.disabled;
+  }
+}
+
 // Campos de control por ruta (se guardan como campo-caso → datos JSONB).
 // El primer campo de cada área es el "Seguimiento" (sub-estado del proceso).
 const CAMPOS_RUTA = {
@@ -88,7 +180,26 @@ function initCierre() {
     RUTAS_CIERRE.map(r => `<option value="${r.val}">${r.label} · ${r.responsable}</option>`).join('');
   els.rutaCierre.classList.add('campo-caso');
   els.rutaCierre.dataset.campo = 'RUTA CIERRE';
-  els.rutaCierre.addEventListener('change', () => renderRuta(els.rutaCierre.value));
+  // Cambio manual: el usuario eligió la ruta → no la volvemos a mover sola.
+  els.rutaCierre.addEventListener('change', () => {
+    _rutaManual = true;
+    renderRuta(els.rutaCierre.value);
+    renderSugerenciaRuta();
+  });
+
+  // Si cambia la evaluación (gravedad/lesionados/responsabilidad), recalculamos
+  // la sugerencia; y si la ruta aún es automática, la actualizamos sola.
+  if (els.detalleCampos) {
+    els.detalleCampos.addEventListener('change', e => {
+      const campo = e.target && e.target.dataset && e.target.dataset.campo;
+      if (!['GRAVEDAD DEL SINIESTRO', 'RESPONSABILIDAD DEL CONDUCTOR', 'LESIONADOS'].includes(campo)) return;
+      if (!_rutaManual && !els.rutaCierre.disabled) {
+        const sug = sugerirRutaCierre(_datosParaSugerencia());
+        if (sug.ruta && els.rutaCierre.value !== sug.ruta) { els.rutaCierre.value = sug.ruta; renderRuta(sug.ruta); }
+      }
+      renderSugerenciaRuta();
+    });
+  }
 
   els.btnSubirDocRuta.addEventListener('click', () => els.inputDocRuta.click());
   els.inputDocRuta.addEventListener('change', subirDocsRuta);
@@ -98,7 +209,15 @@ function initCierre() {
 function cargarCierreCaso(caso) {
   const d = caso.datos || {};
   els.rutaCierre.value = d['RUTA CIERRE'] || '';
+  // Si ya tenía ruta guardada se respeta (manual). Si NO, se auto-rellena con la
+  // sugerencia del clasificador (queda como automática, editable).
+  _rutaManual = !!d['RUTA CIERRE'];
+  if (!els.rutaCierre.value) {
+    const sug = sugerirRutaCierre(d);
+    if (sug.ruta) els.rutaCierre.value = sug.ruta;
+  }
   renderRuta(els.rutaCierre.value);
+  renderSugerenciaRuta();
   cargarDocsRuta(caso);
 }
 
@@ -254,6 +373,8 @@ async function eliminarDocRuta(caso, doc) {
 /** Habilita o bloquea el bloque de cierre (según el check-in). */
 function habilitarCierre(on) {
   els.rutaCierre.disabled = !on;
+  const btnAplic = els.rutaSugerencia && els.rutaSugerencia.querySelector('#btnAplicarRuta');
+  if (btnAplic) btnAplic.disabled = !on;
   els.rutaCampos.querySelectorAll('input, select, textarea').forEach(el => { el.disabled = !on; });
   els.rutaNotif.querySelectorAll('input').forEach(el => { el.disabled = !on; });
   if (els.btnSubirDocRuta) els.btnSubirDocRuta.disabled = !on;

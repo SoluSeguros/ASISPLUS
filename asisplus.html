@@ -49,6 +49,7 @@
   <script src="js/cierre.js" defer></script>
   <script src="js/ui.js" defer></script>
   <script src="js/segvial.js" defer></script>
+  <script src="js/dashboard.js" defer></script>
   <script src="js/main.js" defer></script>
   <script src="js/conexion.js" defer></script>
   <script src="js/offline.js" defer></script>
@@ -103,6 +104,13 @@
           </span>
           <span class="tile-title">Casos por categoría</span>
           <span class="tile-desc">Reclamaciones, lesiones, prejudiciales, 2251</span>
+        </button>
+        <button class="tile tile-dash hidden" id="btnMenuDashboard">
+          <span class="tile-ico">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="10" width="3" height="7"/><rect x="12" y="6" width="3" height="11"/><rect x="17" y="13" width="3" height="4"/></svg>
+          </span>
+          <span class="tile-title">Dashboard / Métricas</span>
+          <span class="tile-desc">Top 10 empresas, casos por mes y por estado</span>
         </button>
         <button class="tile" id="btnVerCruce">
           <span class="tile-ico">
@@ -746,6 +754,7 @@
               <select id="rutaCierre"></select>
             </div>
           </div>
+          <div id="rutaSugerencia" class="ruta-sugerencia hidden" role="status"></div>
           <div id="rutaResponsable" class="ruta-responsable"></div>
           <div id="rutaCampos" class="form-grid"></div>
           <div id="rutaNotif" class="ruta-notif"></div>
@@ -813,6 +822,19 @@
         </div>
         <p class="audio-nota">🟢 En línea = actividad reciente (últimos ~11 min). La lista se actualiza sola mientras esta pantalla está abierta. Para ahorrar consumo, los sondeos se pausan si dejas la app en segundo plano.</p>
         <div id="conectadosLista" class="conectados-lista"></div>
+      </div>
+
+      <!-- ============ Dashboard de métricas (gestor / admin) ============ -->
+      <div class="card caso-card hidden" id="dashboardCard">
+        <div class="caso-head">
+          <h2>📊 Dashboard de métricas</h2>
+          <div class="caso-head-btns">
+            <button class="secondary" id="btnRefrescarDashboard">↻ Actualizar</button>
+            <button class="secondary" id="btnDashboardVolver">← Menú</button>
+          </div>
+        </div>
+        <p class="audio-nota">Resumen de todos los casos: empresas con más siniestros (Top 10), casos por mes y por estado.</p>
+        <div id="dashboardBody" class="dashboard-body"></div>
       </div>
     </section>
 

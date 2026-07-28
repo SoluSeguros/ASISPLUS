@@ -88,6 +88,8 @@ async function abrirSegvial() {
   marcarUbicacion('btnMenuSegvial', 'Casos por categoría');
   svCatActiva = '';
   svPage = 1;
+  // Las personas de Seguridad Vial aterrizan directo en su tablero de asignaciones.
+  if (state.perfil && state.perfil.rol === 'seguridad_vial') svVista = 'asignaciones';
   await cargarCasosCategoria();
 }
 
@@ -181,10 +183,14 @@ function renderSegvial() {
   if (!cont) return;
 
   const toggle = `<div class="sv-vistas">
+    <button type="button" class="sv-vista-btn${svVista === 'asignaciones' ? ' activo' : ''}" data-vista="asignaciones">👥 Asignaciones</button>
     <button type="button" class="sv-vista-btn${svVista === 'tabla' ? ' activo' : ''}" data-vista="tabla">📋 Tabla</button>
     <button type="button" class="sv-vista-btn${svVista === 'calendario' ? ' activo' : ''}" data-vista="calendario">📅 Calendario de audiencias</button>
   </div>`;
-  cont.innerHTML = toggle + (svVista === 'calendario' ? calendarioHTML() : tablaHTML());
+  const vista = svVista === 'calendario' ? calendarioHTML()
+    : svVista === 'asignaciones' ? tableroHTML()
+    : tablaHTML();
+  cont.innerHTML = toggle + vista;
 
   // Cableado (delegación en el contenedor, una sola vez): cubre ambas vistas.
   if (!cont.dataset.wired) {
@@ -203,8 +209,33 @@ function renderSegvial() {
       if (tab) { svCatActiva = tab.dataset.cat || ''; svPage = 1; renderSegvial(); return; }
       if (ev.target.closest('#catPrev')) { if (svPage > 1) { svPage--; renderSegvial(); } return; }
       if (ev.target.closest('#catNext')) { svPage++; renderSegvial(); return; }
+      // Reasignación en bloque.
+      if (ev.target.closest('#svBulkMover')) { reasignarEnBloque(); return; }
+      // Tablero de asignaciones: clic en la tarjeta abre la gestión (salvo si se
+      // tocó el selector de responsable, que se maneja aparte con 'change').
+      const tc = ev.target.closest('.sv-tab-card');
+      if (tc && !ev.target.closest('.sv-asig-select')) {
+        const caso = svRows[Number(tc.dataset.idx)]; if (caso) abrirModalCaso(caso); return;
+      }
       const fila = ev.target.closest('.cat-fila');
       if (fila) { const caso = svRows[Number(fila.dataset.idx)]; if (caso) abrirModalCaso(caso); }
+    });
+    // Asignar responsable de Seguridad Vial desde el selector de cada tarjeta.
+    cont.addEventListener('change', async ev => {
+      const sel = ev.target.closest('.sv-asig-select');
+      if (!sel) return;
+      const caso = svRows[Number(sel.dataset.idx)];
+      if (!caso) return;
+      const valor = sel.value;
+      sel.disabled = true;
+      try {
+        await guardarGestionCaso(caso, { 'RESPONSABLE SV': valor });
+        renderSegvial();
+        showStatus(valor ? `Caso asignado a ${valor}.` : 'Caso dejado sin asignar.', 'ok');
+      } catch (e) {
+        showStatus('No se pudo asignar el responsable: ' + (e.message || e), 'error');
+        sel.disabled = false;
+      }
     });
     cont.dataset.wired = '1';
   }
@@ -271,6 +302,166 @@ function tablaHTML() {
         <button type="button" class="secondary" id="catNext"${svPage >= totalPag ? ' disabled' : ''}>Siguiente</button>
       </span>
     </div>`;
+}
+
+/* ------------------------------------------------------------------ *
+ *  Tablero de asignaciones por responsable (personas de Seguridad Vial).
+ *  Vista dinámica: resumen (KPIs) + columnas por persona, con asignación
+ *  directa desde cada tarjeta. Toca una tarjeta para gestionarla.
+ * ------------------------------------------------------------------ */
+
+// Categorías que gestiona Seguridad Vial (las que se enrutan a César / Víctor).
+const SV_BOARD_CATS = ['LESIONES', 'EN_CONTRA', 'V2251', 'PREJUDICIAL'];
+// Responsables por defecto si no hay usuarios con rol 'seguridad_vial'.
+const SV_RESP_DEFAULT = ['César', 'Víctor'];
+
+/** ¿El caso está finalizado (cerrado por el área)? */
+function svEsFinalizado(f) {
+  return String((f.datos || {})['ESTADO GENERAL'] || '').toUpperCase() === 'FINALIZADO';
+}
+
+/** Lista de responsables de Seguridad Vial: usuarios con ese rol + los de base. */
+function svResponsables() {
+  const nombres = [];
+  const add = n => {
+    n = String(n || '').trim();
+    if (n && !nombres.some(x => x.toLowerCase() === n.toLowerCase())) nombres.push(n);
+  };
+  (state.perfilesLista || []).filter(p => p.rol === 'seguridad_vial').forEach(p => add(p.nombre));
+  SV_RESP_DEFAULT.forEach(add);
+  return nombres;
+}
+
+/** Clase de color de "días" para las tarjetas del tablero. */
+function svDiasClase(f, n) {
+  if (svEsFinalizado(f) || f._cat === 'CERRADO') return 'dias-cerr';
+  if (n > 60) return 'dias-alto';
+  if (n > 30) return 'dias-medio';
+  return 'dias-ok';
+}
+
+/** Tarjeta-KPI del resumen. */
+function svKpiHTML(n, label, tono) {
+  return `<div class="sv-kpi${tono ? ' k-' + tono : ''}"><span class="sv-kpi-n">${n}</span><span class="sv-kpi-l">${escSv(label)}</span></div>`;
+}
+
+/** Tarjeta de un caso dentro del tablero (con selector de responsable). */
+function svTabCardHTML(f) {
+  const d = f.datos || {};
+  const cat = SV_CAT_POR_KEY[f._cat] || { label: '', cls: 'cat-sin' };
+  const dias = diasEnProceso(f);
+  const seg = d['SEGUIMIENTO'] || d['ESTADO DEL SINIESTRO'] || '';
+  const aud = audienciaDeCaso(f);
+  const actual = String(d['RESPONSABLE SV'] || '');
+  const opts = ['<option value="">— Sin asignar —</option>']
+    .concat(svResponsables().map(r => `<option${r === actual ? ' selected' : ''}>${escSv(r)}</option>`))
+    .join('');
+  return `<div class="sv-tab-card" data-idx="${f._idx}">
+    <div class="sv-tc-top">
+      <span class="sv-tc-placa">🚌 ${escSv(d['PLACA VEHICULO'] || f.numero_caso || '—')}</span>
+      <span class="cat-chip ${cat.cls}">${escSv(cat.label)}</span>
+    </div>
+    <div class="sv-tc-emp">${escSv(d['EMPRESA'] || '')}${f.numero_caso ? ' · ' + escSv(f.numero_caso) : ''}</div>
+    <div class="sv-tc-meta">
+      ${dias != null ? `<span class="cat-dias ${svDiasClase(f, dias)}">${dias}d</span>` : ''}
+      ${seg ? `<span class="sv-tc-seg">${escSv(seg)}</span>` : ''}
+      ${aud ? `<span class="sv-tc-aud">📅 ${escSv(aud)}</span>` : ''}
+    </div>
+    <select class="sv-asig-select" data-idx="${f._idx}" title="Asignar responsable de Seguridad Vial">${opts}</select>
+  </div>`;
+}
+
+/** Columna del tablero (encabezado con nombre + conteo, y sus tarjetas). */
+function svColHTML(nombre, casos, tipo) {
+  const cards = casos.length
+    ? casos.map(svTabCardHTML).join('')
+    : '<div class="sv-col-vacio">Sin casos.</div>';
+  return `<div class="sv-col sv-col-${tipo}">
+    <div class="sv-col-head"><span class="sv-col-nom">${escSv(nombre)}</span><span class="sv-col-n">${casos.length}</span></div>
+    <div class="sv-col-body">${cards}</div>
+  </div>`;
+}
+
+/** Vista "Asignaciones": resumen (KPIs) + tablero por responsable. */
+function tableroHTML() {
+  const svAll = svRows.filter(f => SV_BOARD_CATS.includes(f._cat));
+  const activos = svAll.filter(f => !svEsFinalizado(f));
+  const finalizados = svAll.length - activos.length;
+
+  // KPIs de audiencias (próximas ≤ 7 días y vencidas) sobre los casos activos.
+  const hoy = new Date(_isoLocal(new Date()) + 'T00:00:00');
+  let aud7 = 0, vencidas = 0;
+  activos.forEach(f => {
+    const fe = audienciaDeCaso(f);
+    if (!fe) return;
+    const dt = new Date(fe + 'T00:00:00');
+    if (isNaN(dt.getTime())) return;
+    const dd = Math.round((dt.getTime() - hoy.getTime()) / 86400000);
+    if (dd < 0) vencidas++; else if (dd <= 7) aud7++;
+  });
+
+  // Agrupa los activos por responsable (los del catálogo + los ya asignados).
+  const grupos = {};
+  svResponsables().forEach(r => { grupos[r] = []; });
+  const sinAsig = [];
+  activos.forEach(f => {
+    const r = String((f.datos || {})['RESPONSABLE SV'] || '').trim();
+    if (!r) { sinAsig.push(f); return; }
+    if (!grupos[r]) grupos[r] = [];
+    grupos[r].push(f);
+  });
+
+  const kpis = `<div class="sv-kpis">
+    ${svKpiHTML(activos.length, 'Casos activos', '')}
+    ${svKpiHTML(sinAsig.length, 'Sin asignar', sinAsig.length ? 'warn' : '')}
+    ${svKpiHTML(aud7, 'Audiencias ≤ 7 días', aud7 ? 'info' : '')}
+    ${svKpiHTML(vencidas, 'Audiencias vencidas', vencidas ? 'danger' : '')}
+    ${svKpiHTML(finalizados, 'Finalizados', 'ok')}
+  </div>`;
+
+  let cols = svColHTML('🗂️ Sin asignar', sinAsig, 'sinasig');
+  Object.keys(grupos).forEach(r => { cols += svColHTML('👤 ' + r, grupos[r], 'resp'); });
+
+  // Reasignación en bloque (ej.: vacaciones/ausencia: mover toda la carga).
+  const respOpts = ['<option value="">Sin asignar</option>']
+    .concat(svResponsables().map(r => `<option>${escSv(r)}</option>`)).join('');
+  const bulk = `<div class="sv-bulk">
+    <span class="sv-bulk-lab">🔁 Reasignar en bloque:</span>
+    <select id="svBulkDe" class="sv-bulk-sel" title="Desde">${respOpts}</select>
+    <span class="sv-bulk-flecha">→</span>
+    <select id="svBulkA" class="sv-bulk-sel" title="Hacia">${respOpts}</select>
+    <button type="button" class="secondary" id="svBulkMover">Mover casos</button>
+  </div>`;
+
+  return `<div class="sv-tab-intro">Asigna cada caso de Seguridad Vial a un responsable con el selector de la tarjeta. Toca la tarjeta para gestionarla (audiencia, seguimiento, adjuntos).</div>
+    ${kpis}
+    ${bulk}
+    <div class="sv-tablero">${cols}</div>`;
+}
+
+/** Reasigna en bloque todos los casos activos de un responsable a otro. */
+async function reasignarEnBloque() {
+  const de = document.getElementById('svBulkDe');
+  const a = document.getElementById('svBulkA');
+  if (!de || !a) return;
+  const origen = de.value.trim();
+  const destino = a.value.trim();
+  if (origen === destino) { showStatus('Elige un origen y un destino distintos.', 'info'); return; }
+  const casos = svRows.filter(f =>
+    SV_BOARD_CATS.includes(f._cat) && !svEsFinalizado(f) &&
+    String((f.datos || {})['RESPONSABLE SV'] || '').trim() === origen);
+  if (!casos.length) { showStatus(`No hay casos activos en "${origen || 'Sin asignar'}".`, 'info'); return; }
+  if (!window.confirm(`¿Mover ${casos.length} caso(s) de "${origen || 'Sin asignar'}" a "${destino || 'Sin asignar'}"?`)) return;
+  try {
+    showLoader(true);
+    for (const c of casos) { await guardarGestionCaso(c, { 'RESPONSABLE SV': destino }); }
+    renderSegvial();
+    showStatus(`${casos.length} caso(s) reasignado(s) a ${destino || 'Sin asignar'}.`, 'ok');
+  } catch (e) {
+    showStatus('Error al reasignar en bloque: ' + (e.message || e), 'error');
+  } finally {
+    showLoader(false);
+  }
 }
 
 /* ------------------------------------------------------------------ *

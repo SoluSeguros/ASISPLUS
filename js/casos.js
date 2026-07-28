@@ -149,6 +149,8 @@ function aplicarRol() {
   if (els.btnMenuSegvial) {
     els.btnMenuSegvial.classList.toggle('hidden', !(rol === 'admin' || rol === 'gestor' || esArea));
   }
+  // Dashboard de métricas: gestor y admin.
+  if (els.btnMenuDashboard) els.btnMenuDashboard.classList.toggle('hidden', !veAnalisis);
   els.btnMenuUsuarios.classList.toggle('hidden', rol !== 'admin');
   // Ver quién está conectado: solo el administrador.
   if (els.btnMenuConectados) els.btnMenuConectados.classList.toggle('hidden', rol !== 'admin');
@@ -403,7 +405,7 @@ function carpetaCaso(caso) {
 function ocultarPantallas() {
   ['statsBox', 'tabsBox', 'controlsBox', 'tableCard', 'btnDownloadInforme',
    'casoCrearCard', 'casoListaCard', 'casoDetalleCard', 'usuariosCard', 'conectadosCard',
-   'segvialCard'].forEach(id => {
+   'segvialCard', 'dashboardCard'].forEach(id => {
     if (els[id]) els[id].classList.add('hidden');
   });
   // Al salir del panel de conectados, detiene su auto-refresco.
