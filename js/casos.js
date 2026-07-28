@@ -457,7 +457,13 @@ const CHECKLIST_CASO = [
   { etiqueta: 'Llegada al sitio (GPS) o atención telefónica', ok: d => !!String(d['COORDENADAS ASISTENCIA'] || '').trim() || String(d['ASISTENCIA TELEFONICA'] || '').toUpperCase() === 'SI' },
   { etiqueta: 'Gravedad del siniestro', ok: d => !!String(d['GRAVEDAD DEL SINIESTRO'] || '').trim() },
   { etiqueta: 'Responsabilidad del conductor', ok: d => !!String(d['RESPONSABILIDAD DEL CONDUCTOR'] || '').trim() },
-  { etiqueta: 'Hipótesis del siniestro', ok: d => !!String(d['CODIGO HIPOTESIS'] || '').trim() },
+  { etiqueta: 'Hipótesis del siniestro', ok: d => {
+    const c = String(d['CODIGO HIPOTESIS'] || '').trim();
+    if (!c) return false;
+    // Si es "Otra", exige la descripción escrita.
+    if (c === 'OTRA') return !!String(d['HIPOTESIS'] || '').trim();
+    return true;
+  } },
   { etiqueta: 'Versión del conductor (texto o audio)', ok: d => !!(String(d['VERSION CONDUCTOR'] || '').trim() || d['VERSION CONDUCTOR AUDIO']) },
   { etiqueta: 'Descripción de daños', ok: d => !!String(d['DESCRIPCION DAÑOS EMPRESA'] || '').trim() },
   { etiqueta: 'Lesionados', ok: d => !!String(d['LESIONADOS'] || '').trim() },
@@ -1050,15 +1056,37 @@ function cerrarCasoCreado() {
  * ------------------------------------------------------------------ */
 
 /** Abre la bandeja de casos. */
+// Filtro "drill-down" que llega desde el Dashboard (empresa/mes/rango/subconjunto).
+// null = bandeja normal. Se define aquí para que esté disponible en toda la app.
+// (state.bandejaFiltroExtra guarda el mismo valor para acceso desde otros módulos.)
+
+/** Entrada normal a la bandeja (sin drill-down): muestra todos los casos. */
 async function abrirBandeja() {
+  state.bandejaFiltroExtra = null;
+  await _entrarBandeja();
+}
+
+/** Entrada a la bandeja ya filtrada desde una métrica del Dashboard. */
+async function abrirBandejaFiltrada(extra) {
+  state.bandejaFiltroExtra = extra || null;
+  // Un drill-down debe mostrar TODOS los casos que cumplen (no solo "los míos"
+  // ni un estado suelto): se limpian esos filtros para no ocultar resultados.
+  if (els.filtroMisCasos) els.filtroMisCasos.checked = false;
+  if (els.filtroEstado) els.filtroEstado.value = '';
+  await _entrarBandeja();
+}
+
+/** Prepara y abre la pantalla de la bandeja (común a ambas entradas). */
+async function _entrarBandeja() {
   ocultarPantallas();
   els.casoListaCard.classList.remove('hidden');
   filtroRutaActivo = ''; // al entrar, la bandeja arranca mostrando "Todos".
   const rol = state.perfil && state.perfil.rol;
   const esAsistente = rol === 'asistente';
   const esArea = AREA_ROLES.includes(rol);
-  // El asistente entra viendo solo los casos que le fueron asignados.
-  if (esAsistente) els.filtroMisCasos.checked = true;
+  // El asistente entra viendo solo los casos que le fueron asignados
+  // (salvo que venga con un filtro drill-down, que manda sobre todo).
+  if (esAsistente && !state.bandejaFiltroExtra) els.filtroMisCasos.checked = true;
   // Las áreas ven por ruta (no por asignación): se oculta "solo los míos".
   const labelMis = els.filtroMisCasos && els.filtroMisCasos.closest('label');
   if (labelMis) labelMis.classList.toggle('hidden', esArea);
@@ -1164,6 +1192,8 @@ function contarCategoria(filas, key) {
 function renderResumenBandeja(filas) {
   const cont = els.bandejaResumen;
   if (!cont) return;
+  // Si hay un filtro drill-down activo, los contadores reflejan ese subconjunto.
+  filas = (typeof aplicarFiltroExtra === 'function') ? aplicarFiltroExtra(filas) : filas;
   const rol = state.perfil && state.perfil.rol;
   const cats = categoriasResumen(rol);
 
@@ -1192,13 +1222,76 @@ function renderResumenBandeja(filas) {
   }
 }
 
-/** Aplica los filtros de estado (menú) y ruta (resumen) sobre el set base. */
+/** Fecha de referencia de un caso (siniestro si es válida; si no, creación). */
+function _fechaCasoBandeja(c) {
+  const s = (c.datos && c.datos['FECHA DEL SINIESTRO']) || '';
+  let dt = s ? new Date(String(s).trim()) : null;
+  if (!dt || isNaN(dt.getTime())) dt = c.creado_en ? new Date(c.creado_en) : null;
+  return (dt && !isNaN(dt.getTime())) ? dt : null;
+}
+
+/** Clave de mes YYYY-MM de un Date. */
+function _claveMesBandeja(dt) {
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`;
+}
+
+/** Aplica el filtro drill-down (empresa/mes/rango/subconjunto) que viene del Dashboard. */
+function aplicarFiltroExtra(filas) {
+  const ex = state.bandejaFiltroExtra;
+  if (!ex) return filas;
+  if (ex.empresa) {
+    filas = filas.filter(c => String((c.datos || {})['EMPRESA'] || '').trim() === ex.empresa);
+  }
+  if (ex.mes) {
+    filas = filas.filter(c => { const dt = _fechaCasoBandeja(c); return dt && _claveMesBandeja(dt) === ex.mes; });
+  }
+  if (ex.desde || ex.hasta) {
+    filas = filas.filter(c => {
+      const dt = _fechaCasoBandeja(c);
+      if (!dt) return false;
+      if (ex.desde && dt < ex.desde) return false;
+      if (ex.hasta && dt > ex.hasta) return false;
+      return true;
+    });
+  }
+  if (ex.estado === 'abiertos') {
+    filas = filas.filter(c => !['CERRADO', 'CANCELADO', 'HISTORICO'].includes(c.estado));
+  } else if (ex.estado === 'cerrados') {
+    filas = filas.filter(c => c.estado === 'CERRADO');
+  }
+  return filas;
+}
+
+/** Muestra u oculta el banner del filtro drill-down activo. */
+function renderBandejaFiltroBanner() {
+  const cont = els.bandejaFiltroBanner;
+  if (!cont) return;
+  const ex = state.bandejaFiltroExtra;
+  if (!ex) { cont.classList.add('hidden'); cont.innerHTML = ''; return; }
+  cont.innerHTML = `<span class="bfb-ico">🔎</span>`
+    + `<span class="bfb-txt">Filtrando por <b>${escBandeja(ex.label || 'selección')}</b></span>`
+    + `<button type="button" class="bfb-quitar" id="btnQuitarFiltroExtra">✕ Quitar filtro</button>`;
+  cont.classList.remove('hidden');
+  if (!cont.dataset.wired) {
+    cont.addEventListener('click', ev => {
+      if (!ev.target.closest('#btnQuitarFiltroExtra')) return;
+      state.bandejaFiltroExtra = null;
+      renderBandejaFiltroBanner();
+      aplicarFiltrosBandeja();
+    });
+    cont.dataset.wired = '1';
+  }
+}
+
+/** Aplica los filtros de estado (menú), ruta (resumen) y drill-down sobre el set base. */
 function aplicarFiltrosBandeja() {
   let filas = state.bandejaCache || [];
+  filas = aplicarFiltroExtra(filas);
   const est = els.filtroEstado && els.filtroEstado.value;
   if (est) filas = filas.filter(c => (c.estado || '') === est);
   if (filtroRutaActivo === 'SIN') filas = filas.filter(c => !rutaDeCaso(c));
   else if (filtroRutaActivo) filas = filas.filter(c => rutaDeCaso(c) === filtroRutaActivo);
+  renderBandejaFiltroBanner();
   renderBandeja(filas);
 }
 
@@ -1219,10 +1312,60 @@ function claseGravedad(g) {
   return 'grav-otro';
 }
 
-/** Dibuja la bandeja como tarjetas (una por caso). */
+/** Construye el HTML de una fila de la bandeja (misma pieza para tabla y tarjeta). */
+function filaBandejaHTML(caso, i) {
+  const d = caso.datos || {};
+  const sinAsignar = !caso.asignado_a;
+  const asignadoTxt = caso.asignado_a
+    ? (state.usuariosPorId[caso.asignado_a] || 'Asignado')
+    : 'Sin asignar';
+
+  const placa = d['PLACA VEHICULO'] || '—';
+  const interno = d['NUMERO INTERNO VEHICULO'] ? `Int. ${d['NUMERO INTERNO VEHICULO']}` : '';
+  const conductor = d['NOMBRE CONDUCTOR'] || '';
+  const direccion = d['DIRECCION DEL LUGAR DEL SINIESTRO'] || '';
+  const fechaHora = [d['FECHA DEL SINIESTRO'], d['HORA DEL SINIESTRO']].filter(Boolean).join(' · ');
+  const gravedad = d['GRAVEDAD DEL SINIESTRO'] || '';
+  const rutaChip = (typeof chipRutaBandeja === 'function') ? chipRutaBandeja(d) : '';
+  const porRevisar = String(d['VEHICULO POR REVISAR'] || '').toUpperCase() === 'SI';
+  const revisarChip = porRevisar ? `<span class="ct-revisar" title="Vehículo fuera del parque automotor">⚠️ Revisar</span>` : '';
+  const chips = [
+    gravedad ? `<span class="ct-grav ${claseGravedad(gravedad)}">${escBandeja(gravedad)}</span>` : '',
+    rutaChip, revisarChip
+  ].filter(Boolean).join('');
+
+  const numTxt = caso._borrador ? '⏳ Borrador' : escBandeja(caso.numero_caso);
+  const borradorTag = caso._borrador ? '<span class="ct-borrador">sin subir</span>' : '';
+
+  return `<article class="bl-row${caso._borrador ? ' caso-borrador' : ''}" role="button" tabindex="0" data-idx="${i}" data-estado="${escBandeja(caso.estado || 'REPORTADO')}">
+    <span class="bl-c bl-num">
+      <span class="bl-caso">${numTxt}</span>
+      <span class="bl-estado">${badgeEstado(caso.estado)}${borradorTag}</span>
+    </span>
+    <span class="bl-c bl-empresa">${escBandeja(d['EMPRESA'] || 'Sin empresa')}</span>
+    <span class="bl-c bl-veh" data-l="Vehículo">
+      <span class="bl-veh-placa">🚌 ${escBandeja(placa)}</span>
+      ${interno ? `<span class="bl-veh-sub">${escBandeja(interno)}</span>` : ''}
+      ${conductor ? `<span class="bl-veh-sub">👤 ${escBandeja(conductor)}</span>` : ''}
+    </span>
+    <span class="bl-c bl-lugar" data-l="Lugar y fecha">
+      ${direccion ? `<span class="bl-linea">📍 ${escBandeja(direccion)}</span>` : ''}
+      ${fechaHora ? `<span class="bl-linea bl-muted">🗓️ ${escBandeja(fechaHora)}</span>` : ''}
+      ${(!direccion && !fechaHora) ? '<span class="bl-muted">—</span>' : ''}
+    </span>
+    <span class="bl-c bl-chips" data-l="Clasificación">${chips || '<span class="bl-muted">—</span>'}</span>
+    <span class="bl-c bl-asig" data-l="Asignado"><span class="ct-asig ${sinAsignar ? 'ct-sinasig' : ''}">👤 ${escBandeja(asignadoTxt)}</span></span>
+    <span class="bl-c bl-fecha" data-l="Registrado">🕐 ${escBandeja(formatTimestamp(caso.creado_en))}</span>
+    <span class="bl-abrir" aria-hidden="true">Ver <b>→</b></span>
+  </article>`;
+}
+
+/**
+ * Dibuja la bandeja como una lista responsive: tabla ordenada en pantallas
+ * grandes y tarjetas cómodas en móvil (mismo marcado, layout por CSS).
+ */
 function renderBandeja(casos) {
   const cont = els.casoListaBody;
-  cont.innerHTML = '';
   els.casoListaCount.textContent = `${formatNumber(casos.length)} casos`;
 
   if (!casos.length) {
@@ -1230,64 +1373,31 @@ function renderBandeja(casos) {
     return;
   }
 
-  casos.forEach(caso => {
-    const d = caso.datos || {};
-    const card = document.createElement('article');
-    card.className = 'caso-tarjeta';
-    if (caso._borrador) card.classList.add('caso-borrador');
-    card.dataset.estado = caso.estado || 'REPORTADO';
-    card.tabIndex = 0;
-    card.setAttribute('role', 'button');
+  const head = `<div class="bl-head" role="row">
+    <span class="blh">Caso / Estado</span>
+    <span class="blh">Empresa</span>
+    <span class="blh">Vehículo y conductor</span>
+    <span class="blh">Lugar y fecha</span>
+    <span class="blh">Clasificación</span>
+    <span class="blh">Asignado</span>
+    <span class="blh">Registrado</span>
+  </div>`;
 
-    const sinAsignar = !caso.asignado_a;
-    const asignadoTxt = caso.asignado_a
-      ? (state.usuariosPorId[caso.asignado_a] || 'Asignado')
-      : 'Sin asignar';
+  const filas = casos.map((caso, i) => filaBandejaHTML(caso, i)).join('');
+  cont.innerHTML = `<div class="bandeja-lista">${head}${filas}</div>`;
 
-    const placa = d['PLACA VEHICULO'] || '—';
-    const interno = d['NUMERO INTERNO VEHICULO'] ? `Int. ${d['NUMERO INTERNO VEHICULO']}` : '';
-    const conductor = d['NOMBRE CONDUCTOR'] || '';
-    const direccion = d['DIRECCION DEL LUGAR DEL SINIESTRO'] || '';
-    const fechaHora = [d['FECHA DEL SINIESTRO'], d['HORA DEL SINIESTRO']].filter(Boolean).join(' · ');
-    const gravedad = d['GRAVEDAD DEL SINIESTRO'] || '';
-    const rutaChip = (typeof chipRutaBandeja === 'function') ? chipRutaBandeja(d) : '';
-    const porRevisar = String(d['VEHICULO POR REVISAR'] || '').toUpperCase() === 'SI';
-    const revisarChip = porRevisar ? `<span class="ct-revisar" title="Vehículo fuera del parque automotor">⚠️ Revisar vehículo</span>` : '';
-
-    card.innerHTML = `
-      <div class="ct-top">
-        <span class="ct-num">${caso._borrador ? '⏳ Borrador' : escBandeja(caso.numero_caso)}</span>
-        ${badgeEstado(caso.estado)}${caso._borrador ? '<span class="ct-borrador">sin subir</span>' : ''}
-      </div>
-      <div class="ct-empresa">${escBandeja(d['EMPRESA'] || 'Sin empresa')}</div>
-      <div class="ct-veh">
-        <span class="ct-placa">🚌 ${escBandeja(placa)}</span>
-        ${interno ? `<span class="ct-sep">·</span><span>${escBandeja(interno)}</span>` : ''}
-        ${conductor ? `<span class="ct-sep">·</span><span>👤 ${escBandeja(conductor)}</span>` : ''}
-      </div>
-      <div class="ct-body">
-        ${direccion ? `<div class="ct-linea">📍 ${escBandeja(direccion)}</div>` : ''}
-        ${fechaHora ? `<div class="ct-linea">🗓️ ${escBandeja(fechaHora)}</div>` : ''}
-        ${(gravedad || rutaChip || revisarChip) ? `<div class="ct-chips">
-          ${gravedad ? `<span class="ct-grav ${claseGravedad(gravedad)}">${escBandeja(gravedad)}</span>` : ''}
-          ${rutaChip}
-          ${revisarChip}
-        </div>` : ''}
-      </div>
-      <div class="ct-foot">
-        <span class="ct-asig ${sinAsignar ? 'ct-sinasig' : ''}">👤 ${escBandeja(asignadoTxt)}</span>
-        <span class="ct-creado">🕐 ${escBandeja(formatTimestamp(caso.creado_en))}</span>
-      </div>
-      <span class="ct-abrir">Abrir <b>→</b></span>
-    `;
-
-    const abrir = () => abrirCaso(caso);
-    card.addEventListener('click', abrir);
-    card.addEventListener('keydown', ev => {
-      if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); abrir(); }
-    });
-
-    cont.appendChild(card);
+  // Delegación de clic/teclado sobre la lista (el listener vive en el elemento
+  // recién creado, así que no se acumula entre renderes).
+  const lista = cont.querySelector('.bandeja-lista');
+  const abrirDesde = ev => {
+    const row = ev.target.closest('.bl-row');
+    if (!row) return;
+    const caso = casos[Number(row.dataset.idx)];
+    if (caso) abrirCaso(caso);
+  };
+  lista.addEventListener('click', abrirDesde);
+  lista.addEventListener('keydown', ev => {
+    if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); abrirDesde(ev); }
   });
 }
 
@@ -1355,18 +1465,42 @@ function llenarSelectHipotesis(codigoSel, filtro) {
     sel.appendChild(og);
   });
 
+  // Opción "Otra": siempre disponible (aunque haya búsqueda), para describir
+  // una hipótesis que no está en el listado oficial.
+  const oOtra = document.createElement('option');
+  oOtra.value = 'OTRA';
+  oOtra.textContent = '✎ Otra (describir manualmente)';
+  if (String(codigoSel || '') === 'OTRA') oOtra.selected = true;
+  sel.appendChild(oOtra);
+
   // Pista con el conteo de coincidencias.
   if (els.detalleHipotesisHint && q) {
     els.detalleHipotesisHint.textContent = mostradas
-      ? `${mostradas} coincidencia(s). Selecciona la que corresponda.`
-      : 'Sin coincidencias. Prueba con otra palabra (p. ej. «peatón», «velocidad», «embriaguez»).';
+      ? `${mostradas} coincidencia(s). Selecciona la que corresponda o elige «Otra».`
+      : 'Sin coincidencias. Prueba con otra palabra (p. ej. «peatón», «velocidad») o elige «Otra» para describirla.';
   } else if (els.detalleHipotesisHint) {
-    els.detalleHipotesisHint.textContent = 'Causa probable del siniestro según el código oficial de tránsito, agrupada por atribución. Usa el buscador para encontrarla rápido.';
+    els.detalleHipotesisHint.textContent = 'Causa probable del siniestro según el código oficial de tránsito, agrupada por atribución. Usa el buscador o elige «Otra» para describirla.';
   }
+
+  actualizarHipotesisOtra();
+}
+
+/** Muestra u oculta el cuadro para describir "Otra" hipótesis según la selección. */
+function actualizarHipotesisOtra() {
+  const ta = els.detalleHipotesisOtra;
+  if (!ta) return;
+  const esOtra = els.detalleHipotesis && els.detalleHipotesis.value === 'OTRA';
+  ta.classList.toggle('hidden', !esOtra);
+  // Sigue el estado (habilitado/deshabilitado) del selector de hipótesis.
+  if (esOtra) ta.disabled = els.detalleHipotesis.disabled;
 }
 
 /** Cablea el buscador de hipótesis (filtra el selector al escribir). */
 function initBuscadorHipotesis() {
+  if (els.detalleHipotesis) {
+    // Al elegir "Otra", aparece el cuadro para describir la hipótesis.
+    els.detalleHipotesis.addEventListener('change', actualizarHipotesisOtra);
+  }
   if (!els.detalleHipotesisBuscar) return;
   els.detalleHipotesisBuscar.addEventListener('input', () => {
     const seleccion = els.detalleHipotesis.value; // conserva la elegida si sigue visible
@@ -1442,7 +1576,11 @@ async function abrirCaso(caso) {
 
   await cargarHipotesis();
   if (els.detalleHipotesisBuscar) els.detalleHipotesisBuscar.value = ''; // limpia el buscador
-  llenarSelectHipotesis(d['CODIGO HIPOTESIS'], ''); // sin filtro al abrir
+  // Prellena la descripción si la hipótesis guardada fue "Otra".
+  if (els.detalleHipotesisOtra) {
+    els.detalleHipotesisOtra.value = (d['CODIGO HIPOTESIS'] === 'OTRA') ? (d['HIPOTESIS'] || '') : '';
+  }
+  llenarSelectHipotesis(d['CODIGO HIPOTESIS'], ''); // sin filtro al abrir (muestra/oculta "Otra")
 
   const dVista = await prepararDatosVistaCaso(caso);
   renderCamposCompletar(dVista);
@@ -1552,6 +1690,7 @@ function habilitarEdicionCaso(on) {
   // forzarlo (p. ej. Cerrado/Cancelado).
   els.detalleEstado.disabled = !esAdmin;
   els.detalleHipotesis.disabled = !on;
+  if (els.detalleHipotesisOtra) els.detalleHipotesisOtra.disabled = !on;
   els.btnAgregarTercero.disabled = !on;
   els.casoDetalleCard.querySelectorAll('.campo-caso').forEach(i => { i.disabled = !on; });
   els.formTercero.querySelectorAll('input, select, textarea').forEach(el => { el.disabled = !on; });
@@ -2036,7 +2175,12 @@ async function guardarDetalleCaso() {
 
   // Hipótesis del siniestro (guarda código, texto y atribución).
   const codHip = els.detalleHipotesis.value;
-  if (codHip) {
+  if (codHip === 'OTRA') {
+    // Hipótesis descrita manualmente (no está en el listado oficial).
+    datos['CODIGO HIPOTESIS'] = 'OTRA';
+    datos['HIPOTESIS'] = (els.detalleHipotesisOtra ? els.detalleHipotesisOtra.value : '').trim();
+    datos['ATRIBUCION HIPOTESIS'] = 'Otra (descrita)';
+  } else if (codHip) {
     const h = state.hipotesisLista.find(x => String(x.codigo) === codHip);
     datos['CODIGO HIPOTESIS'] = codHip;
     datos['HIPOTESIS'] = h ? h.hipotesis : '';

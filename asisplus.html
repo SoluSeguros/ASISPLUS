@@ -410,6 +410,8 @@
         </div>
         <!-- Resumen por ruta de cierre: contadores clicables que filtran la bandeja. -->
         <div id="bandejaResumen" class="bandeja-resumen hidden" aria-label="Resumen por categoría"></div>
+        <!-- Banner del filtro que llega desde el Dashboard (empresa/mes/estado). -->
+        <div id="bandejaFiltroBanner" class="bandeja-filtro-banner hidden"></div>
         <div id="casoListaBody" class="bandeja-grid"></div>
       </div>
 
@@ -726,6 +728,7 @@
             <label for="detalleHipotesisBuscar">Hipótesis (causa probable)</label>
             <input type="search" id="detalleHipotesisBuscar" placeholder="🔎 Escribe para buscar: peatón, embriaguez, exceso de velocidad, código…" autocomplete="off" />
             <select id="detalleHipotesis" size="8"><option value="">— Selecciona la hipótesis —</option></select>
+            <textarea id="detalleHipotesisOtra" class="hipo-otra hidden" rows="3" maxlength="500" placeholder="Describe la hipótesis del siniestro (no está en el listado oficial de tránsito)…"></textarea>
             <span class="hint" id="detalleHipotesisHint">Causa probable del siniestro según el código oficial de tránsito, agrupada por atribución (peatón, conductor, vía, etc.). Usa el buscador para encontrarla rápido.</span>
           </div>
         </div>
@@ -833,7 +836,13 @@
             <button class="secondary" id="btnDashboardVolver">← Menú</button>
           </div>
         </div>
-        <p class="audio-nota">Resumen de todos los casos: empresas con más siniestros (Top 10), casos por mes y por estado.</p>
+        <p class="audio-nota">Resumen de los casos: empresas con más siniestros (Top 10) y casos por mes. Usa el rango de fechas para acotar el periodo.</p>
+        <div class="dash-filtro">
+          <label class="dash-filtro-campo">Desde<input type="date" id="dashDesde"></label>
+          <label class="dash-filtro-campo">Hasta<input type="date" id="dashHasta"></label>
+          <button class="secondary" id="btnDashFiltrar">Filtrar</button>
+          <button class="secondary" id="btnDashLimpiar">Todo</button>
+        </div>
         <div id="dashboardBody" class="dashboard-body"></div>
       </div>
     </section>

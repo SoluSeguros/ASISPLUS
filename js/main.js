@@ -18,6 +18,19 @@ els.btnMenuSegvial.addEventListener('click', abrirSegvial);
 if (els.btnMenuDashboard) els.btnMenuDashboard.addEventListener('click', abrirDashboard);
 if (els.btnDashboardVolver) els.btnDashboardVolver.addEventListener('click', ocultarPantallas);
 if (els.btnRefrescarDashboard) els.btnRefrescarDashboard.addEventListener('click', cargarDashboard);
+if (els.btnDashFiltrar) els.btnDashFiltrar.addEventListener('click', renderDashboard);
+if (els.dashDesde) els.dashDesde.addEventListener('change', renderDashboard);
+if (els.dashHasta) els.dashHasta.addEventListener('change', renderDashboard);
+if (els.btnDashLimpiar) els.btnDashLimpiar.addEventListener('click', () => {
+  if (els.dashDesde) els.dashDesde.value = '';
+  if (els.dashHasta) els.dashHasta.value = '';
+  renderDashboard();
+});
+// Drill-down: clic (o Enter/Espacio) sobre una métrica abre la Bandeja filtrada.
+if (els.dashboardBody) {
+  els.dashboardBody.addEventListener('click', onDashboardDrill);
+  els.dashboardBody.addEventListener('keydown', onDashboardDrill);
+}
 els.btnSegvialVolver.addEventListener('click', ocultarPantallas);
 els.btnRefrescarSegvial.addEventListener('click', cargarCasosCategoria);
 els.casoVehiculoBuscar.addEventListener('input', filtrarVehiculos);

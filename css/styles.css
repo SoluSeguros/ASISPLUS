@@ -2916,6 +2916,22 @@ button.danger-soft:hover { background: #fdecec; }
 .sv-bulk-sel { min-height: 38px; min-width: 130px; font-size: 13px; border-radius: 10px; }
 
 /* ===================== Dashboard de métricas ===================== */
+/* Filtro por rango de fechas */
+.dash-filtro { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; margin: 6px 0 4px; }
+.dash-filtro-campo { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .02em; }
+.dash-filtro-campo input { font-size: 15px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 12px; background: #fff; color: var(--text); }
+.dash-filtro .secondary { min-height: var(--tap); }
+.dash-rango { background: #eef4ff; border: 1px solid #c5d8fb; color: #1d4ed8; border-radius: 12px; padding: 9px 14px; font-size: 13.5px; }
+
+/* Métricas clicables: llevan a la Bandeja filtrada. */
+.dash-clic { cursor: pointer; }
+.dash-clic:focus-visible { outline: 2px solid var(--primary-2); outline-offset: 2px; }
+.dash-bar-row.dash-clic { border-radius: 9px; transition: background .12s ease; }
+.dash-bar-row.dash-clic:hover { background: #eef4ff; }
+.dash-kpi.dash-clic { transition: transform .12s ease, box-shadow .14s ease; }
+.dash-kpi.dash-clic:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(20, 85, 217, .16); }
+.dash-col.dash-clic:hover .dash-col-bar { filter: brightness(1.08); box-shadow: inset 0 0 0 2px rgba(38, 132, 255, .35); }
+
 .dashboard-body { display: flex; flex-direction: column; gap: 16px; }
 .dash-kpis { display: flex; gap: 12px; flex-wrap: wrap; }
 .dash-kpi {
@@ -3116,18 +3132,140 @@ body.cat-modal-open { overflow: hidden; }
 
 /* ===================== Bandeja como tarjetas ===================== */
 .bandeja-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 16px;
+  display: block;
   margin-top: 6px;
 }
 .bandeja-vacio {
-  grid-column: 1 / -1;
   text-align: center;
   color: var(--muted);
   padding: 40px 16px;
   font-size: 15px;
 }
+
+/* ===== Lista de casos: tabla en escritorio, tarjetas en móvil ===== */
+.bandeja-lista {
+  --bl-cols: 128px minmax(140px, 1.15fr) minmax(150px, 1.25fr) minmax(170px, 1.5fr) minmax(130px, 1.05fr) 132px 116px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--card);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.bl-head {
+  display: grid;
+  grid-template-columns: var(--bl-cols);
+  background: #f7f9fc;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.blh {
+  padding: 12px 14px;
+  font-size: 11.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: #64748b;
+  white-space: nowrap;
+}
+.bl-row {
+  display: grid;
+  grid-template-columns: var(--bl-cols);
+  align-items: center;
+  border-bottom: 1px solid #eef2f7;
+  cursor: pointer;
+  position: relative;
+  transition: background .12s ease;
+}
+.bl-row:last-child { border-bottom: none; }
+.bl-row:nth-of-type(even) { background: #fbfcfe; }
+.bl-row:hover { background: #eef4ff; }
+.bl-row:focus-visible { outline: 2px solid var(--primary-2); outline-offset: -2px; }
+.bl-c {
+  padding: 12px 14px;
+  font-size: 13.5px;
+  color: #1e293b;
+  min-width: 0;
+  overflow: hidden;
+}
+.bl-num { display: flex; flex-direction: column; gap: 5px; align-items: flex-start; }
+.bl-caso { font-weight: 800; color: #0b2a55; white-space: nowrap; }
+.bl-estado { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.bl-empresa { font-weight: 700; color: #0f2f5e; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+.bl-veh { display: flex; flex-direction: column; gap: 2px; }
+.bl-veh-placa { font-weight: 700; white-space: nowrap; }
+.bl-veh-sub { font-size: 12.5px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bl-lugar { display: flex; flex-direction: column; gap: 2px; }
+.bl-linea { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bl-muted { color: #94a3b8; font-size: 12.5px; }
+.bl-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.bl-fecha { color: #64748b; font-size: 12.5px; white-space: nowrap; }
+.bl-abrir { display: none; }
+/* Franja de color por estado a la izquierda de cada fila. */
+.bl-row::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #cbd5e1; }
+.bl-row[data-estado="REPORTADO"]::before  { background: #dc4b4b; }
+.bl-row[data-estado="ASIGNADO"]::before    { background: #2563eb; }
+.bl-row[data-estado="EN_SITIO"]::before    { background: #7c3aed; }
+.bl-row[data-estado="TELEFONICA"]::before  { background: #1e4fb8; }
+.bl-row[data-estado="EN_PROCESO"]::before  { background: #f59e0b; }
+.bl-row[data-estado="ASISTIDO"]::before    { background: #0ea5b7; }
+.bl-row[data-estado="CERRADO"]::before     { background: #16a34a; }
+.bl-row[data-estado="CANCELADO"]::before   { background: #94a3b8; }
+.bl-row[data-estado="HISTORICO"]::before   { background: #94a3b8; }
+.bl-row.caso-borrador { background: #fffdf5; }
+.bl-row.caso-borrador::before { background: #f59e0b; }
+
+/* Escritorio: contenedor con scroll propio (horizontal + vertical) para que el
+   encabezado quede fijo mientras se recorre la lista. */
+@media (min-width: 861px) {
+  .bandeja-grid { overflow: auto; max-height: calc(100vh - 250px); -webkit-overflow-scrolling: touch; }
+  .bandeja-lista { min-width: 980px; }
+}
+
+/* Móvil: cada fila se vuelve tarjeta. */
+@media (max-width: 860px) {
+  .bandeja-lista { border: none; background: transparent; box-shadow: none; overflow: visible; display: flex; flex-direction: column; gap: 12px; }
+  .bl-head { display: none; }
+  .bl-row {
+    display: flex; flex-direction: column; gap: 8px; align-items: stretch;
+    border: 1px solid var(--border); border-radius: 16px; background: var(--card);
+    padding: 14px 14px 12px 18px; box-shadow: var(--shadow-sm);
+  }
+  .bl-row:nth-of-type(even) { background: var(--card); }
+  .bl-row:hover { background: var(--card); }
+  .bl-row::before { border-radius: 16px 0 0 16px; }
+  .bl-c { padding: 0; }
+  .bl-c[data-l]::before {
+    content: attr(data-l);
+    display: block; font-size: 10.5px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: .03em; color: #94a3b8; margin-bottom: 3px;
+  }
+  .bl-num { flex-direction: row; align-items: center; justify-content: space-between; }
+  .bl-caso { font-size: 15px; }
+  .bl-empresa { font-size: 15px; white-space: normal; }
+  .bl-veh-sub, .bl-linea { white-space: normal; }
+  .bl-abrir { display: inline-flex; align-self: flex-end; align-items: center; gap: 4px; color: var(--primary); font-weight: 800; font-size: 13px; }
+}
+
+/* Banner del filtro drill-down (llega desde el Dashboard). */
+.bandeja-filtro-banner {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 4px 0 10px; padding: 10px 14px;
+  background: #eef4ff; border: 1px solid #c5d8fb; border-radius: 14px; color: #1d4ed8;
+}
+.bfb-ico { font-size: 15px; }
+.bfb-txt { font-size: 14px; }
+.bfb-txt b { color: #0b2a55; }
+.bfb-quitar {
+  margin-left: auto; border: 1px solid #c5d8fb; background: #fff; color: #1d4ed8;
+  border-radius: 999px; padding: 7px 13px; font-weight: 700; font-size: 12.5px; cursor: pointer;
+  min-height: 36px;
+}
+.bfb-quitar:hover { background: #1d4ed8; color: #fff; }
+
+/* Cuadro para describir una hipótesis "Otra" (fuera del listado oficial). */
+.hipo-otra { margin-top: 8px; width: 100%; min-height: 72px; resize: vertical; }
 .caso-tarjeta {
   display: flex;
   flex-direction: column;
