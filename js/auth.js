@@ -53,6 +53,11 @@ function limpiarSesionLocal() {
 /** Inicia sesión con correo y contraseña. */
 async function iniciarSesion(email, password) {
   els.loginError.textContent = '';
+  const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  if (!emailValido) {
+    els.loginError.textContent = 'Ingresa un correo electrónico válido.';
+    return;
+  }
   els.loginSubmit.disabled = true;
   els.loginSubmit.textContent = 'Entrando...';
   try {

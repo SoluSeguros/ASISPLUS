@@ -55,6 +55,7 @@ const els = {
   loginForm: document.getElementById('loginForm'),
   loginEmail: document.getElementById('loginEmail'),
   loginPassword: document.getElementById('loginPassword'),
+  loginPasswordToggle: document.getElementById('loginPasswordToggle'),
   loginError: document.getElementById('loginError'),
   loginSubmit: document.getElementById('loginSubmit'),
   appContent: document.getElementById('appContent'),

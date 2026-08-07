@@ -246,6 +246,14 @@ els.loginForm.addEventListener('submit', event => {
   iniciarSesion(els.loginEmail.value.trim(), els.loginPassword.value);
 });
 
+if (els.loginPasswordToggle) {
+  els.loginPasswordToggle.addEventListener('click', () => {
+    const mostrando = els.loginPasswordToggle.classList.toggle('is-visible');
+    els.loginPassword.type = mostrando ? 'text' : 'password';
+    els.loginPasswordToggle.setAttribute('aria-label', mostrando ? 'Ocultar contraseña' : 'Mostrar contraseña');
+  });
+}
+
 els.btnLogout.addEventListener('click', cerrarSesion);
 
 // --- Cambio de pestañas del cruce (datos unidos, sin terceros, etc.) ---
