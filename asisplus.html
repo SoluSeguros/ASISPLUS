@@ -17,7 +17,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
 
   <!-- Estilos de la aplicación -->
-  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/styles.css?v=2.14.2" />
 
   <!-- Librería para leer y descargar Excel -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -27,33 +27,40 @@
 
   <!-- Módulos de la aplicación (orden importante). "defer": se ejecutan tras
        parsear el DOM y respetando este orden. -->
-  <script src="js/version.js" defer></script>
-  <script src="js/config.js" defer></script>
-  <script src="js/utils.js" defer></script>
-  <script src="js/state.js" defer></script>
-  <script src="js/dom.js" defer></script>
-  <script src="js/supabase.js" defer></script>
-  <script src="js/auth.js" defer></script>
-  <script src="js/relationship.js" defer></script>
-  <script src="js/excel.js" defer></script>
-  <script src="js/parque.js" defer></script>
-  <script src="js/vistas-bd.js" defer></script>
-  <script src="js/casos.js" defer></script>
-  <script src="js/audio.js" defer></script>
-  <script src="js/camara.js" defer></script>
-  <script src="js/fotos.js" defer></script>
-  <script src="js/croquis.js" defer></script>
-  <script src="js/usuarios.js" defer></script>
-  <script src="js/detalle.js" defer></script>
-  <script src="js/terceros.js" defer></script>
-  <script src="js/cierre.js" defer></script>
-  <script src="js/ui.js" defer></script>
-  <script src="js/segvial.js" defer></script>
-  <script src="js/dashboard.js" defer></script>
-  <script src="js/main.js" defer></script>
-  <script src="js/conexion.js" defer></script>
-  <script src="js/offline.js" defer></script>
-  <script src="js/pwa.js" defer></script>
+  <!-- ?v= fuerza descarga fresca en cada versión: sin esto, un caché viejo
+       (Service Worker o del navegador) puede seguir sirviendo un .js anterior
+       aunque el archivo en el servidor ya esté actualizado. Sube este número
+       junto con APP_VERSION en js/version.js en cada release. -->
+  <script src="js/version.js?v=2.14.2" defer></script>
+  <script src="js/config.js?v=2.14.2" defer></script>
+  <script src="js/utils.js?v=2.14.2" defer></script>
+  <script src="js/state.js?v=2.14.2" defer></script>
+  <script src="js/dom.js?v=2.14.2" defer></script>
+  <script src="js/supabase.js?v=2.14.2" defer></script>
+  <script src="js/auth.js?v=2.14.2" defer></script>
+  <script src="js/relationship.js?v=2.14.2" defer></script>
+  <script src="js/excel.js?v=2.14.2" defer></script>
+  <script src="js/parque.js?v=2.14.2" defer></script>
+  <script src="js/vistas-bd.js?v=2.14.2" defer></script>
+  <script src="js/casos.js?v=2.14.2" defer></script>
+  <script src="js/audio.js?v=2.14.2" defer></script>
+  <script src="js/camara.js?v=2.14.2" defer></script>
+  <script src="js/fotos.js?v=2.14.2" defer></script>
+  <script src="js/croquis.js?v=2.14.2" defer></script>
+  <script src="js/lugarimpacto.js?v=2.14.2" defer></script>
+  <script src="js/instalarapp.js?v=2.14.2" defer></script>
+  <script src="js/usuarios.js?v=2.14.2" defer></script>
+  <script src="js/empresa.js?v=2.14.2" defer></script>
+  <script src="js/detalle.js?v=2.14.2" defer></script>
+  <script src="js/terceros.js?v=2.14.2" defer></script>
+  <script src="js/cierre.js?v=2.14.2" defer></script>
+  <script src="js/ui.js?v=2.14.2" defer></script>
+  <script src="js/segvial.js?v=2.14.2" defer></script>
+  <script src="js/dashboard.js?v=2.14.2" defer></script>
+  <script src="js/main.js?v=2.14.2" defer></script>
+  <script src="js/conexion.js?v=2.14.2" defer></script>
+  <script src="js/offline.js?v=2.14.2" defer></script>
+  <script src="js/pwa.js?v=2.14.2" defer></script>
 </head>
 <body>
   <header class="appbar">
@@ -64,6 +71,10 @@
         <span class="brand-tag">Sistema de gestión de asistencias</span>
       </div>
     </div>
+    <button class="pwa-install-btn hidden" id="btnInstalarApp" title="Instalar ASIS PLUS en tu celular">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13"/><path d="m7 11 5 5 5-5"/><path d="M5 21h14"/></svg>
+      <span>Instalar app</span>
+    </button>
     <div class="header-user hidden" id="headerUser">
       <button class="notif-btn hidden" id="btnNotif" title="Casos pendientes">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
@@ -550,6 +561,13 @@
           <div id="croquisPreview" class="croquis-preview"></div>
         </div>
 
+        <h3 class="caso-sub">Lugar de impacto (IPAT)</h3>
+        <p class="audio-nota">Registra el lugar de impacto según el Campo 8.9 del IPAT: elige el tipo de vehículo, la vista (frontal, lateral o posterior) y el tercio donde ocurrió el impacto.</p>
+        <div class="croquis-detalle">
+          <button type="button" class="success" id="btnAbrirLugarImpacto">📍 Marcar lugar de impacto</button>
+          <div id="lugarImpactoPreview" class="croquis-preview">Sin registrar</div>
+        </div>
+
         <h3 class="caso-sub" id="tercerosCasoTit">Terceros del caso</h3>
         <div id="tercerosCasoCont" class="terceros-caso-cont"></div>
 
@@ -790,7 +808,11 @@
         <h3 class="caso-sub">Crear usuario</h3>
         <form id="formUsuario">
           <div class="form-grid">
-            <div class="form-field"><label for="usuNombre">Nombre</label><input type="text" id="usuNombre" placeholder="Nombre y apellido" /></div>
+            <div class="form-field">
+              <label for="usuNombre">Nombre</label>
+              <input type="text" id="usuNombre" placeholder="Nombre y apellido" />
+              <small class="muted" style="font-size:12px; display:block; margin-top:4px;">Opcional al crear — si lo dejas vacío, se puede poner después haciendo clic en el nombre dentro de la tabla.</small>
+            </div>
             <div class="form-field"><label for="usuEmail">Correo *</label><input type="email" id="usuEmail" required placeholder="usuario@combuses.com.co" /></div>
             <div class="form-field"><label for="usuPassword">Contraseña *</label><input type="text" id="usuPassword" required placeholder="Mínimo 6 caracteres" /></div>
             <div class="form-field"><label for="usuRol">Rol *</label>
@@ -800,6 +822,13 @@
                 <option value="reclamaciones">Reclamaciones (Sergio)</option>
                 <option value="seguridad_vial">Seguridad Vial (César / Víctor)</option>
                 <option value="admin">Administrador</option>
+                <option value="empresa">Empresa (portal externo)</option>
+              </select>
+            </div>
+            <div class="form-field hidden" id="usuEmpresaWrap">
+              <label for="usuEmpresa">Empresa vinculada *</label>
+              <select id="usuEmpresa">
+                <option value="">— Selecciona —</option>
               </select>
             </div>
           </div>
@@ -812,12 +841,42 @@
           Usuarios <span class="muted" id="usuariosCount"></span>
           <button class="secondary" id="btnRefrescarUsuarios" style="float:right; padding:6px 12px;">Actualizar</button>
         </h3>
+        <p class="muted" style="font-size:12.5px; margin:6px 0 12px; clear:both;">
+          ✏️ Para poner o cambiar el nombre de un usuario, haz clic en la columna "Nombre" de la tabla, escríbelo y presiona <b>Enter</b> (o haz clic afuera para guardar).
+        </p>
         <div class="table-wrap" style="max-height:46vh;">
           <table>
             <thead>
-              <tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Último acceso</th><th>Acciones</th></tr>
+              <tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Empresa</th><th>Último acceso</th><th>Acciones</th></tr>
             </thead>
             <tbody id="usuariosBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ============ Portal de empresa (solo rol "empresa") ============ -->
+      <div class="card caso-card hidden" id="empresaCard">
+        <div class="caso-head">
+          <h2 id="empresaNombreTitulo">Mi empresa</h2>
+        </div>
+
+        <h3 class="caso-sub">Mis vehículos <span class="muted" id="empresaVehiculosCount"></span></h3>
+        <div class="table-wrap" style="max-height:36vh;">
+          <table>
+            <thead>
+              <tr><th>Placa</th><th>Número interno</th><th>Tipo</th></tr>
+            </thead>
+            <tbody id="empresaVehiculosBody"></tbody>
+          </table>
+        </div>
+
+        <h3 class="caso-sub">Mi historial de casos <span class="muted" id="empresaCasosCount"></span></h3>
+        <div class="table-wrap" style="max-height:36vh;">
+          <table>
+            <thead>
+              <tr><th>N° de caso</th><th>Fecha del siniestro</th><th>Placa</th><th>Estado</th></tr>
+            </thead>
+            <tbody id="empresaCasosBody"></tbody>
           </table>
         </div>
       </div>
@@ -1004,6 +1063,52 @@
         <button class="secondary" id="btnCroquisCancelar">Cancelar</button>
         <button class="success" id="btnCroquisGuardar">Guardar croquis</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Lugar de impacto (IPAT, Campo 8.9) -->
+  <div class="modal-overlay" id="lugarImpactoModal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <div>
+          <h2>Lugar de impacto</h2>
+          <span class="muted">Campo 8.9 del IPAT: tipo de vehículo, vista y tercio del impacto.</span>
+        </div>
+        <button class="secondary" id="btnLugarImpactoCerrar">✕ Cerrar</button>
+      </div>
+      <div class="modal-body">
+        <h3 class="caso-sub" style="margin-top:0;">1. Tipo de vehículo</h3>
+        <div class="li-tipos" id="liTipos"></div>
+
+        <h3 class="caso-sub">2. Vista del impacto</h3>
+        <div class="li-vistas" id="liVistas">
+          <button type="button" class="secondary li-tool" data-vista="FRONTAL">Frontal</button>
+          <button type="button" class="secondary li-tool" data-vista="LATERAL">Lateral</button>
+          <button type="button" class="secondary li-tool" data-vista="POSTERIOR">Posterior</button>
+        </div>
+
+        <h3 class="caso-sub">3. Tercio del impacto</h3>
+        <div class="li-tercios hidden" id="liTercios"></div>
+        <textarea id="liOtroTexto" class="hidden" rows="3" placeholder="Describe el vehículo y el lugar del impacto..."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="secondary" id="btnLugarImpactoCancelar">Cancelar</button>
+        <button class="success" id="btnLugarImpactoGuardar">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Instrucciones para instalar la app en el celular -->
+  <div class="modal-overlay" id="instalarAppModal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <div>
+          <h2>Instalar ASIS PLUS</h2>
+          <span class="muted">Úsala como una app, sin entrar por el navegador cada vez.</span>
+        </div>
+        <button class="secondary" id="btnInstalarAppCerrar">✕ Cerrar</button>
+      </div>
+      <div class="modal-body" id="instalarAppCuerpo"></div>
     </div>
   </div>
 

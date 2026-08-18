@@ -59,6 +59,10 @@ const els = {
   loginError: document.getElementById('loginError'),
   loginSubmit: document.getElementById('loginSubmit'),
   appContent: document.getElementById('appContent'),
+  btnInstalarApp: document.getElementById('btnInstalarApp'),
+  instalarAppModal: document.getElementById('instalarAppModal'),
+  instalarAppCuerpo: document.getElementById('instalarAppCuerpo'),
+  btnInstalarAppCerrar: document.getElementById('btnInstalarAppCerrar'),
   headerUser: document.getElementById('headerUser'),
   userEmail: document.getElementById('userEmail'),
   rolUsuario: document.getElementById('rolUsuario'),
@@ -111,10 +115,20 @@ const els = {
   usuEmail: document.getElementById('usuEmail'),
   usuPassword: document.getElementById('usuPassword'),
   usuRol: document.getElementById('usuRol'),
+  usuEmpresaWrap: document.getElementById('usuEmpresaWrap'),
+  usuEmpresa: document.getElementById('usuEmpresa'),
   btnUsuVolver: document.getElementById('btnUsuVolver'),
   btnRefrescarUsuarios: document.getElementById('btnRefrescarUsuarios'),
   usuariosBody: document.getElementById('usuariosBody'),
   usuariosCount: document.getElementById('usuariosCount'),
+
+  // Portal de empresa
+  empresaCard: document.getElementById('empresaCard'),
+  empresaNombreTitulo: document.getElementById('empresaNombreTitulo'),
+  empresaVehiculosBody: document.getElementById('empresaVehiculosBody'),
+  empresaVehiculosCount: document.getElementById('empresaVehiculosCount'),
+  empresaCasosBody: document.getElementById('empresaCasosBody'),
+  empresaCasosCount: document.getElementById('empresaCasosCount'),
 
   // Crear caso
   casoCrearCard: document.getElementById('casoCrearCard'),
@@ -245,6 +259,19 @@ const els = {
   btnCroquisTutorialCerrar: document.getElementById('btnCroquisTutorialCerrar'),
   btnCroquisTutorialOk: document.getElementById('btnCroquisTutorialOk'),
   croquisTutorial: document.getElementById('croquisTutorial'),
+
+  // Lugar de impacto (IPAT)
+  btnAbrirLugarImpacto: document.getElementById('btnAbrirLugarImpacto'),
+  lugarImpactoPreview: document.getElementById('lugarImpactoPreview'),
+  lugarImpactoModal: document.getElementById('lugarImpactoModal'),
+  liTipos: document.getElementById('liTipos'),
+  liVistas: document.getElementById('liVistas'),
+  liTercios: document.getElementById('liTercios'),
+  liOtroTexto: document.getElementById('liOtroTexto'),
+  btnLugarImpactoCerrar: document.getElementById('btnLugarImpactoCerrar'),
+  btnLugarImpactoCancelar: document.getElementById('btnLugarImpactoCancelar'),
+  btnLugarImpactoGuardar: document.getElementById('btnLugarImpactoGuardar'),
+
   formTercero: document.getElementById('formTercero'),
   terceroFormWrap: document.getElementById('terceroFormWrap'),
   btnTerceroSi: document.getElementById('btnTerceroSi'),

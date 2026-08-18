@@ -26,6 +26,29 @@
   --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);   /* salida tipo "spring" */
   --tap: 44px;                                      /* área mínima táctil (iOS HIG) */
   --ring: 0 0 0 4px rgba(20, 85, 217, 0.18);       /* aro de foco accesible */
+
+  /* Escala de espaciado (modernización v2.13.x): usar en CSS nuevo/tocado;
+     no reemplaza los literales existentes salvo donde ya se edita esa regla. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+
+  /* Escala tipográfica (mismos tamaños que ya se usaban de facto). */
+  --fs-xs: 12px;
+  --fs-sm: 13.5px;
+  --fs-md: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 22px;
+
+  /* Sombras "de elevación" en dos capas (contacto + ambiente), más suaves
+     que --shadow/--shadow-lg para tiles/cards/botones refinados. */
+  --elev-1: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 1px rgba(15, 23, 42, 0.03);
+  --elev-2: 0 1px 1px rgba(15, 23, 42, 0.04), 0 10px 24px -8px rgba(20, 85, 217, 0.16);
 }
 
 * {
@@ -675,6 +698,27 @@ tbody tr:hover {
   background: rgba(255, 255, 255, 0.2);
   animation: notif-pulse 1.8s ease-in-out infinite;
 }
+
+/* Botón "Instalar app" del encabezado: visible en login y ya autenticado,
+   se oculta solo si la app ya corre instalada (display-mode: standalone). */
+.pwa-install-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  padding: 9px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.pwa-install-btn:hover { background: rgba(255, 255, 255, 0.22); }
+.pwa-install-btn svg { width: 17px; height: 17px; flex: none; }
 
 @keyframes notif-pulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(255, 90, 90, 0.55); }
@@ -1921,6 +1965,122 @@ input[type="password"]:focus {
   border-color: var(--primary);
 }
 
+/* Lugar de impacto (Campo 8.9 del IPAT): reutiliza el lenguaje visual del
+   croquis (grilla de iconos + botones de herramienta con estado activo). */
+.li-tipos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.li-tipo.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+.li-tipo.active small { color: rgba(255, 255, 255, 0.85); }
+
+.li-vistas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.li-tool.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+#liOtroTexto {
+  width: 100%;
+  resize: vertical;
+}
+
+/* Silueta del vehículo (vista en planta) con zonas de tercio clicables,
+   replicando el diagrama del Campo 8.9 del manual del IPAT. */
+.li-tercios { margin-bottom: 16px; }
+
+.li-silueta-wrap {
+  width: min(220px, 60vw);
+  margin: 0 auto;
+}
+
+.li-silueta { width: 100%; height: auto; display: block; overflow: visible; }
+
+.li-carroceria {
+  fill: var(--bg-2);
+  stroke: var(--text);
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+.li-carroceria .li-vidrio { fill: #dbeafe; }
+.li-carroceria .li-ventana { fill: #eef4ff; }
+
+.li-zona {
+  fill: rgba(20, 85, 217, 0.10);
+  stroke: rgba(20, 85, 217, 0.35);
+  stroke-width: 1;
+  cursor: pointer;
+}
+
+.li-zona:hover { fill: rgba(20, 85, 217, 0.22); }
+
+.li-zona.active {
+  fill: rgba(20, 85, 217, 0.55);
+  stroke: var(--primary);
+  stroke-width: 2;
+}
+
+.li-zona-label {
+  font-family: inherit;
+  font-size: 6.5px;
+  font-weight: 600;
+  fill: var(--text);
+  pointer-events: none;
+}
+
+.li-zona.active + .li-zona-label { fill: #fff; }
+
+.li-silueta-ayuda {
+  text-align: center;
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+/* Pasos numerados del modal "Instalar app". */
+.instalar-pasos {
+  list-style: none;
+  margin: 14px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.instalar-pasos li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  line-height: 1.4;
+}
+
+.instalar-num {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .croquis-colores { display: inline-flex; gap: 6px; align-items: center; }
 
 /* Casilla "Atenuar" de la foto de fondo del croquis */
@@ -2371,9 +2531,10 @@ input[type="password"]:focus {
 
 /* Botones de acción destructiva (admin) */
 button.danger {
-  background: #e5322d;
+  background: var(--danger);
   color: #fff;
   border: none;
+  box-shadow: 0 2px 4px rgba(220, 38, 38, 0.16), 0 8px 18px -6px rgba(220, 38, 38, 0.28);
 }
 
 button.danger:hover { background: #c62823; }
@@ -3954,11 +4115,35 @@ input[type="search"], input[type="tel"], textarea {
 select:focus, input:focus, textarea:focus { box-shadow: var(--ring); }
 
 /* --- App bar más limpia (menos "pesada") y mosaicos/tarjetas con más radio --- */
-.appbar { box-shadow: 0 2px 10px rgba(11, 34, 76, 0.16); }
-.tile, .card { border-radius: var(--radius-lg); }
+.appbar {
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.14) inset, 0 10px 28px rgba(11, 34, 76, 0.22);
+  background: linear-gradient(135deg, rgba(11, 47, 118, 0.92) 0%, rgba(18, 63, 158, 0.88) 45%, rgba(20, 85, 217, 0.85) 100%);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  backdrop-filter: blur(14px) saturate(1.4);
+}
+.tile, .card { border-radius: var(--radius-lg); box-shadow: var(--elev-2); }
+/* Nota: .tile:hover ya define box-shadow: var(--shadow-lg) en la regla base
+   (más específica por el pseudo-clase); no hace falta repetirlo aquí. */
 
 /* --- Chips y badges más "pill" --- */
 .estado-badge, .ct-grav, .ct-revisar, .rol-badge, .conexion-chip { border-radius: var(--radius-pill); }
+
+/* --- Botones con sombra "de elevación" en dos capas --- */
+button, .btn { box-shadow: var(--elev-1), 0 8px 18px -8px rgba(20, 85, 217, 0.28); }
+button.secondary, .btn.secondary { box-shadow: var(--elev-1); }
+
+/* --- Tabla genérica: header claro con acento de marca en vez de bloque
+   sólido oscuro; menos líneas verticales (look de spreadsheet → look de app) --- */
+th, td { border-right-color: #eef2f9; }
+th {
+  background: linear-gradient(180deg, #f7faff, #eef4ff);
+  color: var(--primary-dark);
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  font-size: 11px;
+  border-bottom: 2px solid var(--primary);
+}
 
 /* =========================================================================
    Barra inferior de pestañas (solo móvil y solo con sesión). Va dentro de

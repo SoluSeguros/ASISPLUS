@@ -23,3 +23,13 @@ node_modules/
 # Caché/estado local del CLI de Supabase
 supabase/.temp/
 supabase/.branches/
+
+# Datos sensibles: credenciales, usuarios, contraseñas, tokens, SQLs de administración
+usuarios*.csv
+usuarios*.xlsx
+*credenciales*
+*password*
+*passwords*
+crear-admin*.js
+*.sql
+!supabase/migrations/*.sql

@@ -28,19 +28,23 @@ async function cargarPerfil(user) {
   try {
     const { data, error } = await db
       .from('perfiles')
-      .select('nombre, rol')
+      .select('nombre, rol, empresa')
       .eq('id', user.id)
       .single();
     if (error) throw error;
     state.perfil = data;
   } catch (error) {
-    state.perfil = { rol: 'asistente', nombre: user.email };
+    state.perfil = { rol: 'asistente', nombre: user.email, empresa: null };
   }
   state.perfil.id = user.id; // se usa para el heartbeat de presencia
   aplicarRol();
-  abrirCasoDesdeURL(); // deep-link: ?caso=CASO-... abre ese caso directo
-  // Deja lista una copia del parque en el dispositivo, por si luego no hay señal.
-  if (typeof precacheParqueSiHaceFalta === 'function') precacheParqueSiHaceFalta();
+  // El portal de empresa es de solo lectura y autocontenido: no abre el editor
+  // de casos ni precachea el parque completo aunque llegue un deep-link ?caso=.
+  if (state.perfil.rol !== 'empresa') {
+    abrirCasoDesdeURL(); // deep-link: ?caso=CASO-... abre ese caso directo
+    // Deja lista una copia del parque en el dispositivo, por si luego no hay señal.
+    if (typeof precacheParqueSiHaceFalta === 'function') precacheParqueSiHaceFalta();
+  }
 }
 
 // Deep-link: si la URL trae ?caso=CASO-XXXX (p. ej. al volver desde el módulo
@@ -135,9 +139,10 @@ function aplicarRol() {
 
   const esArea = AREA_ROLES.includes(rol);
   const puedeCrear = rol === 'gestor' || rol === 'admin';
-  // La bandeja la ven todos: el asistente para atender, el gestor para dar
-  // seguimiento, las áreas para gestionar sus rutas y el admin para todo.
-  const veBandeja = true;
+  // La bandeja la ven todos los roles internos (el asistente para atender, el
+  // gestor para dar seguimiento, las áreas para gestionar sus rutas y el admin
+  // para todo); el rol "empresa" tiene su propio portal aislado, sin bandeja.
+  const veBandeja = rol !== 'empresa';
   // Los módulos de análisis (cruce, registro completo, terceros) son para
   // gestor/admin; asistente y áreas trabajan enfocados en su bandeja.
   const veAnalisis = rol === 'gestor' || rol === 'admin';
@@ -157,8 +162,9 @@ function aplicarRol() {
   els.btnVerCruce.classList.toggle('hidden', !veAnalisis);
   els.btnVerAsistenciasBD.classList.toggle('hidden', !veAnalisis);
   els.btnVerTercerosBD.classList.toggle('hidden', !veAnalisis);
-  // El parque queda disponible para gestor/asistente/admin; las áreas se enfocan.
-  els.btnVerParque.classList.toggle('hidden', esArea);
+  // El parque queda disponible para gestor/asistente/admin; las áreas se enfocan
+  // y la empresa tiene su propio listado restringido en su portal.
+  els.btnVerParque.classList.toggle('hidden', esArea || rol === 'empresa');
   // Menú "Contratos" (módulo completo para navegar TODOS los contratos):
   // solo gestor, admin y áreas jurídicas (reclamaciones, seguridad vial).
   // El asistente NO abre ese módulo, pero SÍ genera el contrato de conciliación
@@ -182,7 +188,8 @@ function aplicarRol() {
     gestor: { t: 'Panel del gestor de casos', s: 'Registra siniestros (primera medida), asigna y haz seguimiento.' },
     asistente: { t: `Hola${primerNombre ? ', ' + primerNombre : ''}`, s: 'Estos son tus casos asignados para atender en sitio.' },
     reclamaciones: { t: 'Panel de Reclamaciones', s: 'Casos enrutados a reclamación a favor: gestiona el proceso y adjunta soportes.' },
-    seguridad_vial: { t: 'Panel de Seguridad Vial', s: 'Casos 2251, lesiones y prejudiciales: audiencias, fallos, reservas y documentación.' }
+    seguridad_vial: { t: 'Panel de Seguridad Vial', s: 'Casos 2251, lesiones y prejudiciales: audiencias, fallos, reservas y documentación.' },
+    empresa: { t: (state.perfil && state.perfil.empresa) || 'Tu empresa', s: 'Consulta tus vehículos y el historial de tus casos.' }
   };
   const info = PORTAL[rol] || { t: 'Panel principal', s: 'Selecciona un módulo para comenzar.' };
   if (els.homeTitulo) els.homeTitulo.textContent = info.t;
@@ -196,6 +203,8 @@ function aplicarRol() {
 
   // El asistente y las áreas aterrizan directo en su bandeja (portal enfocado).
   if (rol === 'asistente' || esArea) abrirBandeja();
+  // La empresa aterriza directo en su portal aislado (sin bandeja, sin menú).
+  if (rol === 'empresa') abrirEmpresaPortal();
 }
 
 /* ------------------------------------------------------------------ *
@@ -405,7 +414,7 @@ function carpetaCaso(caso) {
 function ocultarPantallas() {
   ['statsBox', 'tabsBox', 'controlsBox', 'tableCard', 'btnDownloadInforme',
    'casoCrearCard', 'casoListaCard', 'casoDetalleCard', 'usuariosCard', 'conectadosCard',
-   'segvialCard', 'dashboardCard'].forEach(id => {
+   'segvialCard', 'dashboardCard', 'empresaCard'].forEach(id => {
     if (els[id]) els[id].classList.add('hidden');
   });
   // Al salir del panel de conectados, detiene su auto-refresco.
@@ -1024,6 +1033,7 @@ function mostrarCasoCreado(numeroCaso, datos, asignadoNombre, estado) {
       ${fila('Empresa', d['EMPRESA'])}
       ${fila('Vehículo', idVeh)}
       ${fila('Tipo', d['TIPO DE VEHICULO'])}
+      ${fila('Lugar de impacto', d['LUGAR DE IMPACTO'])}
       ${fila('Conductor', d['NOMBRE CONDUCTOR'])}
       ${fila('Cédula conductor', d['CEDULA DEL CONDUCTOR'])}
       ${fila('Propietario', d['PROPIETARIO'])}
@@ -1592,6 +1602,7 @@ async function abrirCaso(caso) {
   try { await cargarAudiosCaso(caso); } catch (_) { /* sin señal */ }
   try { await cargarFotosCaso(caso); } catch (_) { /* sin señal */ }
   try { await cargarCroquisCaso(caso); } catch (_) { /* sin señal */ }
+  try { cargarLugarImpactoCaso(caso); } catch (_) { /* sin señal */ }
   try { await cargarFirmasCaso(caso); } catch (_) { /* sin señal */ }
   cargarCierreCaso(caso);
   try { await cargarTercerosDeCaso(caso.key, caso); } catch (_) { /* sin señal */ }
@@ -1699,6 +1710,7 @@ function habilitarEdicionCaso(on) {
   habilitarAudio(on);
   habilitarFotos(on);
   habilitarCroquis(on);
+  habilitarLugarImpacto(on);
   habilitarTerceros(on);
   habilitarFirmas(on);
   habilitarCierre(on);

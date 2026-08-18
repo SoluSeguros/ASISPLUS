@@ -17,8 +17,9 @@ function json(obj: unknown, status = 200) {
   });
 }
 
-// Roles válidos del sistema (incluye las áreas del desarrollo de dependencias).
-const ROLES_VALIDOS = ["gestor", "asistente", "admin", "reclamaciones", "seguridad_vial"];
+// Roles válidos del sistema (incluye las áreas del desarrollo de dependencias
+// y "empresa": login externo autogestionable de una compañía transportadora).
+const ROLES_VALIDOS = ["gestor", "asistente", "admin", "reclamaciones", "seguridad_vial", "empresa"];
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -49,13 +50,14 @@ Deno.serve(async (req) => {
 
     if (action === "list") {
       const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-      const { data: perfiles } = await admin.from("perfiles").select("id, nombre, rol");
+      const { data: perfiles } = await admin.from("perfiles").select("id, nombre, rol, empresa");
       const mapa = new Map((perfiles ?? []).map((p: any) => [p.id, p]));
       const usuarios = (list?.users ?? []).map((u: any) => ({
         id: u.id,
         email: u.email,
         rol: mapa.get(u.id)?.rol ?? "asistente",
         nombre: mapa.get(u.id)?.nombre ?? u.email,
+        empresa: mapa.get(u.id)?.empresa ?? null,
         creado: u.created_at,
         ultimo_acceso: u.last_sign_in_at,
       }));
@@ -63,14 +65,21 @@ Deno.serve(async (req) => {
     }
 
     if (action === "create") {
-      const { email, password, rol, nombre } = body;
+      const { email, password, rol, nombre, empresa } = body;
       if (!email || !password || !rol) return json({ error: "Faltan datos (correo, contraseña o rol)." }, 400);
       if (!ROLES_VALIDOS.includes(rol)) return json({ error: "Rol no válido." }, 400);
+      if (rol === "empresa" && !empresa) return json({ error: "Selecciona la empresa a vincular." }, 400);
       const { data: created, error } = await admin.auth.admin.createUser({
         email, password, email_confirm: true,
       });
       if (error) return json({ error: error.message }, 400);
-      await admin.from("perfiles").upsert({ id: created.user.id, nombre: nombre || email, rol });
+      const { error: perfilError } = await admin.from("perfiles").upsert({
+        id: created.user.id,
+        nombre: nombre || email,
+        rol,
+        empresa: rol === "empresa" ? empresa : null,
+      });
+      if (perfilError) return json({ error: "Usuario creado pero falló el perfil: " + perfilError.message }, 500);
       return json({ ok: true, id: created.user.id });
     }
 
@@ -83,10 +92,12 @@ Deno.serve(async (req) => {
     }
 
     if (action === "rol") {
-      const { id, rol } = body;
+      const { id, rol, empresa } = body;
       if (!id || !rol) return json({ error: "Faltan datos." }, 400);
       if (!ROLES_VALIDOS.includes(rol)) return json({ error: "Rol no válido." }, 400);
-      await admin.from("perfiles").upsert({ id, rol });
+      if (rol === "empresa" && !empresa) return json({ error: "Selecciona la empresa a vincular." }, 400);
+      const { error: rolError } = await admin.from("perfiles").upsert({ id, rol, empresa: rol === "empresa" ? empresa : null });
+      if (rolError) return json({ error: rolError.message }, 500);
       return json({ ok: true });
     }
 
@@ -95,7 +106,8 @@ Deno.serve(async (req) => {
       const nombre = (body.nombre ?? "").toString().trim();
       if (!id) return json({ error: "Falta el usuario." }, 400);
       // Actualiza solo el nombre (upsert deja intacto el rol de la fila existente).
-      await admin.from("perfiles").upsert({ id, nombre: nombre || null });
+      const { error: nombreError } = await admin.from("perfiles").upsert({ id, nombre: nombre || null });
+      if (nombreError) return json({ error: nombreError.message }, 500);
       return json({ ok: true });
     }
 

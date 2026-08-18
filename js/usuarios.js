@@ -13,7 +13,8 @@ function nombreRol(rol) {
     gestor: 'Gestor de casos',
     asistente: 'Asistente',
     reclamaciones: 'Reclamaciones',
-    seguridad_vial: 'Seguridad Vial'
+    seguridad_vial: 'Seguridad Vial',
+    empresa: 'Empresa'
   };
   return M[rol] || 'Asistente';
 }
@@ -39,20 +40,39 @@ async function abrirUsuarios() {
   els.usuariosCard.classList.remove('hidden');
   marcarUbicacion('btnMenuUsuarios', 'Gestión de usuarios');
   els.formUsuario.reset();
-  await cargarUsuarios();
+  if (els.usuEmpresaWrap) els.usuEmpresaWrap.classList.add('hidden');
+  await Promise.all([cargarUsuarios(), cargarListaEmpresas()]);
+}
+
+/** Carga las empresas del parque automotor para el selector de "empresa vinculada". */
+async function cargarListaEmpresas() {
+  if (!els.usuEmpresa) return;
+  try {
+    const { data, error } = await db.from('parque_automotor').select('empresa');
+    if (error) throw error;
+    const empresas = [...new Set((data || []).map(v => String(v.empresa || '').trim()).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b));
+    state.empresasDisponibles = empresas;
+    const actual = els.usuEmpresa.value;
+    els.usuEmpresa.innerHTML = '<option value="">— Selecciona —</option>' +
+      empresas.map(e => `<option value="${e}">${e}</option>`).join('');
+    if (empresas.includes(actual)) els.usuEmpresa.value = actual;
+  } catch (error) {
+    state.empresasDisponibles = [];
+  }
 }
 
 /** Carga y muestra la lista de usuarios. */
 async function cargarUsuarios() {
   const tbody = els.usuariosBody;
-  tbody.innerHTML = '<tr><td colspan="5">Cargando...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="6">Cargando...</td></tr>';
   try {
     showLoader(true);
     const data = await llamarAdminUsuarios({ action: 'list' });
     renderUsuarios(data.usuarios || []);
   } catch (error) {
     const msg = (typeof escBandeja === 'function') ? escBandeja(error.message) : String(error.message || '');
-    tbody.innerHTML = `<tr><td colspan="5">Error: ${msg}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6">Error: ${msg}</td></tr>`;
     showStatus('Error al cargar usuarios: ' + error.message, 'error');
   } finally {
     showLoader(false);
@@ -100,16 +120,37 @@ function renderUsuarios(usuarios) {
     const tdRol = document.createElement('td');
     const sel = document.createElement('select');
     [['gestor', 'Gestor de casos'], ['asistente', 'Asistente'], ['admin', 'Administrador'],
-     ['reclamaciones', 'Reclamaciones'], ['seguridad_vial', 'Seguridad Vial']]
+     ['reclamaciones', 'Reclamaciones'], ['seguridad_vial', 'Seguridad Vial'], ['empresa', 'Empresa']]
       .forEach(([val, txt]) => {
         const o = document.createElement('option');
         o.value = val; o.textContent = txt;
         if (u.rol === val) o.selected = true;
         sel.appendChild(o);
       });
-    sel.addEventListener('change', () => cambiarRolUsuario(u, sel.value));
+    sel.addEventListener('change', () => {
+      if (sel.value === 'empresa') {
+        const empresas = state.empresasDisponibles || [];
+        const sugerencia = empresas.length
+          ? `Escribe el nombre EXACTO de la empresa (debe coincidir con parque_automotor):\n${empresas.join(', ')}`
+          : 'Escribe el nombre EXACTO de la empresa (debe coincidir con parque_automotor):';
+        const empresa = window.prompt(sugerencia, u.empresa || '');
+        if (!empresa) { sel.value = u.rol; return; }
+        if (empresas.length && !empresas.includes(empresa.trim())) {
+          showStatus('Esa empresa no existe en el parque automotor. Verifica el nombre exacto.', 'error');
+          sel.value = u.rol;
+          return;
+        }
+        cambiarRolUsuario(u, 'empresa', empresa.trim());
+      } else {
+        cambiarRolUsuario(u, sel.value);
+      }
+    });
     tdRol.appendChild(sel);
     tr.appendChild(tdRol);
+
+    const tdEmpresa = document.createElement('td');
+    tdEmpresa.textContent = u.empresa || '—';
+    tr.appendChild(tdEmpresa);
 
     const tdAcceso = document.createElement('td');
     tdAcceso.textContent = u.ultimo_acceso ? formatTimestamp(u.ultimo_acceso) : 'Nunca';
@@ -144,6 +185,8 @@ async function crearUsuario(event) {
   event.preventDefault();
   const email = els.usuEmail.value.trim();
   const password = els.usuPassword.value;
+  const rol = els.usuRol.value;
+  const empresa = els.usuEmpresa ? els.usuEmpresa.value : '';
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     showStatus('Ingresa un correo válido.', 'error');
     return;
@@ -152,22 +195,39 @@ async function crearUsuario(event) {
     showStatus('La contraseña debe tener al menos 6 caracteres.', 'error');
     return;
   }
+  if (rol === 'empresa' && !empresa) {
+    showStatus('Selecciona la empresa a vincular.', 'error');
+    return;
+  }
   try {
     showLoader(true);
     await llamarAdminUsuarios({
       action: 'create',
       email,
       password,
-      rol: els.usuRol.value,
-      nombre: els.usuNombre.value.trim()
+      rol,
+      nombre: els.usuNombre.value.trim(),
+      empresa: rol === 'empresa' ? empresa : undefined
     });
     showStatus(`Usuario ${email} creado correctamente.`, 'ok');
     els.formUsuario.reset();
+    if (els.usuEmpresaWrap) els.usuEmpresaWrap.classList.add('hidden');
     await cargarUsuarios();
   } catch (error) {
     showStatus('Error al crear el usuario: ' + error.message, 'error');
   } finally {
     showLoader(false);
+  }
+}
+
+/** Muestra/oculta el selector de empresa según el rol elegido en el formulario. */
+function actualizarVisibilidadEmpresa() {
+  if (!els.usuEmpresaWrap || !els.usuRol) return;
+  const esEmpresa = els.usuRol.value === 'empresa';
+  els.usuEmpresaWrap.classList.toggle('hidden', !esEmpresa);
+  if (els.usuEmpresa) {
+    if (esEmpresa) els.usuEmpresa.setAttribute('required', 'required');
+    else els.usuEmpresa.removeAttribute('required');
   }
 }
 
@@ -188,11 +248,11 @@ async function cambiarNombreUsuario(u, nombre) {
   }
 }
 
-/** Cambia el rol de un usuario. */
-async function cambiarRolUsuario(u, rol) {
+/** Cambia el rol de un usuario (empresa es opcional, requerido solo si rol === 'empresa'). */
+async function cambiarRolUsuario(u, rol, empresa) {
   try {
     showLoader(true);
-    await llamarAdminUsuarios({ action: 'rol', id: u.id, rol });
+    await llamarAdminUsuarios({ action: 'rol', id: u.id, rol, empresa });
     showStatus(`Rol de ${u.email} actualizado a ${nombreRol(rol)}.`, 'ok');
   } catch (error) {
     showStatus('Error al cambiar el rol: ' + error.message, 'error');

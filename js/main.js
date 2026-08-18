@@ -87,6 +87,19 @@ els.btnCroquisTutorial.addEventListener('click', () => { els.croquisTutorial.hid
 els.btnCroquisTutorialCerrar.addEventListener('click', () => { els.croquisTutorial.hidden = true; });
 els.btnCroquisTutorialOk.addEventListener('click', () => { els.croquisTutorial.hidden = true; });
 
+// Lugar de impacto (Campo 8.9 del IPAT).
+initLugarImpacto();
+els.btnAbrirLugarImpacto.addEventListener('click', abrirLugarImpacto);
+els.btnLugarImpactoCerrar.addEventListener('click', cerrarLugarImpacto);
+els.btnLugarImpactoCancelar.addEventListener('click', cerrarLugarImpacto);
+els.btnLugarImpactoGuardar.addEventListener('click', guardarLugarImpacto);
+els.lugarImpactoModal.addEventListener('click', event => {
+  if (event.target === els.lugarImpactoModal) cerrarLugarImpacto();
+});
+
+// Botón "Instalar app" (detecta iPhone/Android/escritorio).
+initInstalarApp();
+
 // El admin puede reasignar al instante cambiando el desplegable (aunque el
 // caso esté bloqueado por check-in). El asistente lo guarda con el botón.
 els.detalleAsignar.addEventListener('change', () => {
@@ -119,6 +132,7 @@ els.btnMenuUsuarios.addEventListener('click', abrirUsuarios);
 els.formUsuario.addEventListener('submit', crearUsuario);
 els.btnRefrescarUsuarios.addEventListener('click', cargarUsuarios);
 els.btnUsuVolver.addEventListener('click', ocultarPantallas);
+if (els.usuRol) els.usuRol.addEventListener('change', actualizarVisibilidadEmpresa);
 
 // Usuarios conectados (solo admin).
 els.btnMenuConectados.addEventListener('click', abrirConectados);

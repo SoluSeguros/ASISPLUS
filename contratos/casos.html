@@ -5,20 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Casos guardados - Soluasistencia</title>
 <link rel="manifest" href="../manifest.json">
-<meta name="theme-color" content="#1d4f9a">
+<meta name="theme-color" content="#1455d9">
 <link rel="icon" type="image/png" href="../icons/favicon-32.png">
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 * { box-sizing: border-box; }
 body {
   margin: 0;
-  font-family: "Manrope", sans-serif;
+  font-family: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: #0f172a;
-  background:
-    radial-gradient(circle at 12% 8%, rgba(71, 123, 216, 0.22), transparent 36%),
-    radial-gradient(circle at 86% 90%, rgba(40, 89, 170, 0.22), transparent 38%),
-    linear-gradient(135deg, #081a33, #0a2242);
+  background: #eef2f9;
   min-height: 100vh;
 }
 .wrap {
@@ -32,7 +29,11 @@ body {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-  margin-bottom: 18px;
+  margin-bottom: 22px;
+  background: linear-gradient(135deg, #0b2f76 0%, #123f9e 45%, #1455d9 100%);
+  padding: 16px 22px;
+  border-radius: 18px;
+  box-shadow: 0 10px 28px rgba(11, 34, 76, 0.22);
 }
 h1 {
   color: #fff;
@@ -49,14 +50,14 @@ h1 {
   border: 0;
   cursor: pointer;
 }
-.btn-primary { background: linear-gradient(135deg, #1e4f99, #133a72); color: #fff; }
-.btn-secondary { background: #e9f1ff; color: #103566; }
+.btn-primary { background: linear-gradient(135deg, #1455d9, #0f3f9e); color: #fff; }
+.btn-secondary { background: #eef4ff; color: #0f3f9e; }
 .btn-warning { background: #fff4e8; color: #7c4a2d; border: 1px solid #ecc9aa !important; }
 .card {
   background: #fff;
-  border: 1px solid #d8e5f8;
+  border: 1px solid #e2e8f0;
   border-radius: 16px;
-  box-shadow: 0 18px 44px rgba(5, 18, 42, 0.34);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.04);
   padding: 22px;
 }
 .auth-box {
@@ -66,15 +67,15 @@ h1 {
 }
 .auth-box h2 {
   margin: 0 0 10px;
-  color: #0b2a55;
+  color: #0f3f9e;
 }
 .auth-box p {
-  color: #4b5d77;
+  color: #64748b;
   margin-bottom: 18px;
 }
 input, select {
   width: 100%;
-  border: 1px solid #c8daf3;
+  border: 1px solid #e2e8f0;
   border-radius: 10px;
   padding: 12px;
   min-height: 48px;
@@ -105,7 +106,7 @@ input, select {
 }
 .item {
   background: #fff;
-  border: 1px solid #d8e5f8;
+  border: 1px solid #e2e8f0;
   border-radius: 12px;
   padding: 14px;
   display: flex;
@@ -125,35 +126,35 @@ input, select {
 }
 .item .compareciente {
   font-weight: 800;
-  color: #0b2a55;
+  color: #0f3f9e;
   font-size: 1.05rem;
   line-height: 1.2;
 }
 .item .cedula-main {
   font-size: 0.85rem;
-  color: #4b5d77;
+  color: #64748b;
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
 }
 .item .datos {
-  background: #f5f9ff;
+  background: #f7f9fd;
   border-radius: 8px;
   padding: 10px;
   font-size: 0.85rem;
   line-height: 1.5;
-  color: #1f3556;
+  color: #0f172a;
 }
 .item .datos div { display: flex; gap: 6px; }
-.item .datos strong { color: #0b2a55; min-width: 95px; }
+.item .datos strong { color: #0f3f9e; min-width: 95px; }
 .item .meta {
-  color: #4b5d77;
+  color: #64748b;
   font-size: 0.78rem;
   line-height: 1.45;
-  border-top: 1px dashed #e1ebf8;
+  border-top: 1px dashed #e2e8f0;
   padding-top: 8px;
 }
 .item .meta code {
   font-size: 0.72rem;
-  background: #f0f5ff;
+  background: #eef4ff;
   padding: 1px 5px;
   border-radius: 4px;
 }
@@ -179,9 +180,9 @@ input, select {
 .empty, .loading, .error, .warn {
   text-align: center;
   padding: 28px 16px;
-  color: #4b5d77;
+  color: #64748b;
 }
-.empty strong, .error strong { color: #0b2a55; }
+.empty strong, .error strong { color: #0f3f9e; }
 .error { color: #b8451b; background: #fff4e8; border: 1px solid #ecc9aa; border-radius: 10px; }
 .warn { color: #7c4a2d; background: #fff8ee; border: 1px solid #f1c389; border-radius: 10px; text-align: left; padding: 12px 16px; font-size: 0.88rem; }
 .badge {
@@ -190,8 +191,8 @@ input, select {
   border-radius: 999px;
   font-size: 0.7rem;
   font-weight: 800;
-  background: #e9f1ff;
-  color: #103566;
+  background: #eef4ff;
+  color: #0f3f9e;
   white-space: nowrap;
 }
 .badge.estado-confirmado { background: #d9f5e5; color: #0d6b3a; }
@@ -209,23 +210,23 @@ input, select {
 }
 .tipo-card {
   background: #fff;
-  border: 2px solid #d8e5f8;
+  border: 2px solid #e2e8f0;
   border-radius: 14px;
   padding: 18px 14px;
   cursor: pointer;
   text-align: center;
   transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
   font: inherit;
-  color: #0b2a55;
+  color: #0f3f9e;
 }
 .tipo-card:hover {
   transform: translateY(-2px);
-  border-color: #1e4f99;
+  border-color: #1455d9;
   box-shadow: 0 12px 28px rgba(30, 79, 153, 0.18);
 }
 .tipo-card .ico { font-size: 2.1rem; line-height: 1; margin-bottom: 8px; }
 .tipo-card .nm { font-weight: 800; font-size: 1rem; }
-.tipo-card .ds { font-size: 0.78rem; color: #4b5d77; margin-top: 4px; }
+.tipo-card .ds { font-size: 0.78rem; color: #64748b; margin-top: 4px; }
 .aviso-tipo {
   background: #fff8ee;
   border: 1px solid #f1c389;
@@ -240,8 +241,8 @@ input, select {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: #e9f1ff;
-  color: #103566;
+  background: #eef4ff;
+  color: #0f3f9e;
   padding: 6px 12px;
   border-radius: 999px;
   font-weight: 800;
@@ -250,7 +251,7 @@ input, select {
 .chip-tipo button {
   background: transparent;
   border: 0;
-  color: #103566;
+  color: #0f3f9e;
   cursor: pointer;
   font-weight: 800;
   text-decoration: underline;
@@ -259,8 +260,8 @@ input, select {
 .spinner {
   width: 36px;
   height: 36px;
-  border: 4px solid #d8e5f8;
-  border-top-color: #1e4f99;
+  border: 4px solid #e2e8f0;
+  border-top-color: #1455d9;
   border-radius: 50%;
   animation: spin 0.9s linear infinite;
   margin: 0 auto 12px;
@@ -274,8 +275,8 @@ input, select {
   margin-bottom: 14px;
 }
 .stat {
-  background: #f5f9ff;
-  border: 1px solid #d8e5f8;
+  background: #f7f9fd;
+  border: 1px solid #e2e8f0;
   border-radius: 10px;
   padding: 10px 14px;
   flex: 1 1 130px;
@@ -284,11 +285,11 @@ input, select {
 .stat .n {
   font-size: 1.4rem;
   font-weight: 800;
-  color: #0b2a55;
+  color: #0f3f9e;
 }
 .stat .l {
   font-size: 0.74rem;
-  color: #4b5d77;
+  color: #64748b;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -300,8 +301,7 @@ input, select {
     <h1>📂 Casos guardados</h1>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
       <span class="user-info" id="userInfo">No autenticado</span>
-      <a class="btn-secondary" href="../asisplus.html">🏠 Asistencias</a>
-      <a class="btn-primary" href="formularios2.html">+ Nuevo contrato</a>
+      <a class="btn-secondary" href="../asisplus.html">← Volver a ASIS PLUS</a>
       <button class="btn-secondary" id="btnLogout" onclick="logout()" hidden>Salir</button>
     </div>
   </div>
@@ -385,7 +385,7 @@ input, select {
 
       <div class="list" id="list"></div>
 
-      <p style="margin-top:14px;color:#4b5d77;font-size:0.82rem;">
+      <p style="margin-top:14px;color:#64748b;font-size:0.82rem;">
         <strong>Mostrando:</strong> <span id="count">0</span> de <span id="total">0</span> casos.
       </p>
     </div>
