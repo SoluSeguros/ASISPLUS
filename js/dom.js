@@ -220,6 +220,9 @@ const els = {
   inputFoto: document.getElementById('inputFoto'),
   fotosGaleria: document.getElementById('fotosGaleria'),
   fotosCasoTit: document.getElementById('fotosCasoTit'),
+  fotosProgreso: document.getElementById('fotosProgreso'),
+  fotosProgresoRelleno: document.getElementById('fotosProgresoRelleno'),
+  fotosProgresoTexto: document.getElementById('fotosProgresoTexto'),
 
   // Cámara
   camaraModal: document.getElementById('camaraModal'),

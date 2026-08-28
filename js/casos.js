@@ -2046,7 +2046,7 @@ const CAMPOS_SOLO_LECTURA = new Set(['USUARIO ASISTENCIA', 'USUARIO LOGISTICA', 
 
 // Campos que se capturan con un catálogo cerrado (selector) en vez de texto libre.
 const CAMPOS_OPCIONES = {
-  'GRAVEDAD DEL SINIESTRO': ['DAÑOS Y LESIONES', 'HOMICIDIO'],
+  'GRAVEDAD DEL SINIESTRO': ['SOLO DAÑOS', 'DAÑOS Y LESIONES', 'HOMICIDIO'],
   'RESPONSABILIDAD DEL CONDUCTOR': ['SI', 'NO', 'POR DEFINIR'],
   'LESIONADOS': ['SI', 'NO', 'POR DEFINIR']
 };

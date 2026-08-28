@@ -120,21 +120,47 @@ function marcarAguaFoto(file, caso, desc) {
   });
 }
 
-/** Procesa las fotos (de cámara o galería): marca de agua, subida y persistencia. */
+/** Muestra/actualiza la barra de progreso de subida de fotos. */
+function mostrarProgresoFotos(hechas, total) {
+  if (!els.fotosProgreso) return;
+  els.fotosProgreso.classList.remove('hidden');
+  const pct = total ? Math.round((hechas / total) * 100) : 0;
+  if (els.fotosProgresoRelleno) els.fotosProgresoRelleno.style.width = pct + '%';
+  if (els.fotosProgresoTexto) els.fotosProgresoTexto.textContent = `Subiendo foto ${Math.min(hechas + 1, total)} de ${total}…`;
+}
+
+function ocultarProgresoFotos() {
+  if (els.fotosProgreso) els.fotosProgreso.classList.add('hidden');
+}
+
+/** Procesa las fotos (de cámara o galería): marca de agua, subida y persistencia.
+ *  Cada foto se procesa de forma independiente: si una falla, las demás siguen. */
 async function procesarFotosSitio(archivos) {
-  if (!archivos || !archivos.length) return;
+  const validos = (archivos || []).filter(f => f.type.startsWith('image/'));
+  if (!validos.length) return;
 
   const caso = state.casoActual;
   if (!caso) return;
   if (!caso.datos) caso.datos = {};
 
-  try {
-    showLoader(true);
-    let encoladas = 0;
-    for (const file of archivos) {
-      if (!file.type.startsWith('image/')) continue;
-      const desc = (window.prompt('Descripción de la foto (opcional):', '') || '').trim();
-      const blob = await marcarAguaFoto(file, caso, desc);
+  // Con una sola foto (cámara o galería con 1 elegida) se sigue preguntando la
+  // descripción. En lote (varias a la vez) NO: 45 diálogos seguidos bloquean
+  // la carga y hacen parecer que "no sube nada". En lote se puede describir
+  // cada foto después, desde la galería.
+  const esLote = validos.length > 1;
+  const descUnica = esLote ? '' : (window.prompt('Descripción de la foto (opcional):', '') || '').trim();
+
+  let subidas = 0, encoladas = 0, fallidas = 0;
+  mostrarProgresoFotos(0, validos.length);
+  // Evita que se dispare otro lote encima mientras este va subiendo.
+  if (els.btnTomarFoto) els.btnTomarFoto.disabled = true;
+  if (els.btnElegirFoto) els.btnElegirFoto.disabled = true;
+
+  for (let i = 0; i < validos.length; i++) {
+    mostrarProgresoFotos(i, validos.length);
+    try {
+      const desc = descUnica;
+      const blob = await marcarAguaFoto(validos[i], caso, desc);
       const ruta = `${carpetaCaso(caso)}/${nombreArchivoFoto()}.jpg`;
 
       // Sube el archivo (o lo encola si no hay señal para subirlo al reconectar).
@@ -164,17 +190,27 @@ async function procesarFotosSitio(archivos) {
             if (upErr) throw upErr; return { encolado: false };
           })());
 
+      subidas++;
       if (up.encolado || per.encolado) encoladas++;
+    } catch (error) {
+      fallidas++; // una foto fallida no detiene el resto del lote
     }
+  }
 
-    await cargarFotosCaso(caso);
+  mostrarProgresoFotos(validos.length, validos.length);
+  ocultarProgresoFotos();
+  if (els.btnTomarFoto) els.btnTomarFoto.disabled = false;
+  if (els.btnElegirFoto) els.btnElegirFoto.disabled = false;
+  await cargarFotosCaso(caso);
+
+  if (fallidas && !subidas) {
+    showStatus(`No se pudo subir ninguna foto (${fallidas} con error). Revisa la conexión e intenta de nuevo.`, 'error');
+  } else if (fallidas) {
+    showStatus(`${subidas} foto(s) agregada(s), ${fallidas} fallaron. Vuelve a intentar solo con esas.`, 'info');
+  } else {
     showStatus(encoladas
       ? `Foto(s) guardada(s) en el dispositivo (${encoladas} pendiente(s)). Se subirán al reconectar.`
-      : 'Foto(s) agregada(s) al caso.', encoladas ? 'info' : 'ok');
-  } catch (error) {
-    showStatus('Error al subir la foto: ' + (error.message || error), 'error');
-  } finally {
-    showLoader(false);
+      : `${subidas} foto(s) agregada(s) al caso.`, encoladas ? 'info' : 'ok');
   }
 }
 

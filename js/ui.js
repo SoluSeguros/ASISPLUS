@@ -138,10 +138,11 @@ const ESTADO_SIN_META = {
   'ABIERTO':   { label: 'Abiertos',   cls: 'br-azul' }
 };
 const GRAVEDAD_META = {
+  'SOLO DAÑOS':       { label: 'Solo daños',       cls: 'br-verde' },
   'DAÑOS Y LESIONES': { label: 'Daños y lesiones', cls: 'br-naranja' },
   'HOMICIDIO':        { label: 'Homicidio',        cls: 'br-rojo' },
-  // Compatibilidad con datos antiguos (antes eran tres opciones):
-  'SOLO DAÑOS':       { label: 'Solo daños',       cls: 'br-verde' },
+  // 'HERIDOS' ya no es una opción del formulario; se mantiene solo para
+  // mostrar correctamente los casos antiguos que se guardaron con ese valor.
   'HERIDOS':          { label: 'Heridos',          cls: 'br-naranja' }
 };
 
@@ -202,7 +203,7 @@ function renderResumenBD() {
 
   cont.innerHTML =
     filaHTML('Estado', 'estado', state.filtroEstadoSin, estadoSinDeFila, ESTADO_SIN_META, ['CERRADO', 'CANCELADO', 'ABIERTO']) +
-    filaHTML('Gravedad', 'gravedad', state.filtroGravedad, gravedadDeFila, GRAVEDAD_META, ['DAÑOS Y LESIONES', 'HOMICIDIO', 'SOLO DAÑOS', 'HERIDOS']);
+    filaHTML('Gravedad', 'gravedad', state.filtroGravedad, gravedadDeFila, GRAVEDAD_META, ['SOLO DAÑOS', 'DAÑOS Y LESIONES', 'HOMICIDIO', 'HERIDOS']);
   cont.classList.remove('hidden');
 
   // Cableado por delegación (una sola vez): sobrevive al reemplazo de innerHTML.

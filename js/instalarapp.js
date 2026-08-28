@@ -1,23 +1,45 @@
 /**
  * instalarapp.js
- * Botón "Instalar app": detecta si el dispositivo es iPhone/iPad, Android o
- * un computador, y ofrece el flujo nativo de instalación (Chrome/Edge/
- * Android) o instrucciones paso a paso cuando el navegador no lo ofrece
- * (Safari de iPhone no tiene instalación nativa).
+ * Botón "Instalar app": detecta la plataforma exacta (iPhone/iPad, Android,
+ * Mac, Windows u otro computador) y ofrece el flujo nativo de instalación
+ * (Chrome/Edge/Android) o instrucciones paso a paso propias de esa
+ * plataforma cuando el navegador no lo ofrece (Safari no tiene instalación
+ * nativa por evento, ni en iPhone ni en Mac).
  */
 
 let instalarAppEvento = null;
+
+// Título del botón (tooltip) por plataforma detectada.
+const INSTALAR_TITULOS = {
+  ios: 'Instalar en iPhone/iPad',
+  android: 'Instalar en Android',
+  mac: 'Instalar en Mac',
+  windows: 'Instalar en Windows',
+  escritorio: 'Instalar ASIS PLUS'
+};
 
 function appYaInstalada() {
   return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 }
 
+// Se registra apenas carga este archivo (no dentro de initInstalarApp, que se
+// llama después de que TODOS los demás módulos terminan de cargar) para no
+// arriesgarse a perder el evento si Chrome/Android lo dispara temprano: es lo
+// único que permite el botón instale directo con un toque en Android.
+window.addEventListener('beforeinstallprompt', event => {
+  event.preventDefault();
+  instalarAppEvento = event;
+});
+
 function detectarPlataformaInstalacion() {
   const ua = navigator.userAgent || '';
+  const plat = navigator.platform || '';
   const esIOS = /iphone|ipad|ipod/i.test(ua) ||
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    (plat === 'MacIntel' && navigator.maxTouchPoints > 1);
   if (esIOS) return 'ios';
   if (/android/i.test(ua)) return 'android';
+  if (/mac/i.test(plat) || /macintosh/i.test(ua)) return 'mac';
+  if (/win/i.test(plat) || /windows/i.test(ua)) return 'windows';
   return 'escritorio';
 }
 
@@ -30,14 +52,8 @@ function initInstalarApp() {
   }
 
   els.btnInstalarApp.classList.remove('hidden');
+  els.btnInstalarApp.title = INSTALAR_TITULOS[detectarPlataformaInstalacion()] || 'Instalar ASIS PLUS en tu dispositivo';
   els.btnInstalarApp.addEventListener('click', abrirInstalarApp);
-
-  // Chrome/Edge/Android avisan con este evento cuando la app se puede
-  // instalar de forma nativa; lo guardamos para lanzarlo al tocar el botón.
-  window.addEventListener('beforeinstallprompt', event => {
-    event.preventDefault();
-    instalarAppEvento = event;
-  });
 
   window.addEventListener('appinstalled', () => {
     instalarAppEvento = null;
@@ -95,7 +111,25 @@ function pasosInstalacionApp(plataforma) {
       <p class="muted">Listo. El ícono de ASIS PLUS quedará en tu pantalla de inicio, como cualquier otra app.</p>
     `;
   }
+  if (plataforma === 'windows') {
+    return `
+      <p class="muted">En Windows, con <b>Chrome</b> o <b>Edge</b>, sigue estos pasos:</p>
+      <ol class="instalar-pasos">
+        <li><span class="instalar-num">1</span> Busca el ícono de instalar <b>⊕</b> al final de la barra de direcciones.</li>
+        <li><span class="instalar-num">2</span> Si no lo ves, abre el menú <b>⋮</b> (arriba a la derecha) y busca <b>“Instalar ASIS PLUS”</b>.</li>
+        <li><span class="instalar-num">3</span> Confirma tocando <b>“Instalar”</b>.</li>
+      </ol>
+      <p class="muted">Listo. Quedará como un programa más, con su propio ícono y ventana, sin pestañas del navegador alrededor.</p>
+    `;
+  }
+  if (plataforma === 'mac') {
+    return `
+      <p class="muted">En Mac, con <b>Chrome</b> o <b>Edge</b>, busca el ícono de instalar <b>⊕</b> en la barra de direcciones y toca <b>“Instalar”</b>.</p>
+      <p class="muted">Si usas <b>Safari</b>: abre el menú <b>Archivo</b> → <b>“Agregar al Dock…”</b> (Safari 17 o más reciente). En versiones anteriores de Safari esta opción no existe; usa Chrome o Edge para instalarla.</p>
+      <p class="muted">Listo. Quedará como una app más, con su propio ícono en el Dock.</p>
+    `;
+  }
   return `
-    <p class="muted">Desde un computador, busca el ícono de instalar <b>⊕</b> en la barra de direcciones del navegador (Chrome o Edge), o abre el menú del navegador y busca <b>“Instalar ASIS PLUS”</b>.</p>
+    <p class="muted">Busca el ícono de instalar <b>⊕</b> en la barra de direcciones del navegador (Chrome o Edge), o abre el menú del navegador y busca <b>“Instalar ASIS PLUS”</b>.</p>
   `;
 }
