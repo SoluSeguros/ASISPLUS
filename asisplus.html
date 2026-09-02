@@ -17,7 +17,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
 
   <!-- Estilos de la aplicación -->
-  <link rel="stylesheet" href="css/styles.css?v=2.14.9" />
+  <link rel="stylesheet" href="css/styles.css?v=2.15.0" />
 
   <!-- Librería para leer y descargar Excel -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -31,36 +31,36 @@
        (Service Worker o del navegador) puede seguir sirviendo un .js anterior
        aunque el archivo en el servidor ya esté actualizado. Sube este número
        junto con APP_VERSION en js/version.js en cada release. -->
-  <script src="js/version.js?v=2.14.9" defer></script>
-  <script src="js/config.js?v=2.14.9" defer></script>
-  <script src="js/utils.js?v=2.14.9" defer></script>
-  <script src="js/state.js?v=2.14.9" defer></script>
-  <script src="js/dom.js?v=2.14.9" defer></script>
-  <script src="js/supabase.js?v=2.14.9" defer></script>
-  <script src="js/auth.js?v=2.14.9" defer></script>
-  <script src="js/relationship.js?v=2.14.9" defer></script>
-  <script src="js/excel.js?v=2.14.9" defer></script>
-  <script src="js/parque.js?v=2.14.9" defer></script>
-  <script src="js/vistas-bd.js?v=2.14.9" defer></script>
-  <script src="js/casos.js?v=2.14.9" defer></script>
-  <script src="js/audio.js?v=2.14.9" defer></script>
-  <script src="js/camara.js?v=2.14.9" defer></script>
-  <script src="js/fotos.js?v=2.14.9" defer></script>
-  <script src="js/croquis.js?v=2.14.9" defer></script>
-  <script src="js/lugarimpacto.js?v=2.14.9" defer></script>
-  <script src="js/instalarapp.js?v=2.14.9" defer></script>
-  <script src="js/usuarios.js?v=2.14.9" defer></script>
-  <script src="js/empresa.js?v=2.14.9" defer></script>
-  <script src="js/detalle.js?v=2.14.9" defer></script>
-  <script src="js/terceros.js?v=2.14.9" defer></script>
-  <script src="js/cierre.js?v=2.14.9" defer></script>
-  <script src="js/ui.js?v=2.14.9" defer></script>
-  <script src="js/segvial.js?v=2.14.9" defer></script>
-  <script src="js/dashboard.js?v=2.14.9" defer></script>
-  <script src="js/main.js?v=2.14.9" defer></script>
-  <script src="js/conexion.js?v=2.14.9" defer></script>
-  <script src="js/offline.js?v=2.14.9" defer></script>
-  <script src="js/pwa.js?v=2.14.9" defer></script>
+  <script src="js/version.js?v=2.15.0" defer></script>
+  <script src="js/config.js?v=2.15.0" defer></script>
+  <script src="js/utils.js?v=2.15.0" defer></script>
+  <script src="js/state.js?v=2.15.0" defer></script>
+  <script src="js/dom.js?v=2.15.0" defer></script>
+  <script src="js/supabase.js?v=2.15.0" defer></script>
+  <script src="js/auth.js?v=2.15.0" defer></script>
+  <script src="js/relationship.js?v=2.15.0" defer></script>
+  <script src="js/excel.js?v=2.15.0" defer></script>
+  <script src="js/parque.js?v=2.15.0" defer></script>
+  <script src="js/vistas-bd.js?v=2.15.0" defer></script>
+  <script src="js/casos.js?v=2.15.0" defer></script>
+  <script src="js/audio.js?v=2.15.0" defer></script>
+  <script src="js/camara.js?v=2.15.0" defer></script>
+  <script src="js/fotos.js?v=2.15.0" defer></script>
+  <script src="js/croquis.js?v=2.15.0" defer></script>
+  <script src="js/lugarimpacto.js?v=2.15.0" defer></script>
+  <script src="js/instalarapp.js?v=2.15.0" defer></script>
+  <script src="js/usuarios.js?v=2.15.0" defer></script>
+  <script src="js/empresa.js?v=2.15.0" defer></script>
+  <script src="js/detalle.js?v=2.15.0" defer></script>
+  <script src="js/terceros.js?v=2.15.0" defer></script>
+  <script src="js/cierre.js?v=2.15.0" defer></script>
+  <script src="js/ui.js?v=2.15.0" defer></script>
+  <script src="js/segvial.js?v=2.15.0" defer></script>
+  <script src="js/dashboard.js?v=2.15.0" defer></script>
+  <script src="js/main.js?v=2.15.0" defer></script>
+  <script src="js/conexion.js?v=2.15.0" defer></script>
+  <script src="js/offline.js?v=2.15.0" defer></script>
+  <script src="js/pwa.js?v=2.15.0" defer></script>
 </head>
 <body>
   <header class="appbar">
@@ -864,37 +864,49 @@
           <h2 id="empresaNombreTitulo">Mi empresa</h2>
         </div>
 
-        <h3 class="caso-sub">📅 Mis siniestros por mes</h3>
-        <div class="dash-filtro">
-          <label class="dash-filtro-campo">Desde<input type="date" id="empresaMesDesde"></label>
-          <label class="dash-filtro-campo">Hasta<input type="date" id="empresaMesHasta"></label>
-          <button class="secondary" id="btnEmpresaMesFiltrar">Filtrar</button>
-          <button class="secondary" id="btnEmpresaMesLimpiar">Todo</button>
-        </div>
-        <div class="dash-panel">
-          <div class="dash-panel-head"><h3>Casos por mes</h3><span class="dash-panel-sub" id="empresaMesTotal"></span></div>
-          <div class="dash-cols" id="empresaMesCols"></div>
+        <div class="tabs" id="empresaTabs">
+          <button type="button" class="tab active" data-vista="dashboard">📊 Dashboard</button>
+          <button type="button" class="tab" data-vista="historico">🗂️ Históricos</button>
+          <button type="button" class="tab" data-vista="vehiculos">🚌 Vehículos registrados</button>
         </div>
 
-        <h3 class="caso-sub">Mis vehículos <span class="muted" id="empresaVehiculosCount"></span></h3>
-        <div class="table-wrap" style="max-height:36vh;">
-          <table>
-            <thead>
-              <tr><th>Placa</th><th>Número interno</th><th>Tipo</th></tr>
-            </thead>
-            <tbody id="empresaVehiculosBody"></tbody>
-          </table>
+        <div id="empresaVistaDashboard">
+          <h3 class="caso-sub">📅 Mis siniestros por mes</h3>
+          <div class="dash-filtro">
+            <label class="dash-filtro-campo">Desde<input type="date" id="empresaMesDesde"></label>
+            <label class="dash-filtro-campo">Hasta<input type="date" id="empresaMesHasta"></label>
+            <button class="secondary" id="btnEmpresaMesFiltrar">Filtrar</button>
+            <button class="secondary" id="btnEmpresaMesLimpiar">Todo</button>
+          </div>
+          <div class="dash-panel">
+            <div class="dash-panel-head"><h3>Casos por mes</h3><span class="dash-panel-sub" id="empresaMesTotal"></span></div>
+            <div class="dash-cols" id="empresaMesCols"></div>
+          </div>
         </div>
 
-        <h3 class="caso-sub">Mi historial de casos <span class="muted" id="empresaCasosCount"></span></h3>
-        <p class="audio-nota">Toca un caso para ver su detalle completo.</p>
-        <div class="table-wrap" style="max-height:36vh;">
-          <table>
-            <thead>
-              <tr><th>N° de caso</th><th>Fecha del siniestro</th><th>Placa</th><th>Tipo de vehículo</th><th>Gravedad</th></tr>
-            </thead>
-            <tbody id="empresaCasosBody"></tbody>
-          </table>
+        <div id="empresaVistaHistorico" class="hidden">
+          <h3 class="caso-sub">Mi historial de casos <span class="muted" id="empresaCasosCount"></span></h3>
+          <p class="audio-nota">Toca un caso para ver su detalle completo.</p>
+          <div class="table-wrap" style="max-height:60vh;">
+            <table>
+              <thead>
+                <tr><th>N° de caso</th><th>Fecha del siniestro</th><th>Placa</th><th>Tipo de vehículo</th><th>Gravedad</th></tr>
+              </thead>
+              <tbody id="empresaCasosBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="empresaVistaVehiculos" class="hidden">
+          <h3 class="caso-sub">Mis vehículos <span class="muted" id="empresaVehiculosCount"></span></h3>
+          <div class="table-wrap" style="max-height:60vh;">
+            <table>
+              <thead>
+                <tr><th>Placa</th><th>Número interno</th><th>Tipo</th></tr>
+              </thead>
+              <tbody id="empresaVehiculosBody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
 

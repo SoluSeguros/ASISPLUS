@@ -125,6 +125,10 @@ const els = {
   // Portal de empresa
   empresaCard: document.getElementById('empresaCard'),
   empresaNombreTitulo: document.getElementById('empresaNombreTitulo'),
+  empresaTabs: document.getElementById('empresaTabs'),
+  empresaVistaDashboard: document.getElementById('empresaVistaDashboard'),
+  empresaVistaHistorico: document.getElementById('empresaVistaHistorico'),
+  empresaVistaVehiculos: document.getElementById('empresaVistaVehiculos'),
   empresaVehiculosBody: document.getElementById('empresaVehiculosBody'),
   empresaVehiculosCount: document.getElementById('empresaVehiculosCount'),
   empresaCasosBody: document.getElementById('empresaCasosBody'),

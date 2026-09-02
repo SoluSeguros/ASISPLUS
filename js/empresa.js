@@ -34,6 +34,32 @@ function initEmpresaPortal() {
     if (els.empresaMesHasta) els.empresaMesHasta.value = '';
     renderSiniestrosPorMesEmpresa();
   });
+
+  // Submenú: Dashboard / Históricos / Vehículos registrados.
+  if (els.empresaTabs) {
+    els.empresaTabs.addEventListener('click', event => {
+      const btn = event.target.closest('.tab');
+      if (btn) cambiarVistaEmpresa(btn.dataset.vista);
+    });
+  }
+}
+
+const EMPRESA_VISTAS = {
+  dashboard: 'empresaVistaDashboard',
+  historico: 'empresaVistaHistorico',
+  vehiculos: 'empresaVistaVehiculos'
+};
+
+/** Cambia entre Dashboard / Históricos / Vehículos dentro del portal de empresa. */
+function cambiarVistaEmpresa(vista) {
+  if (!EMPRESA_VISTAS[vista]) return;
+  if (els.empresaTabs) {
+    els.empresaTabs.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.vista === vista));
+  }
+  Object.keys(EMPRESA_VISTAS).forEach(v => {
+    const el = els[EMPRESA_VISTAS[v]];
+    if (el) el.classList.toggle('hidden', v !== vista);
+  });
 }
 
 /** Lee el rango Desde/Hasta del filtro de "Mis siniestros por mes". */
@@ -120,6 +146,7 @@ async function abrirEmpresaPortal() {
   const nombreEmpresa = (state.perfil && state.perfil.empresa) || 'Mi empresa';
   if (els.empresaNombreTitulo) els.empresaNombreTitulo.textContent = nombreEmpresa;
   marcarUbicacion('empresaCard', nombreEmpresa);
+  cambiarVistaEmpresa('dashboard');
   await Promise.all([cargarMisVehiculos(), cargarMisCasos()]);
 }
 
