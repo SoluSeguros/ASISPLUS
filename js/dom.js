@@ -129,6 +129,11 @@ const els = {
   empresaVehiculosCount: document.getElementById('empresaVehiculosCount'),
   empresaCasosBody: document.getElementById('empresaCasosBody'),
   empresaCasosCount: document.getElementById('empresaCasosCount'),
+  empresaCasoModal: document.getElementById('empresaCasoModal'),
+  empresaCasoTitulo: document.getElementById('empresaCasoTitulo'),
+  empresaCasoSub: document.getElementById('empresaCasoSub'),
+  empresaCasoBody: document.getElementById('empresaCasoBody'),
+  btnEmpresaCasoCerrar: document.getElementById('btnEmpresaCasoCerrar'),
 
   // Crear caso
   casoCrearCard: document.getElementById('casoCrearCard'),
