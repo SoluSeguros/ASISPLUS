@@ -24,10 +24,13 @@ function appYaInstalada() {
 
 // Se registra apenas carga este archivo (no dentro de initInstalarApp, que se
 // llama después de que TODOS los demás módulos terminan de cargar) para no
-// arriesgarse a perder el evento si Chrome/Android lo dispara temprano: es lo
-// único que permite el botón instale directo con un toque en Android.
+// arriesgarse a perder el evento si Chrome/Android lo dispara temprano.
+// A propósito NO se llama event.preventDefault(): así, cuando el navegador
+// decide que la app se puede instalar, también muestra su propio aviso
+// nativo (el ícono ⊕ en la barra de direcciones, o el banner de Android) sin
+// que el usuario tenga que encontrar y tocar nuestro botón. Igual guardamos
+// el evento por si el usuario prefiere instalar desde nuestro botón.
 window.addEventListener('beforeinstallprompt', event => {
-  event.preventDefault();
   instalarAppEvento = event;
 });
 
@@ -73,10 +76,16 @@ async function abrirInstalarApp() {
   // Si el navegador ofrece el instalador nativo (Chrome/Edge en Android o
   // escritorio), úsalo directamente: es el flujo más simple para el usuario.
   if (instalarAppEvento) {
-    instalarAppEvento.prompt();
-    try { await instalarAppEvento.userChoice; } catch (_) { /* el usuario cerró el diálogo nativo */ }
-    instalarAppEvento = null;
-    return;
+    try {
+      await instalarAppEvento.prompt();
+      await instalarAppEvento.userChoice;
+      instalarAppEvento = null;
+      return;
+    } catch (_) {
+      // El evento ya se usó (p. ej. el usuario ya vio/cerró el aviso nativo
+      // del navegador): sigue con las instrucciones manuales de abajo.
+      instalarAppEvento = null;
+    }
   }
 
   const plataforma = detectarPlataformaInstalacion();
