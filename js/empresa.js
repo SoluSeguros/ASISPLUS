@@ -154,7 +154,7 @@ async function cargarMisVehiculos() {
 async function cargarMisCasos() {
   const tbody = els.empresaCasosBody;
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="4">Cargando...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="5">Cargando...</td></tr>';
   try {
     const { data, error } = await db
       .from('registro_asistencias')
@@ -165,24 +165,32 @@ async function cargarMisCasos() {
     renderSiniestrosPorMesEmpresa();
     if (els.empresaCasosCount) els.empresaCasosCount.textContent = `(${formatNumber((data || []).length)})`;
     if (!data || data.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4">Sin casos registrados.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5">Sin casos registrados.</td></tr>';
       return;
     }
-    // Cada fila abre el detalle completo del caso (clic o Enter/Espacio).
+    // Cada fila abre el detalle completo del caso (clic o Enter/Espacio). En
+    // vez de "Estado" (en los históricos siempre dice lo mismo) se muestra el
+    // tipo de vehículo y la gravedad, que sí distinguen un caso de otro.
     tbody.innerHTML = data.map((c, i) => {
       const d = c.datos || {};
       const fecha = d['FECHA DEL SINIESTRO'] || '—';
       const placa = d['PLACA VEHICULO'] || '—';
+      const tipo = d['TIPO DE VEHICULO'] || '—';
+      const gravedad = d['GRAVEDAD DEL SINIESTRO'] || '';
+      const gravedadHTML = gravedad
+        ? `<span class="ct-grav ${claseGravedad(gravedad)}">${escBandeja(gravedad)}</span>`
+        : '—';
       return `
         <tr class="fila-clic" data-idx="${i}" tabindex="0">
           <td>${escBandeja(c.numero_caso || '—')}</td>
           <td>${escBandeja(fecha)}</td>
           <td>${escBandeja(placa)}</td>
-          <td>${escBandeja(c.estado || '—')}</td>
+          <td>${escBandeja(tipo)}</td>
+          <td>${gravedadHTML}</td>
         </tr>`;
     }).join('');
   } catch (error) {
-    tbody.innerHTML = `<tr><td colspan="4">Error: ${escBandeja(error.message || String(error))}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5">Error: ${escBandeja(error.message || String(error))}</td></tr>`;
   }
 }
 
