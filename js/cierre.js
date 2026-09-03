@@ -632,6 +632,13 @@ function itemContratoGenerado(row) {
     filas.push(`🏦 ${escC(fd.banco || '')}${fd.cuenta ? ' · cta ' + escC(fd.cuenta) : ''}`);
   }
   if (fd.titularCuenta) filas.push(`💳 Titular: ${escC(fd.titularCuenta)}`);
+  // Estado del pago del tercero (contratos "a favor"): lo pendiente en rojo,
+  // porque es plata que la empresa todavía no ha recibido.
+  if (fd.estadoPagoTercero) {
+    const pagado = String(fd.estadoPagoTercero).toUpperCase() === 'PAGO';
+    filas.push(`💳 Pago del tercero: <b class="${pagado ? 'ci-pago-ok' : 'ci-pago-pend'}">${escC(fd.estadoPagoTercero)}</b>`);
+  }
+  if (fd.observacionPago) filas.push(`📝 ${escC(fd.observacionPago)}`);
   filas.push(`✍️ Firmas: compareciente ${fd.firmaCompareciente ? '✅' : '⬜'} · conductor ${fd.firmaConductor ? '✅' : '⬜'}`);
 
   const det = document.createElement('div');

@@ -1174,6 +1174,24 @@ button:disabled {
             <input id="cedulaTitular" inputmode="numeric" pattern="[0-9]*" placeholder="Cédula">
           </div>
         </div>
+
+        <!-- Estado del pago: solo en "a favor", donde es el TERCERO quien debe
+             indemnizar a la empresa. El asistente deja constancia en sitio de si
+             pagó o quedó pendiente; el selector permite contarlo en los informes
+             y la observación guarda el detalle de lo acordado. -->
+        <div data-show="afavor">
+          <hr style="border:0;border-top:1px solid #e2e8f0;margin:14px 0;">
+          <h4 style="margin:0 0 8px;font-size:0.95rem;color:#0f3f9e;">💳 Estado del pago del tercero</h4>
+          <label for="estadoPagoTercero">¿El tercero pagó?</label>
+          <select id="estadoPagoTercero">
+            <option value="">Seleccione...</option>
+            <option value="PAGO">Pagó</option>
+            <option value="PAGO PARCIAL">Pagó parcialmente</option>
+            <option value="PENDIENTE DE PAGO">Pendiente de pago</option>
+          </select>
+          <label for="observacionPago" style="margin-top:10px;display:block;">Observación del pago</label>
+          <textarea id="observacionPago" rows="3" placeholder="Ej. Pagó $500.000 en efectivo en el sitio y queda pendiente el saldo para el viernes; o: quedó de consignar el lunes a la cuenta indicada."></textarea>
+        </div>
       </div>
 
       <!-- Lugar de firma del contrato -->
@@ -1979,6 +1997,8 @@ async function cargarCasoParaRefirma() {
     setVal("cuenta", formData.cuenta);
     setVal("titularCuenta", formData.titularCuenta);
     setVal("cedulaTitular", formData.cedulaTitular);
+    setVal("estadoPagoTercero", formData.estadoPagoTercero);
+    setVal("observacionPago", formData.observacionPago);
 
     // Mostrar/ocultar campos de menor
     document.getElementById("menorFields").style.display = formData.tipo === "menor" ? "block" : "none";
@@ -2151,6 +2171,9 @@ function getSnapshot() {
     cuenta: valor("cuenta"),
     titularCuenta: valor("titularCuenta"),
     cedulaTitular: valor("cedulaTitular"),
+    // Estado del pago del tercero (solo aplica al contrato "a favor").
+    estadoPagoTercero: valor("estadoPagoTercero"),
+    observacionPago: valor("observacionPago"),
     firmaCompareciente: Boolean(firmaComparecienteData),
     firmaConductor: Boolean(firmaConductorData),
     // Vínculo al siniestro de la app de asistencias (si se generó desde un caso).
@@ -2691,6 +2714,15 @@ async function confirmarDatos() {
     extraMenor = `<p><strong>Menor:</strong> ${escapeHtml(nombreMenor)} | <strong>Documento:</strong> ${escapeHtml(docMenor)} | <strong>Parentesco:</strong> ${escapeHtml(parentesco)}</p>`;
   }
 
+  // Estado del pago del tercero: se confirma antes de firmar (solo "a favor").
+  let extraPago = "";
+  if (contractKind === "afavor") {
+    const estadoPago = valor("estadoPagoTercero");
+    const obsPago = valor("observacionPago");
+    extraPago = `<p><strong>Pago del tercero:</strong> ${escapeHtml(estadoPago || "sin marcar")}` +
+      `${obsPago ? ` | <strong>Observación:</strong> ${escapeHtml(obsPago)}` : ""}</p>`;
+  }
+
   confirmSummary.innerHTML = `
     <p><strong>Contrato:</strong> ${escapeHtml(contractLabel)} (${escapeHtml(contractKind)})</p>
     <p><strong>Tipo compareciente:</strong> ${comparecienteTipo === "menor" ? "Representante de menor" : "Mayor de edad"}</p>
@@ -2700,6 +2732,7 @@ async function confirmarDatos() {
     <p><strong>Fecha:</strong> ${escapeHtml(fmtFecha(fecha))}</p>
     <p><strong>Vehículo 1 (compareciente):</strong> Placa ${escapeHtml(placa)}${interno ? " | Interno " + escapeHtml(interno) : ""}${placa2 ? ` &nbsp;·&nbsp; <strong>Vehículo 2 (implicado):</strong> Placa ${escapeHtml(placa2)}` : ""}</p>
     <p><strong>Conductor:</strong> ${escapeHtml(conductorNombre)} | <strong>Cédula:</strong> ${escapeHtml(conductorCedula)}</p>
+    ${extraPago}
     <p><strong>Firma compareciente:</strong> ${getSiNo(Boolean(firmaComparecienteData))} | <strong>Firma conductor:</strong> ${getSiNo(Boolean(firmaConductorData))}</p>
   `;
   abrirModal(confirmModal);

@@ -198,6 +198,11 @@ input, select {
 .badge.estado-confirmado { background: #d9f5e5; color: #0d6b3a; }
 .badge.estado-borrador { background: #fff4d6; color: #8a5a00; }
 .badge.estado-sinpdf { background: #ffe1d2; color: #a14411; }
+/* Estado del pago del tercero (contratos "a favor"): lo pendiente resalta,
+   porque es plata que la empresa todavía no ha recibido. */
+.badge.pago-ok { background: #d9f5e5; color: #0d6b3a; }
+.badge.pago-parcial { background: #fff4d6; color: #8a5a00; }
+.badge.pago-pendiente { background: #ffdcdc; color: #a11111; }
 .user-info {
   color: #cdd9ea;
   font-size: 0.84rem;
@@ -653,7 +658,8 @@ function filtrar() {
         fd.fecha, fd.ciudadHecho, fd.lugarHecho, fd.ciudadFirma,
         fd.nombreMenor, fd.docMenor, fd.parentesco,
         fd.valor, fd.valorTexto, fd.empresa,
-        fd.banco, fd.cuenta, fd.titularCuenta, fd.cedulaTitular
+        fd.banco, fd.cuenta, fd.titularCuenta, fd.cedulaTitular,
+        fd.estadoPagoTercero, fd.observacionPago
       ].filter(Boolean).join(" ").toLowerCase();
       return blob.includes(q);
     });
@@ -712,6 +718,14 @@ function escapeHtml(v) {
     .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
+/** Clase de color según el estado del pago del tercero. */
+function clasePago(estado) {
+  const s = String(estado || "").toUpperCase();
+  if (s === "PAGO") return "pago-ok";
+  if (s === "PAGO PARCIAL") return "pago-parcial";
+  return "pago-pendiente";
+}
+
 function badgeEstado(item) {
   if (!item.path) return `<span class="badge estado-sinpdf">⚠ Sin PDF</span>`;
   if (item.status === "confirmed" || item.status === "confirmado") return `<span class="badge estado-confirmado">✓ Confirmado</span>`;
@@ -759,6 +773,8 @@ function renderList(items) {
         ${fd.empresa ? `<div><strong>Empresa recibe:</strong> ${escapeHtml(fd.empresa)}</div>` : ""}
         ${(fd.banco || fd.cuenta) ? `<div><strong>🏦 Pago:</strong> ${escapeHtml(fd.banco || "?")} · cta ${escapeHtml(fd.cuenta || "?")}</div>` : ""}
         ${fd.titularCuenta ? `<div><strong>Titular cuenta:</strong> ${escapeHtml(fd.titularCuenta)}${fd.cedulaTitular ? " (C.C. " + escapeHtml(fd.cedulaTitular) + ")" : ""}</div>` : ""}
+        ${fd.estadoPagoTercero ? `<div><strong>💳 Pago del tercero:</strong> <span class="badge ${clasePago(fd.estadoPagoTercero)}">${escapeHtml(fd.estadoPagoTercero)}</span></div>` : ""}
+        ${fd.observacionPago ? `<div><strong>Observación del pago:</strong> ${escapeHtml(fd.observacionPago)}</div>` : ""}
         ${fd.ciudadFirma ? `<div><strong>Ciudad firma:</strong> ${escapeHtml(fd.ciudadFirma)}</div>` : ""}
         ${(fd.firmaCompareciente !== undefined || fd.firmaConductor !== undefined) ? `<div><strong>Firmas:</strong> compareciente ${fd.firmaCompareciente ? "✓" : "✗"} · conductor ${fd.firmaConductor ? "✓" : "✗"}</div>` : ""}
       </div>

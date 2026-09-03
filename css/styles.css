@@ -1465,6 +1465,9 @@ input[type="password"]:focus {
 .contrato-estado.ci-ok   { background: #d9f5e5; color: #0d6b3a; }
 .contrato-estado.ci-pdf  { background: #e6f0ff; color: #1d4ed8; }
 .contrato-estado.ci-borr { background: #fff4d6; color: #8a5a00; }
+/* Pago del tercero en la tarjeta del contrato: pendiente en rojo. */
+.ci-pago-ok   { color: #0d6b3a; }
+.ci-pago-pend { color: #a11111; }
 .contrato-item-det {
   display: flex;
   flex-direction: column;
