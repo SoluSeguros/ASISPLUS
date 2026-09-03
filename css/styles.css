@@ -1710,6 +1710,30 @@ input[type="password"]:focus {
   margin-bottom: 8px;
 }
 .tercero-firma-limpiar { width: auto; padding: 4px 10px; font-size: 12px; }
+
+/* Estado de guardado inmediato de la firma del caso (junto al titulo de la caja). */
+.caso-firma-estado {
+  margin-left: auto;
+  margin-right: 8px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.caso-firma-estado.ok  { color: #0d6b3a; }
+.caso-firma-estado.err { color: #b8451b; }
+
+/* Indicador de autoguardado del formulario, al lado de "Guardar cambios". */
+.autoguardado-estado {
+  display: inline-block;
+  margin-left: 10px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--muted);
+  vertical-align: middle;
+}
+.autoguardado-estado.ok  { color: #0d6b3a; }
+.autoguardado-estado.err { color: #b8451b; }
 .tercero-firma-canvas {
   width: 100%;
   height: auto;

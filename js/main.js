@@ -114,6 +114,9 @@ initTerceros();
 // Versiones (escrita/voz) y firmas del caso.
 initVersionesToggle();
 initCasoFirmas();
+
+// Autoguardado del formulario del caso (nada se pierde si el asistente sale).
+initAutoguardadoCaso();
 initBuscadorHipotesis();
 
 // Cierre y ruta del caso (desarrollo de dependencias).

@@ -1625,6 +1625,8 @@ async function abrirCaso(caso) {
   renderChecklistCaso(caso);
   renderDuracionCaso(caso);
   cargarVersionesCaso(caso);
+  // Si quedó trabajo sin subir de este caso, se repone sobre el formulario.
+  restaurarEspejoCaso(caso);
   // Las evidencias necesitan señal para su previsualización; si no hay, no deben
   // impedir abrir/editar el caso (importante para borradores y trabajo offline).
   try { await cargarAudiosCaso(caso); } catch (_) { /* sin señal */ }
@@ -2226,6 +2228,195 @@ function renderCamposCompletar(datos) {
   actualizarTipoEventoOtro();
 }
 
+/* ------------------------------------------------------------------ *
+ *  AUTOGUARDADO del formulario del caso
+ *
+ *  El asistente trabaja en la vía. Puede entrarle una llamada, quedarse sin
+ *  batería o cerrar la app a mitad de la atención; lo que escribió NO se puede
+ *  volver a preguntar (el conductor ya se fue). Por eso el formulario se
+ *  guarda solo, en dos niveles:
+ *
+ *   1. ESPEJO LOCAL (localStorage), en cada tecla y de forma SÍNCRONA. Es
+ *      instantáneo y sobrevive incluso a que el sistema mate la app de golpe.
+ *   2. GUARDADO AL SERVIDOR, tras una pausa de escritura (o de inmediato si la
+ *      app pasa a segundo plano). Usa `persistirDatosCaso`, que relee fresco y
+ *      hace merge: no pisa fotos ni evidencia subida en paralelo, y sin señal
+ *      queda en la cola offline.
+ *
+ *  El espejo se borra en cuanto el servidor confirma. Si al abrir un caso hay
+ *  espejo, es que quedó trabajo sin subir: se restaura sobre el formulario.
+ *
+ *  NO toca `estado`: eso lo sigue calculando "Guardar cambios". Así el caso
+ *  nunca cambia de estado (ni se cierra por la ruta 01) a mitad de escritura.
+ * ------------------------------------------------------------------ */
+
+const AUTOGUARDADO_MS = 1500;
+const MIRROR_PREFIJO = 'asisplus-campos-';
+let _autoTimer = null;
+let _autoEnCurso = false;
+
+/** Clave del espejo local de un caso (el borrador aún no tiene número). */
+function mirrorClave(caso) {
+  if (!caso) return '';
+  return MIRROR_PREFIJO + (caso.numero_caso || caso.key || '');
+}
+
+function mirrorLeer(caso) {
+  try { return JSON.parse(localStorage.getItem(mirrorClave(caso)) || '{}') || {}; }
+  catch (_) { return {}; }
+}
+function mirrorEscribir(caso, obj) {
+  try {
+    if (obj && Object.keys(obj).length) localStorage.setItem(mirrorClave(caso), JSON.stringify(obj));
+    else localStorage.removeItem(mirrorClave(caso));
+  } catch (_) { /* cuota llena: el guardado al servidor sigue funcionando */ }
+}
+function mirrorBorrar(caso) {
+  try { localStorage.removeItem(mirrorClave(caso)); } catch (_) {}
+}
+
+/**
+ * Lee del formulario los campos que el asistente ESCRIBE. Deja fuera los
+ * automáticos (usuario, coordenadas): no son trabajo que se pueda perder, y
+ * restaurarlos desde el espejo pondría el nombre del asistente anterior encima
+ * del actual. El guardado explícito los sigue escribiendo igual que siempre.
+ */
+function leerCamposFormulario() {
+  const out = {};
+  els.casoDetalleCard.querySelectorAll('.campo-caso').forEach(inp => {
+    if (!inp.dataset.campo || inp.readOnly) return;
+    out[inp.dataset.campo] = inp.value.trim();
+  });
+  return out;
+}
+
+/** Campos del formulario cuyo valor difiere de lo ya guardado en el caso. */
+function camposSinGuardar(caso) {
+  const guardados = (caso && caso.datos) || {};
+  const actuales = leerCamposFormulario();
+  const dif = {};
+  Object.keys(actuales).forEach(k => {
+    if (actuales[k] !== String(guardados[k] == null ? '' : guardados[k])) dif[k] = actuales[k];
+  });
+  return dif;
+}
+
+/** Indicador discreto de autoguardado junto al botón "Guardar cambios". */
+function estadoAutoguardado(texto, clase) {
+  const btn = els.btnGuardarDetalle;
+  if (!btn || !btn.parentNode) return;
+  let et = document.getElementById('autoguardadoEstado');
+  if (!et) {
+    et = document.createElement('span');
+    et.id = 'autoguardadoEstado';
+    et.className = 'autoguardado-estado';
+    btn.parentNode.insertBefore(et, btn.nextSibling);
+  }
+  et.textContent = texto || '';
+  et.className = 'autoguardado-estado' + (clase ? ' ' + clase : '');
+}
+
+/** Programa el guardado al servidor tras una pausa de escritura. */
+function programarAutoguardado() {
+  clearTimeout(_autoTimer);
+  _autoTimer = setTimeout(() => { autoguardarCampos(); }, AUTOGUARDADO_MS);
+}
+
+/**
+ * Sube al servidor SOLO los campos que cambiaron. No toca el estado ni la
+ * asignación. Si falla, el espejo local se queda: nada se pierde.
+ */
+async function autoguardarCampos() {
+  clearTimeout(_autoTimer);
+  const caso = state.casoActual;
+  if (!caso || _autoEnCurso) return;
+  // Caso bloqueado (sin check-in, o rol sin permiso): no se autoguarda nada.
+  if (els.btnGuardarDetalle && els.btnGuardarDetalle.disabled) return;
+
+  const cambios = camposSinGuardar(caso);
+  if (!Object.keys(cambios).length) { estadoAutoguardado('', ''); return; }
+
+  _autoEnCurso = true;
+  estadoAutoguardado('⏳ Guardando…', '');
+  try {
+    const r = (typeof persistirDatosCaso === 'function')
+      ? await persistirDatosCaso(caso, datos => { Object.assign(datos, cambios); })
+      : (await (async () => {
+          caso.datos = Object.assign({}, caso.datos || {}, cambios);
+          const { error } = await db.from('registro_asistencias')
+            .update({ datos: caso.datos }).eq('numero_caso', caso.numero_caso);
+          if (error) throw error;
+          return { encolado: false };
+        })());
+    // Confirmado (o encolado, ya a salvo en IndexedDB): el espejo sobra.
+    mirrorBorrar(caso);
+    estadoAutoguardado(r.encolado ? '📥 Guardado en el dispositivo' : '✅ Guardado', 'ok');
+    renderChecklistCaso(caso);
+  } catch (e) {
+    // El espejo local sigue puesto: al reabrir el caso se recupera lo escrito.
+    estadoAutoguardado('⚠ Sin subir (guardado aquí)', 'err');
+  } finally {
+    _autoEnCurso = false;
+  }
+}
+
+/**
+ * Restaura sobre el formulario lo que quedó sin subir de este caso. Se llama
+ * al abrirlo, después de pintar los campos con lo que hay en la base.
+ */
+function restaurarEspejoCaso(caso) {
+  const espejo = mirrorLeer(caso);
+  const claves = Object.keys(espejo);
+  if (!claves.length) return;
+
+  let repuestos = 0;
+  claves.forEach(campo => {
+    const inp = els.casoDetalleCard.querySelector('.campo-caso[data-campo="' + campo + '"]');
+    if (!inp) return;
+    // Sólo repone si el espejo aporta algo distinto de lo que trae la base.
+    if (inp.value.trim() === espejo[campo]) return;
+    inp.value = espejo[campo];
+    repuestos++;
+  });
+  if (repuestos) {
+    if (typeof actualizarTipoEventoOtro === 'function') actualizarTipoEventoOtro();
+    estadoAutoguardado('↩ Recuperado sin subir', 'err');
+    showStatus('Se recuperaron ' + repuestos + ' campo(s) que habías escrito y no alcanzaron a subir. Revísalos y guarda.', 'info');
+    // Reintenta subirlos ya mismo (si hay señal y el caso es editable).
+    setTimeout(() => { autoguardarCampos(); }, 2500);
+  }
+}
+
+/** Conecta el autoguardado al formulario del caso (una sola vez). */
+function initAutoguardadoCaso() {
+  if (!els.casoDetalleCard) return;
+
+  const alEscribir = e => {
+    const inp = e.target;
+    if (!inp || !inp.classList || !inp.classList.contains('campo-caso')) return;
+    const caso = state.casoActual;
+    if (!caso) return;
+    // 1) Espejo local SÍNCRONO: pase lo que pase con la red o con la app,
+    //    esto ya quedó escrito en el dispositivo.
+    mirrorEscribir(caso, camposSinGuardar(caso));
+    estadoAutoguardado('✎ Sin guardar…', '');
+    // 2) Guardado al servidor tras la pausa de escritura.
+    programarAutoguardado();
+  };
+  els.casoDetalleCard.addEventListener('input', alEscribir);
+  els.casoDetalleCard.addEventListener('change', alEscribir);
+
+  // Si la app pasa a segundo plano (llamada entrante, cambio de app, bloqueo
+  // de pantalla) no esperamos la pausa: se intenta subir de una vez. Es el
+  // último momento fiable antes de que el sistema pueda matar la pestaña.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && state.casoActual) autoguardarCampos();
+  });
+  window.addEventListener('pagehide', () => {
+    if (state.casoActual) autoguardarCampos();
+  });
+}
+
 /** Guarda los cambios del caso (datos + estado). */
 async function guardarDetalleCaso() {
   const caso = state.casoActual;
@@ -2324,6 +2515,10 @@ async function guardarDetalleCaso() {
     caso.datos = datos;
     caso.estado = nuevoEstado;
     caso.asignado_a = asignado;
+    // Todo quedó arriba (o en la cola): el espejo local ya no hace falta.
+    mirrorBorrar(caso);
+    clearTimeout(_autoTimer);
+    estadoAutoguardado('', '');
     els.detalleEstado.value = nuevoEstado;
     renderChecklistCaso(caso);
     renderDuracionCaso(caso);
@@ -2492,7 +2687,99 @@ function initCasoFirmas() {
     const box = canvas.closest('.tercero-firma-box');
     const limpiar = box && box.querySelector('.tercero-firma-limpiar');
     if (limpiar) limpiar.addEventListener('click', () => limpiarPadFirma(casoFirmaPads[campo]));
+
+    // GUARDADO INMEDIATO de la firma: en cuanto el conductor levanta el dedo se
+    // programa la subida. Antes la firma vivía sólo en el lienzo hasta pulsar
+    // "Guardar cambios"; si el asistente salía de la app, había que perseguir
+    // al conductor para que firmara otra vez.
+    //
+    // Se usa una bandera propia (`trazando`) porque el pad ya apaga su
+    // `est.dibujando` en su propio listener de `pointerup`, registrado antes
+    // que este: al llegar aquí siempre estaría en false.
+    let trazando = false;
+    canvas.addEventListener('pointerdown', () => {
+      if (!canvas.classList.contains('bloq')) trazando = true;
+    });
+    // En window, no en el canvas: el dedo suele levantarse fuera del recuadro.
+    window.addEventListener('pointerup', () => {
+      if (!trazando) return;
+      trazando = false;
+      programarGuardadoFirma(campo);
+    });
   });
+}
+
+/* ------------------------------------------------------------------ *
+ *  Guardado inmediato de las firmas del caso
+ * ------------------------------------------------------------------ */
+
+// Un temporizador por campo: se reinicia con cada trazo, así una firma de
+// varios trazos se sube UNA vez al terminar, no una por trazo.
+const _firmaTimers = {};
+const FIRMA_ESPERA_MS = 1200;
+
+function programarGuardadoFirma(campo) {
+  clearTimeout(_firmaTimers[campo]);
+  _firmaTimers[campo] = setTimeout(() => { guardarFirmaAhora(campo); }, FIRMA_ESPERA_MS);
+}
+
+/** Pinta el estado de guardado dentro del encabezado de la caja de firma. */
+function estadoFirma(campo, texto, clase) {
+  const canvas = document.querySelector(`.caso-firma-canvas[data-campo="${campo}"]`);
+  const cap = canvas && canvas.closest('.tercero-firma-box').querySelector('.tercero-firma-cap');
+  if (!cap) return;
+  let et = cap.querySelector('.caso-firma-estado');
+  if (!et) {
+    et = document.createElement('span');
+    et.className = 'caso-firma-estado';
+    cap.insertBefore(et, cap.querySelector('.tercero-firma-limpiar'));
+  }
+  et.textContent = texto || '';
+  et.className = 'caso-firma-estado' + (clase ? ' ' + clase : '');
+}
+
+/**
+ * Sube la firma dibujada y escribe su ruta en el caso EN EL MOMENTO, sin
+ * esperar a "Guardar cambios". Si falla, el trazo sigue en el lienzo y el
+ * guardado del caso (`subirFirmasCaso`) lo reintenta: nunca se pierde callado.
+ */
+async function guardarFirmaAhora(campo) {
+  const caso = state.casoActual;
+  const pad = casoFirmaPads[campo];
+  if (!caso || !pad || !pad.hayTrazo) return;
+
+  estadoFirma(campo, '⏳ Guardando…', '');
+  try {
+    const blob = await firmaABlob(pad); // helper de terceros.js
+    if (!blob) { estadoFirma(campo, '', ''); return; }
+    const ruta = `${carpetaCaso(caso)}/firmas/${campo.replace(/\s+/g, '_')}.png`;
+
+    const up = (typeof subirArchivoResiliente === 'function')
+      ? await subirArchivoResiliente(BUCKET_FOTOS, ruta, blob, 'image/png')
+      : (await (async () => {
+          const { error } = await db.storage.from(BUCKET_FOTOS)
+            .upload(ruta, blob, { contentType: 'image/png', upsert: true });
+          if (error) throw error;
+          return { encolado: false };
+        })());
+
+    const per = (typeof persistirDatosCaso === 'function')
+      ? await persistirDatosCaso(caso, datos => { datos[campo] = ruta; })
+      : (await (async () => {
+          caso.datos = caso.datos || {};
+          caso.datos[campo] = ruta;
+          const { error } = await db.from('registro_asistencias')
+            .update({ datos: caso.datos }).eq('numero_caso', caso.numero_caso);
+          if (error) throw error;
+          return { encolado: false };
+        })());
+
+    const pendiente = up.encolado || per.encolado;
+    estadoFirma(campo, pendiente ? '📥 En el dispositivo' : '✅ Guardada', 'ok');
+    renderChecklistCaso(caso);
+  } catch (e) {
+    estadoFirma(campo, '⚠ Sin guardar', 'err');
+  }
 }
 
 /** Carga las firmas guardadas del caso (muestra la imagen si existe). */

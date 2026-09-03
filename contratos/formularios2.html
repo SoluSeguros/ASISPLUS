@@ -155,6 +155,18 @@ input:focus, select:focus {
   background: #fff;
   transition: border-color 0.2s ease, background 0.2s ease;
 }
+/* Firma recuperada de un borrador: se muestra encima del lienzo vacio. */
+.sig-box { position: relative; }
+.sig-box .sig-recuperada {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  border-radius: 11px;
+}
+.sig-box.con-recuperada canvas { background: transparent; }
 .sig-box.firmado {
   border-color: #1e8c4f;
   border-style: solid;
@@ -1221,6 +1233,7 @@ button:disabled {
 
       <div class="firma-aviso">
         ⚠ <strong>Las dos firmas son obligatorias.</strong> Sin ellas no se puede generar ni descargar el PDF del contrato.
+        Cada firma queda guardada en el dispositivo apenas se traza: si tienes que salir, al volver el contrato sigue como lo dejaste.
       </div>
 
       <label for="firma">Firma compareciente <span style="color:#b8451b;">*</span></label>
@@ -1482,7 +1495,9 @@ document.getElementById("tipo").addEventListener("change", function () {
   queueRemoteSave();
 });
 
-document.querySelectorAll("input:not(.no-sync), select").forEach((el) => {
+// Incluye textarea: la observación del pago del tercero es un textarea y
+// sin esto no disparaba el guardado mientras se escribía.
+document.querySelectorAll("input:not(.no-sync), select, textarea:not(.no-sync)").forEach((el) => {
   el.addEventListener("input", () => {
     updatePreview(false);
     queueRemoteSave();
@@ -1496,6 +1511,7 @@ document.querySelectorAll("input:not(.no-sync), select").forEach((el) => {
 });
 
 signaturePad.onEnd = () => {
+  quitarFirmaRecuperada("sigBoxCompareciente"); // firma nueva: se va la recuperada
   firmaComparecienteData = signaturePad.isEmpty() ? "" : signaturePad.toDataURL("image/png");
   updatePreview(false);
   queueRemoteSave();
@@ -1503,6 +1519,7 @@ signaturePad.onEnd = () => {
   actualizarEstadoFirmas();
 };
 signaturePadConductor.onEnd = () => {
+  quitarFirmaRecuperada("sigBoxConductor"); // firma nueva: se va la recuperada
   firmaConductorData = signaturePadConductor.isEmpty() ? "" : signaturePadConductor.toDataURL("image/png");
   updatePreview(false);
   queueRemoteSave();
@@ -1725,6 +1742,13 @@ function resetFormularioDespuesEnvio() {
   });
   if (signaturePad) signaturePad.clear();
   if (signaturePadConductor) signaturePadConductor.clear();
+  // Las firmas en memoria mandan sobre el lienzo al generar el documento: si no
+  // se borran aquí, la firma del contrato anterior aparecería en el siguiente.
+  quitarFirmaRecuperada("sigBoxCompareciente");
+  quitarFirmaRecuperada("sigBoxConductor");
+  firmaComparecienteData = "";
+  firmaConductorData = "";
+  actualizarEstadoFirmas();
   documentoGenerado = false;
   latestPdfBase64 = null;
   latestPdfSha256 = null;
@@ -1740,6 +1764,7 @@ function resetFormularioDespuesEnvio() {
   remotePublicToken = null;
   localStorage.removeItem("firma_case_id");
   localStorage.removeItem("firma_public_token");
+  borrarEspejoLocal(); // el contrato ya salió: el borrador local sobra
   showStep(0);
   updatePreview(false);
   setEstado("Formulario limpiado. Puedes iniciar un nuevo caso.", false);
@@ -2008,9 +2033,23 @@ async function cargarCasoParaRefirma() {
     if (esModoClonar) {
       signaturePad.clear();
       signaturePadConductor.clear();
+      quitarFirmaRecuperada("sigBoxCompareciente");
+      quitarFirmaRecuperada("sigBoxConductor");
       firmaComparecienteData = "";
       firmaConductorData = "";
+    } else {
+      // Continuar el mismo caso: si ya se había firmado, la firma vuelve. Sólo
+      // hay que volver a firmar lo que falte.
+      if (formData.firmaComparecienteImg) {
+        firmaComparecienteData = formData.firmaComparecienteImg;
+        mostrarFirmaRecuperada("sigBoxCompareciente", firmaComparecienteData);
+      }
+      if (formData.firmaConductorImg) {
+        firmaConductorData = formData.firmaConductorImg;
+        mostrarFirmaRecuperada("sigBoxConductor", firmaConductorData);
+      }
     }
+    actualizarEstadoFirmas();
 
     updatePreview(false);
     setEstado(
@@ -2176,6 +2215,11 @@ function getSnapshot() {
     observacionPago: valor("observacionPago"),
     firmaCompareciente: Boolean(firmaComparecienteData),
     firmaConductor: Boolean(firmaConductorData),
+    // La IMAGEN de cada firma, no sólo si existe. Antes se guardaba únicamente
+    // el booleano: si el asistente cerraba la app después de que el conductor
+    // firmara, había que buscarlo otra vez para que volviera a firmar.
+    firmaComparecienteImg: firmaComparecienteData || "",
+    firmaConductorImg: firmaConductorData || "",
     // Vínculo al siniestro de la app de asistencias (si se generó desde un caso).
     casoOrigen: casoOrigenRef || undefined
   };
@@ -2187,7 +2231,38 @@ async function sha256Hex(input) {
   return Array.from(new Uint8Array(hashBuf)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+/* ------------------------------------------------------------------ *
+ *  ESPEJO LOCAL del borrador
+ *
+ *  El guardado en la nube (`saveDraftToSupabase`) necesita señal. En la vía
+ *  muchas veces no la hay, y su error se traga en silencio: si el asistente
+ *  cerraba la app, TODO lo diligenciado (y las firmas) se perdía.
+ *
+ *  Ahora cada cambio se escribe además en el dispositivo, de forma síncrona,
+ *  y al volver a abrir el formulario se repone. Eso arregla de paso un problema
+ *  peor: al recargar, el formulario salía vacío pero conservaba el id del caso,
+ *  así que el siguiente guardado sobrescribía el borrador bueno con campos en
+ *  blanco.
+ * ------------------------------------------------------------------ */
+const ESPEJO_KEY = "firma_borrador_local";
+
+function guardarEspejoLocal() {
+  try {
+    localStorage.setItem(ESPEJO_KEY, JSON.stringify({
+      caseId: remoteCaseId || null,
+      ts: Date.now(),
+      form: getSnapshot()
+    }));
+  } catch (_) { /* sin cuota: el guardado en la nube sigue funcionando */ }
+}
+
+function borrarEspejoLocal() {
+  try { localStorage.removeItem(ESPEJO_KEY); } catch (_) {}
+}
+
 function queueRemoteSave() {
+  // Primero al dispositivo (instantáneo, sin red), luego a la nube.
+  guardarEspejoLocal();
   clearTimeout(remoteSaveTimer);
   remoteSaveTimer = setTimeout(() => {
     saveDraftToSupabase().catch(() => {});
@@ -2237,11 +2312,16 @@ async function confirmCaseInSupabase() {
   const okInit = await initRemoteCaseIfNeeded(document.getElementById("texto").innerHTML || null);
   if (!okInit) return false;
 
+  // Las imagenes de firma NO se repiten aqui: ya viajan en form_data con el
+  // borrador, y duplicarlas engordaria cada caso sin aportar nada.
+  const formEvidencia = getSnapshot();
+  delete formEvidencia.firmaComparecienteImg;
+  delete formEvidencia.firmaConductorImg;
   const evidence = {
     confirmedAt: new Date().toISOString(),
     userAgent: navigator.userAgent,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "unknown",
-    form: getSnapshot()
+    form: formEvidencia
   };
   const { data, error } = await sb.rpc("firma_confirm_case", {
     p_case_id: remoteCaseId,
@@ -2466,9 +2546,104 @@ window.addEventListener("resize", resizeCanvas);
 resizeCanvas();
 actualizarEstadoFirmas();
 
+/**
+ * Pone la firma recuperada como imagen encima del lienzo. No se vuelve a
+ * dibujar dentro del pad a propósito: un `resize` lo borraría y quedaría un
+ * recuadro en blanco diciendo "firmado". La imagen es lo que de verdad se usa
+ * para el contrato y el PDF, así que esto es lo que el asistente debe ver.
+ */
+function mostrarFirmaRecuperada(boxId, dataUrl) {
+  const box = document.getElementById(boxId);
+  if (!box || !dataUrl) return;
+  let img = box.querySelector(".sig-recuperada");
+  if (!img) {
+    img = document.createElement("img");
+    img.className = "sig-recuperada";
+    img.alt = "Firma recuperada";
+    box.appendChild(img);
+  }
+  img.src = dataUrl;
+  box.classList.add("con-recuperada");
+}
+
+/** Quita la imagen recuperada (al volver a firmar o al limpiar). */
+function quitarFirmaRecuperada(boxId) {
+  const box = document.getElementById(boxId);
+  if (!box) return;
+  const img = box.querySelector(".sig-recuperada");
+  if (img) img.remove();
+  box.classList.remove("con-recuperada");
+}
+
+/**
+ * Repone el borrador guardado en el dispositivo. Sólo en el modo normal: los
+ * modos continuar/clonar/prefill traen sus propios datos desde el servidor o
+ * desde la URL, y no deben ser pisados por lo que quedó aquí.
+ */
+function restaurarEspejoLocal() {
+  if (esModoContinuar || esModoClonar || esModoPrefill) return;
+  let guardado = null;
+  try { guardado = JSON.parse(localStorage.getItem(ESPEJO_KEY) || "null"); }
+  catch (_) { guardado = null; }
+  if (!guardado || !guardado.form) return;
+  // El espejo debe ser del caso que quedó abierto en este dispositivo. Un
+  // espejo SIN id también vale: se escribió antes de que el caso existiera en
+  // el servidor (el id se crea en el primer guardado en la nube), y es
+  // justamente el que se pierde cuando no hay señal.
+
+  const f = guardado.form;
+  // Un espejo sin nada diligenciado no vale la pena reponerlo ni anunciarlo.
+  // `contractKind` y `casoOrigen` no cuentan: no los escribe el asistente (uno
+  // sale del selector de tipo y el otro viene en la URL del caso).
+  const NO_CUENTAN = ["contractKind", "casoOrigen", "firmaCompareciente", "firmaConductor"];
+  const tieneContenido = Object.keys(f).some((k) =>
+    NO_CUENTAN.indexOf(k) < 0 && typeof f[k] === "string" && f[k].trim() !== "");
+  if (!tieneContenido) { borrarEspejoLocal(); return; }
+  if (guardado.caseId && remoteCaseId && guardado.caseId !== remoteCaseId) return;
+
+  if (f.contractKind && contratoTipo) {
+    contratoTipo.value = f.contractKind;
+    switchContractType();
+  }
+  const setVal = (id, v) => { const el = document.getElementById(id); if (el && v != null && v !== "") el.value = v; };
+  Object.keys(f).forEach((k) => {
+    if (k === "contractKind" || k === "casoOrigen") return;
+    if (k.slice(-3) === "Img" || k.slice(0, 5) === "firma") return; // firmas aparte
+    setVal(k, f[k]);
+  });
+  if (f.casoOrigen) casoOrigenRef = String(f.casoOrigen);
+
+  // Firmas: la imagen es lo que vale para el documento.
+  let firmasRepuestas = 0;
+  if (f.firmaComparecienteImg) {
+    firmaComparecienteData = f.firmaComparecienteImg;
+    mostrarFirmaRecuperada("sigBoxCompareciente", firmaComparecienteData);
+    firmasRepuestas++;
+  }
+  if (f.firmaConductorImg) {
+    firmaConductorData = f.firmaConductorImg;
+    mostrarFirmaRecuperada("sigBoxConductor", firmaConductorData);
+    firmasRepuestas++;
+  }
+
+  const menorFields = document.getElementById("menorFields");
+  if (menorFields) menorFields.style.display = f.tipo === "menor" ? "block" : "none";
+  aplicarVisibilidadCampos();
+  actualizarEstadoFirmas();
+  updatePreview(false);
+  setEstado(
+    firmasRepuestas
+      ? "Se recuperó el borrador guardado en este dispositivo, con " + firmasRepuestas + " firma(s). Revísalo antes de generar el contrato."
+      : "Se recuperó el borrador guardado en este dispositivo. Revísalo y continúa.",
+    false
+  );
+}
+
 function limpiarFirma() {
   signaturePad.clear();
   signaturePadConductor.clear();
+  quitarFirmaRecuperada("sigBoxCompareciente");
+  quitarFirmaRecuperada("sigBoxConductor");
   firmaComparecienteData = "";
   firmaConductorData = "";
   documentoGenerado = false;
@@ -3101,6 +3276,10 @@ enforceNumericFields();
 updatePreview(false);
 initAuth();
 initContractSwitcher();
+
+// De ultimo: repone el borrador del dispositivo por encima del arranque
+// (initContractSwitcher fija el tipo de contrato y updatePreview repinta).
+restaurarEspejoLocal();
 
 // ====== PWA ======
 // Módulo integrado en la app madre: NO registra service worker propio.

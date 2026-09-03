@@ -17,7 +17,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
 
   <!-- Estilos de la aplicación -->
-  <link rel="stylesheet" href="css/styles.css?v=2.16.1" />
+  <link rel="stylesheet" href="css/styles.css?v=2.17.0" />
 
   <!-- Librería para leer y descargar Excel -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -31,36 +31,36 @@
        (Service Worker o del navegador) puede seguir sirviendo un .js anterior
        aunque el archivo en el servidor ya esté actualizado. Sube este número
        junto con APP_VERSION en js/version.js en cada release. -->
-  <script src="js/version.js?v=2.16.1" defer></script>
-  <script src="js/config.js?v=2.16.1" defer></script>
-  <script src="js/utils.js?v=2.16.1" defer></script>
-  <script src="js/state.js?v=2.16.1" defer></script>
-  <script src="js/dom.js?v=2.16.1" defer></script>
-  <script src="js/supabase.js?v=2.16.1" defer></script>
-  <script src="js/auth.js?v=2.16.1" defer></script>
-  <script src="js/relationship.js?v=2.16.1" defer></script>
-  <script src="js/excel.js?v=2.16.1" defer></script>
-  <script src="js/parque.js?v=2.16.1" defer></script>
-  <script src="js/vistas-bd.js?v=2.16.1" defer></script>
-  <script src="js/casos.js?v=2.16.1" defer></script>
-  <script src="js/audio.js?v=2.16.1" defer></script>
-  <script src="js/camara.js?v=2.16.1" defer></script>
-  <script src="js/fotos.js?v=2.16.1" defer></script>
-  <script src="js/croquis.js?v=2.16.1" defer></script>
-  <script src="js/lugarimpacto.js?v=2.16.1" defer></script>
-  <script src="js/instalarapp.js?v=2.16.1" defer></script>
-  <script src="js/usuarios.js?v=2.16.1" defer></script>
-  <script src="js/empresa.js?v=2.16.1" defer></script>
-  <script src="js/detalle.js?v=2.16.1" defer></script>
-  <script src="js/terceros.js?v=2.16.1" defer></script>
-  <script src="js/cierre.js?v=2.16.1" defer></script>
-  <script src="js/ui.js?v=2.16.1" defer></script>
-  <script src="js/segvial.js?v=2.16.1" defer></script>
-  <script src="js/dashboard.js?v=2.16.1" defer></script>
-  <script src="js/main.js?v=2.16.1" defer></script>
-  <script src="js/conexion.js?v=2.16.1" defer></script>
-  <script src="js/offline.js?v=2.16.1" defer></script>
-  <script src="js/pwa.js?v=2.16.1" defer></script>
+  <script src="js/version.js?v=2.17.0" defer></script>
+  <script src="js/config.js?v=2.17.0" defer></script>
+  <script src="js/utils.js?v=2.17.0" defer></script>
+  <script src="js/state.js?v=2.17.0" defer></script>
+  <script src="js/dom.js?v=2.17.0" defer></script>
+  <script src="js/supabase.js?v=2.17.0" defer></script>
+  <script src="js/auth.js?v=2.17.0" defer></script>
+  <script src="js/relationship.js?v=2.17.0" defer></script>
+  <script src="js/excel.js?v=2.17.0" defer></script>
+  <script src="js/parque.js?v=2.17.0" defer></script>
+  <script src="js/vistas-bd.js?v=2.17.0" defer></script>
+  <script src="js/casos.js?v=2.17.0" defer></script>
+  <script src="js/audio.js?v=2.17.0" defer></script>
+  <script src="js/camara.js?v=2.17.0" defer></script>
+  <script src="js/fotos.js?v=2.17.0" defer></script>
+  <script src="js/croquis.js?v=2.17.0" defer></script>
+  <script src="js/lugarimpacto.js?v=2.17.0" defer></script>
+  <script src="js/instalarapp.js?v=2.17.0" defer></script>
+  <script src="js/usuarios.js?v=2.17.0" defer></script>
+  <script src="js/empresa.js?v=2.17.0" defer></script>
+  <script src="js/detalle.js?v=2.17.0" defer></script>
+  <script src="js/terceros.js?v=2.17.0" defer></script>
+  <script src="js/cierre.js?v=2.17.0" defer></script>
+  <script src="js/ui.js?v=2.17.0" defer></script>
+  <script src="js/segvial.js?v=2.17.0" defer></script>
+  <script src="js/dashboard.js?v=2.17.0" defer></script>
+  <script src="js/main.js?v=2.17.0" defer></script>
+  <script src="js/conexion.js?v=2.17.0" defer></script>
+  <script src="js/offline.js?v=2.17.0" defer></script>
+  <script src="js/pwa.js?v=2.17.0" defer></script>
 </head>
 <body>
   <header class="appbar">
@@ -512,7 +512,7 @@
         <div id="fotosGaleria" class="fotos-galeria"></div>
 
         <h3 class="caso-sub">🗣️ Versiones del siniestro</h3>
-        <p class="audio-nota">Para cada versión, elige si la quieres <b>escrita</b> o por <b>voz</b>.</p>
+        <p class="audio-nota">Para cada versión, elige si la quieres <b>escrita</b> o por <b>voz</b>. La grabación <b>se guarda sola al pulsar «Detener»</b>: aunque cierres la app, no se pierde.</p>
         <div class="versiones-grid" id="audioGrid">
           <div class="version-widget" data-campo="VERSION CONDUCTOR">
             <div class="version-cab">👤 Versión del conductor</div>
@@ -797,6 +797,7 @@
           </div>
         </div>
 
+        <p class="audio-nota">Lo que escribes se va guardando solo mientras trabajas (también sin señal). Usa este botón al terminar, para calcular el estado del caso.</p>
         <div class="form-actions">
           <button class="success" id="btnGuardarDetalle">💾 Guardar cambios del caso</button>
         </div>

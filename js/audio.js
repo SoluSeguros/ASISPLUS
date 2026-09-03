@@ -1,9 +1,14 @@
 /**
  * audio.js
  * Grabación de la versión hablada (conductor / asistente) desde el micrófono
- * del navegador (MediaRecorder). El audio grabado se guarda en Supabase
- * Storage (bucket privado "versiones-audio") al guardar el caso, y se
- * reproduce mediante URLs firmadas temporales.
+ * del navegador (MediaRecorder). Se guarda en Supabase Storage (bucket privado
+ * "versiones-audio") y se reproduce mediante URLs firmadas temporales.
+ *
+ * PERSISTENCIA INMEDIATA: al DETENER la grabación el audio se sube y su ruta
+ * queda escrita en el caso al instante, sin esperar a "Guardar cambios". El
+ * asistente trabaja en la vía: si se le acaba la batería, entra una llamada o
+ * cierra la app justo después de que el conductor habló, la grabación NO se
+ * pierde. Sin señal queda en la cola offline y sube sola al reconectar.
  */
 
 const BUCKET_AUDIO = 'versiones-audio';
@@ -27,6 +32,26 @@ function initAudioRecorders() {
     widget.querySelector('.audio-btn-rec').addEventListener('click', () => iniciarGrabacion(campo, widget));
     widget.querySelector('.audio-btn-stop').addEventListener('click', () => detenerGrabacion(campo, widget));
     widget.querySelector('.audio-btn-del').addEventListener('click', () => eliminarGrabacion(campo, widget));
+  });
+
+  // Si la app pasa a segundo plano GRABANDO (entra una llamada, se bloquea la
+  // pantalla, el asistente cambia de app), se cierra la grabación en ese
+  // instante. El móvil suspende el micrófono de todas formas: así al menos
+  // queda guardado lo que el conductor alcanzó a decir, en vez de nada.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) cerrarGrabacionesEnCurso();
+  });
+  window.addEventListener('pagehide', cerrarGrabacionesEnCurso);
+}
+
+/** Detiene toda grabación activa (su `onstop` la guarda). */
+function cerrarGrabacionesEnCurso() {
+  Object.keys(_grabadores).forEach(campo => {
+    const g = _grabadores[campo];
+    if (!g || !g.mr || g.mr.state === 'inactive') return;
+    const widget = document.querySelector(`.audio-rec[data-campo="${campo}"]`);
+    if (widget) detenerGrabacion(campo, widget);
+    else { try { g.mr.stop(); } catch (_) {} }
   });
 }
 
@@ -52,6 +77,9 @@ async function iniciarGrabacion(campo, widget) {
       const url = URL.createObjectURL(blob);
       widget._objUrl = url;
       mostrarAudio(widget, url);
+      // Se guarda YA (no al pulsar "Guardar cambios"): la voz del conductor no
+      // se puede volver a capturar si el asistente sale de la app.
+      guardarAudioAhora(campo, blob, widget);
     };
 
     _grabadores[campo] = { mr, stream };
@@ -98,6 +126,104 @@ function eliminarGrabacion(campo, widget) {
   player.classList.add('hidden');
   widget.querySelector('.audio-btn-del').classList.add('hidden');
   widget.querySelector('.audio-btn-rec').textContent = '● Grabar';
+  // El borrado también se persiste al instante, para que lo que se ve en
+  // pantalla sea siempre lo que está guardado.
+  borrarAudioAhora(campo);
+}
+
+/* ------------------------------------------------------------------ *
+ *  Guardado inmediato (al detener la grabación)
+ * ------------------------------------------------------------------ */
+
+/**
+ * Extensión real del audio. Safari/iOS entrega "audio/mp4", no webm: guardar
+ * todo como .webm dejaba archivos con nombre mentiroso que algunos
+ * reproductores rechazan.
+ */
+function extAudio(mime) {
+  const t = String(mime || '').toLowerCase();
+  if (t.includes('mp4') || t.includes('m4a') || t.includes('aac')) return 'm4a';
+  if (t.includes('ogg')) return 'ogg';
+  if (t.includes('mpeg') || t.includes('mp3')) return 'mp3';
+  if (t.includes('wav')) return 'wav';
+  return 'webm';
+}
+
+/** Ruta en Storage del audio de un campo, según el tipo del blob. */
+function rutaAudio(caso, campo, mime) {
+  return `${carpetaCaso(caso)}/${campo.replace(/\s+/g, '_')}.${extAudio(mime)}`;
+}
+
+/** Tipo MIME base (sin el ";codecs=…" que el bucket no acepta). */
+function tipoAudioBase(blob) {
+  return (blob && blob.type ? blob.type : 'audio/webm').split(';')[0].trim() || 'audio/webm';
+}
+
+/**
+ * Sube la grabación y escribe su ruta en el caso EN EL MOMENTO. Deja
+ * `state.audioBlobs[campo]` en null para que `subirAudiosCaso` no la resuba.
+ * Si algo falla, el blob se conserva en memoria y el guardado del caso lo
+ * reintenta: nunca se pierde en silencio.
+ */
+async function guardarAudioAhora(campo, blob, widget) {
+  const caso = state.casoActual;
+  if (!caso || !blob) return;
+  const st = widget && widget.querySelector('.audio-status');
+  if (st) st.textContent = '⏳ Guardando…';
+  try {
+    const tipo = tipoAudioBase(blob);
+    const ruta = rutaAudio(caso, campo, tipo);
+
+    const up = (typeof subirArchivoResiliente === 'function')
+      ? await subirArchivoResiliente(BUCKET_AUDIO, ruta, blob, tipo)
+      : (await (async () => {
+          const { error } = await db.storage.from(BUCKET_AUDIO).upload(ruta, blob, { upsert: true, contentType: tipo });
+          if (error) throw error;
+          return { encolado: false };
+        })());
+
+    const per = (typeof persistirDatosCaso === 'function')
+      ? await persistirDatosCaso(caso, datos => { datos[campo + ' AUDIO'] = ruta; })
+      : (await (async () => {
+          caso.datos = caso.datos || {};
+          caso.datos[campo + ' AUDIO'] = ruta;
+          const { error } = await db.from('registro_asistencias')
+            .update({ datos: caso.datos }).eq('numero_caso', caso.numero_caso);
+          if (error) throw error;
+          return { encolado: false };
+        })());
+
+    state.audioBlobs[campo] = null; // ya está a salvo
+    if (state.audioEliminar) state.audioEliminar[campo] = false;
+    const pendiente = up.encolado || per.encolado;
+    if (st) st.textContent = pendiente ? '📥 Guardado en el dispositivo' : '✅ Guardado';
+    showStatus(pendiente
+      ? 'Grabación guardada en el dispositivo. Se subirá al reconectar.'
+      : 'Grabación guardada en el caso.', pendiente ? 'info' : 'ok');
+    if (typeof renderChecklistCaso === 'function') { try { renderChecklistCaso(caso); } catch (_) {} }
+  } catch (e) {
+    // El blob sigue en state.audioBlobs: "Guardar cambios" lo vuelve a intentar.
+    if (st) st.textContent = '⚠ Sin guardar (pulsa Guardar cambios)';
+    showStatus('No se pudo guardar la grabación todavía: ' + (e.message || e), 'error');
+  }
+}
+
+/** Quita del caso la referencia al audio de un campo (borrado inmediato). */
+async function borrarAudioAhora(campo) {
+  const caso = state.casoActual;
+  if (!caso) return;
+  const ruta = caso.datos && caso.datos[campo + ' AUDIO'];
+  if (!ruta) return; // no había nada guardado: nada que borrar
+  try {
+    if (typeof persistirDatosCaso === 'function') {
+      await persistirDatosCaso(caso, datos => { datos[campo + ' AUDIO'] = ''; });
+    }
+    try { await db.storage.from(BUCKET_AUDIO).remove([ruta]); } catch (_) { /* el archivo puede no existir */ }
+    state.audioEliminar[campo] = false; // ya aplicado
+    if (typeof renderChecklistCaso === 'function') { try { renderChecklistCaso(caso); } catch (_) {} }
+  } catch (e) {
+    // Si no se pudo, la marca sigue puesta y "Guardar cambios" lo reintenta.
+  }
 }
 
 /** Reinicia un widget de audio a su estado vacío. */
@@ -164,8 +290,10 @@ async function finalizarGrabaciones() {
 }
 
 /**
- * Sube al Storage las grabaciones nuevas y actualiza el objeto `datos` con la
- * ruta de cada audio (o la borra si se eliminó). Devuelve `datos` modificado.
+ * RED DE SEGURIDAD al guardar el caso. Lo normal es que el audio ya se haya
+ * subido al detener la grabación (`guardarAudioAhora`); aquí solo queda lo que
+ * falló entonces o lo que se acaba de grabar sin pulsar "Detener".
+ * Actualiza `datos` con la ruta de cada audio (o la borra si se eliminó).
  */
 async function subirAudiosCaso(caso, datos) {
   // Cierra grabaciones en curso para no perder audio sin "Detener".
@@ -173,13 +301,12 @@ async function subirAudiosCaso(caso, datos) {
 
   for (const campo of CAMPOS_AUDIO) {
     const blob = state.audioBlobs && state.audioBlobs[campo];
-    const slug = campo.replace(/\s+/g, '_');
-    const ruta = `${carpetaCaso(caso)}/${slug}.webm`;
 
     if (blob) {
       // El tipo del blob suele venir como "audio/webm;codecs=opus"; el bucket
       // solo acepta el tipo base ("audio/webm"), así que quitamos el códec.
-      const tipo = (blob.type || 'audio/webm').split(';')[0].trim() || 'audio/webm';
+      const tipo = tipoAudioBase(blob);
+      const ruta = rutaAudio(caso, campo, tipo);
       // Sube el audio (o lo encola si no hay señal para subirlo al reconectar).
       if (typeof subirArchivoResiliente === 'function') {
         await subirArchivoResiliente(BUCKET_AUDIO, ruta, blob, tipo);
@@ -191,7 +318,10 @@ async function subirAudiosCaso(caso, datos) {
       datos[campo + ' AUDIO'] = ruta;
       state.audioBlobs[campo] = null; // ya subido/encolado: no repetir
     } else if (state.audioEliminar && state.audioEliminar[campo]) {
-      try { await db.storage.from(BUCKET_AUDIO).remove([ruta]); } catch (e) { /* ignora */ }
+      // Borra la ruta REALMENTE guardada (no una recalculada): la extensión
+      // depende del navegador que grabó (webm en Android, m4a en iPhone).
+      const ruta = datos[campo + ' AUDIO'] || (caso.datos && caso.datos[campo + ' AUDIO']);
+      if (ruta) { try { await db.storage.from(BUCKET_AUDIO).remove([ruta]); } catch (e) { /* ignora */ } }
       datos[campo + ' AUDIO'] = '';
     }
   }
