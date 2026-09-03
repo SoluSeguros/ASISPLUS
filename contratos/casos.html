@@ -560,7 +560,7 @@ async function cargar() {
     // 2. Fallback: lista del storage
     modoFallback = true;
     $("warn").classList.remove("hidden");
-    $("warn").innerHTML = `⚠️ <strong>No se puede leer la tabla firma_cases</strong> (probablemente faltan policies de SELECT). Mostrando solo los archivos del Storage. Para ver nombre, cédula, fecha y autor de cada caso, pide a tu admin que active el SELECT en la tabla. <br><small>Detalle: ${err.message || err}</small>`;
+    $("warn").innerHTML = `⚠️ <strong>No se puede leer la tabla firma_cases</strong> (probablemente faltan policies de SELECT). Mostrando solo los archivos del Storage. Para ver nombre, cédula, fecha y autor de cada caso, pide a tu admin que active el SELECT en la tabla. <br><small>Detalle: ${escapeHtml(err.message || err)}</small>`;
     await cargarDesdeStorage();
   }
 }
@@ -604,7 +604,7 @@ async function cargarDesdeStorage() {
   } catch (err) {
     $("loading").classList.add("hidden");
     $("error").classList.remove("hidden");
-    $("error").innerHTML = `<strong>Error al cargar:</strong> ${err.message || err}`;
+    $("error").innerHTML = `<strong>Error al cargar:</strong> ${escapeHtml(err.message || err)}`;
   }
 }
 
@@ -700,6 +700,18 @@ function inferirTipoFromPath(path) {
   return "";
 }
 
+/**
+ * Escapa texto para insertarlo con seguridad en HTML. Los datos de un contrato
+ * (nombre, cédula, lugar del hecho, banco…) los escribe una persona en el sitio
+ * del accidente: sin escapar, un valor con etiquetas HTML se ejecutaría al
+ * abrir este visor. Mismo criterio que escapeHtml() en formularios2.html.
+ */
+function escapeHtml(v) {
+  return String(v == null ? "" : v)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
 function badgeEstado(item) {
   if (!item.path) return `<span class="badge estado-sinpdf">⚠ Sin PDF</span>`;
   if (item.status === "confirmed" || item.status === "confirmado") return `<span class="badge estado-confirmado">✓ Confirmado</span>`;
@@ -732,22 +744,22 @@ function renderList(items) {
         </div>
       </div>
 
-      <div class="compareciente">${fd.nombre || "Sin nombre"}</div>
-      <div class="cedula-main">C.C. ${fd.cedula || "—"}</div>
+      <div class="compareciente">${escapeHtml(fd.nombre || "Sin nombre")}</div>
+      <div class="cedula-main">C.C. ${escapeHtml(fd.cedula || "—")}</div>
 
       <div class="datos">
-        ${fd.ciudadCedula ? `<div><strong>Ciudad C.C.:</strong> ${fd.ciudadCedula}${fd.condicionComp ? " · " + fd.condicionComp : ""}</div>` : ""}
-        ${fd.implicado ? `<div><strong>Implicado:</strong> ${fd.implicado} (C.C. ${fd.cedulaImp || "?"}${fd.ciudadCedulaImp ? " de " + fd.ciudadCedulaImp : ""})${fd.condicionImp ? " · " + fd.condicionImp : ""}</div>` : ""}
-        ${fd.fecha ? `<div><strong>Fecha hecho:</strong> ${formatFechaCorta(fd.fecha)}${fd.ciudadHecho ? " · " + fd.ciudadHecho : ""}</div>` : ""}
-        ${fd.lugarHecho ? `<div><strong>Lugar:</strong> ${fd.lugarHecho}</div>` : ""}
-        ${fd.placa ? `<div><strong>Vehículo:</strong> Placa ${fd.placa}${fd.interno ? " · Int " + fd.interno : ""}${fd.placa2 ? " · 2ª placa " + fd.placa2 : ""}</div>` : ""}
-        ${fd.conductorNombre ? `<div><strong>Conductor:</strong> ${fd.conductorNombre} (C.C. ${fd.conductorCedula || "?"})</div>` : ""}
-        ${fd.nombreMenor ? `<div><strong>Menor:</strong> ${fd.nombreMenor} (Doc. ${fd.docMenor || "?"})</div>` : ""}
-        ${(fd.valor || fd.valorTexto) ? `<div><strong>💰 Valor:</strong> ${fd.valorTexto || ""} ${fd.valor ? "($" + Number(fd.valor).toLocaleString("es-CO") + ")" : ""}</div>` : ""}
-        ${fd.empresa ? `<div><strong>Empresa recibe:</strong> ${fd.empresa}</div>` : ""}
-        ${(fd.banco || fd.cuenta) ? `<div><strong>🏦 Pago:</strong> ${fd.banco || "?"} · cta ${fd.cuenta || "?"}</div>` : ""}
-        ${fd.titularCuenta ? `<div><strong>Titular cuenta:</strong> ${fd.titularCuenta}${fd.cedulaTitular ? " (C.C. " + fd.cedulaTitular + ")" : ""}</div>` : ""}
-        ${fd.ciudadFirma ? `<div><strong>Ciudad firma:</strong> ${fd.ciudadFirma}</div>` : ""}
+        ${fd.ciudadCedula ? `<div><strong>Ciudad C.C.:</strong> ${escapeHtml(fd.ciudadCedula)}${fd.condicionComp ? " · " + escapeHtml(fd.condicionComp) : ""}</div>` : ""}
+        ${fd.implicado ? `<div><strong>Implicado:</strong> ${escapeHtml(fd.implicado)} (C.C. ${escapeHtml(fd.cedulaImp || "?")}${fd.ciudadCedulaImp ? " de " + escapeHtml(fd.ciudadCedulaImp) : ""})${fd.condicionImp ? " · " + escapeHtml(fd.condicionImp) : ""}</div>` : ""}
+        ${fd.fecha ? `<div><strong>Fecha hecho:</strong> ${escapeHtml(formatFechaCorta(fd.fecha))}${fd.ciudadHecho ? " · " + escapeHtml(fd.ciudadHecho) : ""}</div>` : ""}
+        ${fd.lugarHecho ? `<div><strong>Lugar:</strong> ${escapeHtml(fd.lugarHecho)}</div>` : ""}
+        ${fd.placa ? `<div><strong>Vehículo:</strong> Placa ${escapeHtml(fd.placa)}${fd.interno ? " · Int " + escapeHtml(fd.interno) : ""}${fd.placa2 ? " · 2ª placa " + escapeHtml(fd.placa2) : ""}</div>` : ""}
+        ${fd.conductorNombre ? `<div><strong>Conductor:</strong> ${escapeHtml(fd.conductorNombre)} (C.C. ${escapeHtml(fd.conductorCedula || "?")})</div>` : ""}
+        ${fd.nombreMenor ? `<div><strong>Menor:</strong> ${escapeHtml(fd.nombreMenor)} (Doc. ${escapeHtml(fd.docMenor || "?")})</div>` : ""}
+        ${(fd.valor || fd.valorTexto) ? `<div><strong>💰 Valor:</strong> ${escapeHtml(fd.valorTexto || "")} ${fd.valor ? "($" + Number(fd.valor).toLocaleString("es-CO") + ")" : ""}</div>` : ""}
+        ${fd.empresa ? `<div><strong>Empresa recibe:</strong> ${escapeHtml(fd.empresa)}</div>` : ""}
+        ${(fd.banco || fd.cuenta) ? `<div><strong>🏦 Pago:</strong> ${escapeHtml(fd.banco || "?")} · cta ${escapeHtml(fd.cuenta || "?")}</div>` : ""}
+        ${fd.titularCuenta ? `<div><strong>Titular cuenta:</strong> ${escapeHtml(fd.titularCuenta)}${fd.cedulaTitular ? " (C.C. " + escapeHtml(fd.cedulaTitular) + ")" : ""}</div>` : ""}
+        ${fd.ciudadFirma ? `<div><strong>Ciudad firma:</strong> ${escapeHtml(fd.ciudadFirma)}</div>` : ""}
         ${(fd.firmaCompareciente !== undefined || fd.firmaConductor !== undefined) ? `<div><strong>Firmas:</strong> compareciente ${fd.firmaCompareciente ? "✓" : "✗"} · conductor ${fd.firmaConductor ? "✓" : "✗"}</div>` : ""}
       </div>
 

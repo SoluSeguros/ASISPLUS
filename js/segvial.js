@@ -823,7 +823,10 @@ const SV_INFORME = [
   ['Siniestro', [
     ['FECHA DEL SINIESTRO', 'Fecha'], ['HORA DEL SINIESTRO', 'Hora'],
     ['DIRECCION DEL LUGAR DEL SINIESTRO', 'Dirección'], ['RUTA', 'Ruta'],
-    ['GRAVEDAD DEL SINIESTRO', 'Gravedad'], ['CATEGORIZACION DEL INCIDENTE', 'Categorización'],
+    ['TIPO DE EVENTO', 'Tipo de evento'], ['TIPO DE EVENTO OTRO', 'Tipo de evento (otro)'],
+    ['FACTOR DE RIESGO', 'Factor de riesgo'],
+    ['GRAVEDAD DEL SINIESTRO', 'Gravedad'], ['SEVERIDAD DEL EVENTO', 'Severidad del evento'],
+    ['CATEGORIZACION DEL INCIDENTE', 'Categorización'],
     ['LESIONADOS', 'Lesionados'], ['RESPONSABILIDAD DEL CONDUCTOR', 'Responsabilidad'],
     ['ESTADO DEL SINIESTRO', 'Estado del siniestro']
   ]],

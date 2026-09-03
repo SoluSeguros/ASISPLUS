@@ -4078,6 +4078,23 @@ body.cat-modal-open { overflow: hidden; }
 .checklist-items li { font-size: 12.5px; }
 .checklist-items li.chk-no { color: #92600a; }
 .checklist-items li.chk-ok { color: #116b49; }
+/* Evidencia opcional pendiente: gris neutro, no ámbar de "te falta". */
+.checklist-items li.chk-opc { color: var(--muted); }
+.chk-tag {
+  font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .03em; color: var(--muted);
+  background: #f1f5f9; border: 1px solid var(--border);
+  border-radius: 999px; padding: 1px 6px; margin-left: 4px;
+}
+
+/* Etiqueta "opcional" en los títulos de sección del caso. */
+.caso-sub-opc {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .03em; color: var(--muted);
+  background: #f1f5f9; border: 1px solid var(--border);
+  border-radius: 999px; padding: 2px 8px; margin-left: 8px;
+  vertical-align: middle;
+}
 
 @media (max-width: 700px) {
   .form-grid {

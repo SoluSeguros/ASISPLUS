@@ -13,7 +13,11 @@ const CAMPOS_CASO_COMPLETAR = [
   'AFILIADOS', 'CORREO AFILIADO', 'CELULAR AFILIADO',
   'USUARIO ASISTENCIA', 'USUARIO LOGISTICA', 'NOMBRE ASISTENTE EN SITIO',
   'COORDENADAS ASISTENCIA', 'HORA DE ATENCION', 'HORA Y FECHA DE ACCION USUARIO',
-  'GRAVEDAD DEL SINIESTRO', 'RESPONSABILIDAD DEL CONDUCTOR',
+  // Caracterización del evento (reunión con Víctor): alimenta el informe
+  // trimestral de Seguridad Vial. TIPO DE EVENTO OTRO solo se ve al elegir "Otro".
+  'TIPO DE EVENTO', 'TIPO DE EVENTO OTRO', 'RUTA',
+  'GRAVEDAD DEL SINIESTRO', 'SEVERIDAD DEL EVENTO', 'FACTOR DE RIESGO',
+  'RESPONSABILIDAD DEL CONDUCTOR',
   'LESIONADOS'
 ];
 
@@ -395,9 +399,19 @@ function iniciarNotificaciones() {
  *  Utilidades
  * ------------------------------------------------------------------ */
 
-/** Genera una clave hexadecimal única (formato similar a los KEY existentes). */
+/**
+ * Genera una clave hexadecimal única.
+ *
+ * 16 bytes (32 caracteres), no 4: con 4 bytes el espacio es de 2^32 y, por la
+ * paradoja del cumpleaños, la probabilidad de que dos casos compartan KEY
+ * crece al cuadrado (~1% a los 10.000 casos, ~5% a los 20.000). `key` tiene
+ * UNIQUE, así que en línea el insert fallaría con error visible; pero la cola
+ * offline sube con `upsert(onConflict:'key')` y una colisión SOBRESCRIBIRÍA
+ * el caso ajeno en silencio, con sus fotos y terceros. Las claves de 8
+ * caracteres ya guardadas siguen siendo válidas: nadie interpreta su longitud.
+ */
 function generarKey() {
-  const bytes = crypto.getRandomValues(new Uint8Array(4));
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
   return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
@@ -477,14 +491,23 @@ const CHECKLIST_CASO = [
   { etiqueta: 'Descripción de daños', ok: d => !!String(d['DESCRIPCION DAÑOS EMPRESA'] || '').trim() },
   { etiqueta: 'Lesionados', ok: d => !!String(d['LESIONADOS'] || '').trim() },
   { etiqueta: 'Al menos una foto del sitio', ok: d => Array.isArray(d['FOTOS SITIO']) && d['FOTOS SITIO'].length > 0 },
-  { etiqueta: 'Croquis del accidente', ok: d => !!d['CROQUIS'] }
+  // Evidencia OPCIONAL: se muestra y se marca cuando está, pero no cuenta para
+  // el avance ni impide que el caso llegue a "Asistido". El croquis y el dibujo
+  // del IPAT no siempre se pueden levantar en sitio.
+  { etiqueta: 'Croquis del accidente', opcional: true, ok: d => !!d['CROQUIS'] },
+  { etiqueta: 'Lugar de impacto (IPAT)', opcional: true, ok: d => !!String(d['LUGAR DE IMPACTO'] || '').trim() }
 ];
 
-/** Cuenta cuántos ítems del checklist están cumplidos. */
+/**
+ * Cuenta cuántos ítems OBLIGATORIOS del checklist están cumplidos. Los marcados
+ * como `opcional` quedan fuera del conteo: se ven en la lista, pero no frenan el
+ * paso a "Asistido" (ver calcularEstadoAuto).
+ */
 function completitudCaso(datos) {
   const d = datos || {};
-  const hechos = CHECKLIST_CASO.filter(item => item.ok(d)).length;
-  return { total: CHECKLIST_CASO.length, hechos };
+  const obligatorios = CHECKLIST_CASO.filter(item => !item.opcional);
+  const hechos = obligatorios.filter(item => item.ok(d)).length;
+  return { total: obligatorios.length, hechos };
 }
 
 /**
@@ -553,7 +576,11 @@ function renderChecklistCaso(caso) {
   const { total, hechos } = completitudCaso(d);
   const items = CHECKLIST_CASO.map(item => {
     const ok = item.ok(d);
-    return `<li class="${ok ? 'chk-ok' : 'chk-no'}">${ok ? '✅' : '⬜'} ${item.etiqueta}</li>`;
+    // Lo opcional pendiente se pinta en gris (no en ámbar de "te falta esto").
+    const clase = ok ? 'chk-ok' : (item.opcional ? 'chk-opc' : 'chk-no');
+    const marca = ok ? '✅' : (item.opcional ? '○' : '⬜');
+    const tag = item.opcional ? ' <span class="chk-tag">opcional</span>' : '';
+    return `<li class="${clase}">${marca} ${item.etiqueta}${tag}</li>`;
   }).join('');
   cont.innerHTML =
     `<div class="checklist-cab">Avance de atención: <b>${hechos}/${total}</b> · el estado se actualiza solo al guardar</div>
@@ -1549,7 +1576,8 @@ function renderResumenSiniestro(caso) {
     fila('🗓️ Fecha y hora', fechaHora),
     fila('Ciudad', d['CIUDAD DEL SINIESTRO']),
     fila('📍 Dirección del lugar', d['DIRECCION DEL LUGAR DEL SINIESTRO']),
-    fila('Ruta', d['RUTA']),
+    // La Ruta NO va aquí: el asistente la edita en "Caracterización del evento"
+    // (el gestor la deja al crear el caso, pero quien va al sitio la precisa).
     fila('Reportado por', d['REPORTADO POR']),
     fila('📞 Contacto', d['NUMERO DE CONTACTO']),
     fila('Observaciones', d['OBSERVACIONES'])
@@ -2046,7 +2074,13 @@ const CAMPOS_SOLO_LECTURA = new Set(['USUARIO ASISTENCIA', 'USUARIO LOGISTICA', 
 
 // Campos que se capturan con un catálogo cerrado (selector) en vez de texto libre.
 const CAMPOS_OPCIONES = {
+  'TIPO DE EVENTO': ['CHOQUE', 'ATROPELLO', 'VOLCAMIENTO', 'CAIDA DE OCUPANTE', 'OTRO'],
   'GRAVEDAD DEL SINIESTRO': ['SOLO DAÑOS', 'DAÑOS Y LESIONES', 'HOMICIDIO'],
+  // Severidad: eje aparte de GRAVEDAD. La gravedad decide el enrutamiento
+  // automático a Seguridad Vial (_clasificarAuto); la severidad es la escala
+  // que se reporta cada trimestre. No se sustituyen.
+  'SEVERIDAD DEL EVENTO': ['LEVE', 'MODERADO', 'GRAVE', 'CRITICO'],
+  'FACTOR DE RIESGO': ['HUMANO', 'VEHICULO', 'VIA'],
   'RESPONSABILIDAD DEL CONDUCTOR': ['SI', 'NO', 'POR DEFINIR'],
   'LESIONADOS': ['SI', 'NO', 'POR DEFINIR']
 };
@@ -2056,14 +2090,20 @@ const CAMPOS_ETIQUETA = {
   'HORA Y FECHA DE ACCION USUARIO': 'Hora y fecha de acción',
   'NOMBRE ASISTENTE EN SITIO': 'Nombre del asistente en sitio',
   'HORA DE ATENCION': 'Hora de atención (check-in · editable)',
-  'LESIONADOS': '¿Hay lesionados?'
+  'LESIONADOS': '¿Hay lesionados?',
+  'TIPO DE EVENTO': 'Tipo de evento',
+  'TIPO DE EVENTO OTRO': '¿Cuál otro tipo de evento?',
+  'SEVERIDAD DEL EVENTO': 'Severidad del evento',
+  'FACTOR DE RIESGO': 'Factor de riesgo',
+  'RUTA': 'Ruta del vehículo (especifica cuál)'
 };
 
 // El formulario del asistente, organizado por secciones lógicas.
 const SECCIONES_CASO = [
   { titulo: '👥 Afiliado', campos: ['AFILIADOS', 'CORREO AFILIADO', 'CELULAR AFILIADO'] },
   { titulo: '🧭 Datos de la atención (automático)', campos: ['USUARIO ASISTENCIA', 'USUARIO LOGISTICA', 'NOMBRE ASISTENTE EN SITIO', 'COORDENADAS ASISTENCIA', 'HORA DE ATENCION', 'HORA Y FECHA DE ACCION USUARIO'] },
-  { titulo: '📊 Evaluación del siniestro', campos: ['GRAVEDAD DEL SINIESTRO', 'RESPONSABILIDAD DEL CONDUCTOR', 'LESIONADOS'] }
+  { titulo: '🚧 Caracterización del evento', campos: ['TIPO DE EVENTO', 'TIPO DE EVENTO OTRO', 'RUTA', 'FACTOR DE RIESGO'] },
+  { titulo: '📊 Evaluación del siniestro', campos: ['GRAVEDAD DEL SINIESTRO', 'SEVERIDAD DEL EVENTO', 'RESPONSABILIDAD DEL CONDUCTOR', 'LESIONADOS'] }
 ];
 
 /** Crea el control (input/select/textarea) de un campo del caso. */
@@ -2098,6 +2138,10 @@ function crearCampoCaso(campo, datos) {
         if (gsel && ['', 'SOLO DAÑOS', 'HERIDOS'].includes(gsel.value)) gsel.value = 'DAÑOS Y LESIONES';
       });
     }
+    // "Otro" tipo de evento → aparece el campo para describirlo.
+    if (campo === 'TIPO DE EVENTO') {
+      sel.addEventListener('change', actualizarTipoEventoOtro);
+    }
     wrap.appendChild(label);
     wrap.appendChild(sel);
     return wrap;
@@ -2119,6 +2163,24 @@ function crearCampoCaso(campo, datos) {
   wrap.appendChild(label);
   wrap.appendChild(input);
   return wrap;
+}
+
+/**
+ * Muestra "¿Cuál otro tipo de evento?" únicamente cuando el tipo es OTRO.
+ * Al ocultarlo se limpia el texto: guardarDetalleCaso recorre TODOS los
+ * `.campo-caso` (también los ocultos), así que si no se limpiara quedaría
+ * guardada la descripción de un tipo que ya no aplica.
+ */
+function actualizarTipoEventoOtro() {
+  const cont = els.detalleCampos;
+  if (!cont) return;
+  const sel = cont.querySelector('[data-campo="TIPO DE EVENTO"]');
+  const otro = cont.querySelector('[data-campo="TIPO DE EVENTO OTRO"]');
+  if (!sel || !otro) return;
+  const esOtro = sel.value === 'OTRO';
+  const wrap = otro.closest('.form-field');
+  if (wrap) wrap.classList.toggle('hidden', !esOtro);
+  if (!esOtro) otro.value = '';
 }
 
 /** Genera el formulario del asistente, agrupado por secciones. */
@@ -2159,6 +2221,9 @@ function renderCamposCompletar(datos) {
     bloque.appendChild(grid);
     cont.appendChild(bloque);
   }
+
+  // Estado inicial del campo condicional "¿Cuál otro tipo de evento?".
+  actualizarTipoEventoOtro();
 }
 
 /** Guarda los cambios del caso (datos + estado). */

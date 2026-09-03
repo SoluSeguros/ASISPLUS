@@ -24,7 +24,11 @@ const DETALLE_SECCIONES = [
       ['ATRIBUCION HIPOTESIS', 'Atribución de la hipótesis'],
       ['CODIGO HIPOTESIS', 'Código de hipótesis'],
       ['CATEGORIZACION DEL INCIDENTE', 'Categorización'],
+      ['TIPO DE EVENTO', 'Tipo de evento'],
+      ['TIPO DE EVENTO OTRO', 'Tipo de evento (otro)'],
+      ['FACTOR DE RIESGO', 'Factor de riesgo'],
       ['GRAVEDAD DEL SINIESTRO', 'Gravedad'],
+      ['SEVERIDAD DEL EVENTO', 'Severidad del evento'],
       ['LESIONADOS', 'Lesionados'],
       ['RESPONSABILIDAD DEL CONDUCTOR', 'Responsabilidad del conductor'],
       ['ESTADO DEL SINIESTRO', 'Estado del siniestro']

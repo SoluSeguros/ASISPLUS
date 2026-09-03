@@ -38,6 +38,7 @@ const ASSETS = [
   './js/cierre.js?v=' + APP_VERSION,
   './js/ui.js?v=' + APP_VERSION,
   './js/segvial.js?v=' + APP_VERSION,
+  './js/dashboard.js?v=' + APP_VERSION,
   './js/main.js?v=' + APP_VERSION,
   './js/conexion.js?v=' + APP_VERSION,
   './js/offline.js?v=' + APP_VERSION,
@@ -90,10 +91,21 @@ self.addEventListener('fetch', event => {
   event.respondWith(
     fetch(req, { cache: 'no-store' })
       .then(res => {
-        const copia = res.clone(); // clonar YA, antes de que el navegador consuma el body
-        caches.open(CACHE).then(c => c.put(req, copia)).catch(() => {});
+        // Solo se guarda lo que llegó BIEN: cachear un 404/500 de un despliegue
+        // a medias dejaría ese error servido sin conexión hasta cambiar de versión.
+        if (res.ok) {
+          const copia = res.clone(); // clonar YA, antes de que el navegador consuma el body
+          caches.open(CACHE).then(c => c.put(req, copia)).catch(() => {});
+        }
         return res;
       })
-      .catch(() => caches.match(req).then(m => m || caches.match('./asisplus.html')))
+      .catch(() => caches.match(req).then(m => {
+        if (m) return m;
+        // Respaldo a la carcasa SOLO para navegaciones. Devolver el HTML ante un
+        // .js o .css no cacheado no arregla nada: el navegador lo rechaza por
+        // MIME y el fallo real (el archivo que falta) queda oculto.
+        if (req.mode === 'navigate') return caches.match('./asisplus.html');
+        return Response.error();
+      }))
   );
 });

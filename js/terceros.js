@@ -483,7 +483,8 @@ async function guardarTerceroCompleto(event, opciones) {
 
   // ¿Alta nueva o edición de uno existente?
   const editando = Boolean(terceroEditando);
-  const idReg = editando ? terceroEditando : (generarKey() + generarKey());
+  // generarKey() ya devuelve 16 bytes; no hace falta concatenar dos.
+  const idReg = editando ? terceroEditando : generarKey();
 
   let datos;
   if (editando && terceroDatosOriginal) {
