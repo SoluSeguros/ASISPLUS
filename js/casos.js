@@ -2717,6 +2717,10 @@ function initCasoFirmas() {
 // varios trazos se sube UNA vez al terminar, no una por trazo.
 const _firmaTimers = {};
 const FIRMA_ESPERA_MS = 1200;
+// Último trazo YA subido de cada firma. Evita reenviar el mismo dibujo cada vez
+// que el conductor levanta el dedo: en la vía eso son datos móviles gastados en
+// subir un archivo idéntico al que ya está guardado.
+const _firmaSubida = {};
 
 function programarGuardadoFirma(campo) {
   clearTimeout(_firmaTimers[campo]);
@@ -2748,6 +2752,10 @@ async function guardarFirmaAhora(campo) {
   const pad = casoFirmaPads[campo];
   if (!caso || !pad || !pad.hayTrazo) return;
 
+  // Si el trazo no cambió desde la última subida, no hay nada que hacer.
+  const huella = pad.canvas.toDataURL('image/png');
+  if (_firmaSubida[campo] === huella) { estadoFirma(campo, '✅ Guardada', 'ok'); return; }
+
   estadoFirma(campo, '⏳ Guardando…', '');
   try {
     const blob = await firmaABlob(pad); // helper de terceros.js
@@ -2775,16 +2783,23 @@ async function guardarFirmaAhora(campo) {
         })());
 
     const pendiente = up.encolado || per.encolado;
+    _firmaSubida[campo] = huella;
     estadoFirma(campo, pendiente ? '📥 En el dispositivo' : '✅ Guardada', 'ok');
     renderChecklistCaso(caso);
   } catch (e) {
+    // El trazo sigue en el lienzo y `subirFirmasCaso` lo reintenta al guardar;
+    // pero el asistente tiene que enterarse ahora, no al final de la atención.
     estadoFirma(campo, '⚠ Sin guardar', 'err');
+    showStatus('No se pudo guardar la firma todavía: ' + (e.message || e) +
+      '. Queda en el lienzo; púlsala de nuevo o usa «Guardar cambios del caso».', 'error');
   }
 }
 
 /** Carga las firmas guardadas del caso (muestra la imagen si existe). */
 async function cargarFirmasCaso(caso) {
   const d = caso.datos || {};
+  // Otro caso: las huellas del anterior ya no sirven para comparar.
+  CASO_FIRMAS.forEach(c => { delete _firmaSubida[c]; });
   for (const campo of CASO_FIRMAS) {
     const canvas = document.querySelector(`.caso-firma-canvas[data-campo="${campo}"]`);
     if (!canvas) continue;

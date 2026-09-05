@@ -104,6 +104,37 @@ async function _encolar(op) {
  *  Helpers resilientes que usan los puntos de escritura de la app
  * ------------------------------------------------------------------ */
 
+/** ¿El servidor rechazó SOBRESCRIBIR un archivo que ya existe? */
+function _esRechazoDeReemplazo(e) {
+  const m = String((e && e.message) || e || '').toLowerCase();
+  return m.includes('row-level security') || m.includes('violates row-level');
+}
+
+/**
+ * Sube un archivo a Storage reemplazando el que hubiera en esa ruta.
+ *
+ * Varias evidencias del caso viven en una ruta FIJA (la firma del conductor, el
+ * croquis, las firmas de los terceros): volver a firmar debe pisar el archivo
+ * anterior, no crear otro. Eso se pide con `upsert: true`, que por dentro es un
+ * UPDATE sobre el archivo existente.
+ *
+ * Si el bucket no tiene permitido ese UPDATE, el servidor responde "new row
+ * violates row-level security policy" y el reemplazo falla SIEMPRE (la primera
+ * subida entra, las siguientes no). Cuando pasa, se hace en dos pasos —borrar y
+ * subir— que sí están permitidos y dejan el mismo resultado.
+ */
+async function _subirReemplazando(bucket, ruta, blob, contentType) {
+  const opciones = { upsert: true, contentType: contentType || undefined };
+  const { error } = await db.storage.from(bucket).upload(ruta, blob, opciones);
+  if (!error) return;
+  if (!_esRechazoDeReemplazo(error)) throw error;
+
+  // Camino de respaldo: borrar y volver a subir.
+  await db.storage.from(bucket).remove([ruta]);
+  const { error: error2 } = await db.storage.from(bucket).upload(ruta, blob, opciones);
+  if (error2) throw error2;
+}
+
 /**
  * Sube un archivo a Storage; si no hay señal, lo guarda en la cola (con su
  * blob) para subirlo al reconectar. Devuelve { encolado }.
@@ -111,9 +142,7 @@ async function _encolar(op) {
 async function subirArchivoResiliente(bucket, ruta, blob, contentType) {
   if (_sinConexion()) { await _encolarSubida(bucket, ruta, blob, contentType); return { encolado: true }; }
   try {
-    const { error } = await db.storage.from(bucket)
-      .upload(ruta, blob, { upsert: true, contentType: contentType || undefined });
-    if (error) throw error;
+    await _subirReemplazando(bucket, ruta, blob, contentType);
     return { encolado: false };
   } catch (e) {
     if (_esErrorRed(e)) { await _encolarSubida(bucket, ruta, blob, contentType); return { encolado: true }; }
@@ -306,9 +335,7 @@ async function _ejecutarOp(op) {
       }
       return;
     }
-    const { error } = await db.storage.from(op.bucket)
-      .upload(op.ruta, rec.blob, { upsert: true, contentType: op.contentType || undefined });
-    if (error) throw error;
+    await _subirReemplazando(op.bucket, op.ruta, rec.blob, op.contentType);
     await _del('blobs', op.blobId);
     return;
   }
@@ -391,10 +418,39 @@ async function _ejecutarOp(op) {
   }
 }
 
+/** A qué caso pertenece una operación (para no adelantar las que dependen de ella). */
+function _casoDeOp(op) {
+  if (!op) return '';
+  if (op.numero_caso) return 'caso:' + op.numero_caso;
+  if (op.tipo === 'insert-caso' && op.fila && op.fila.key) return 'key:' + op.fila.key;
+  return ''; // subidas de archivo y terceros: no dependen de otra operación
+}
+
+/** Qué era la operación, en palabras, para poder avisar de qué se trata. */
+function _describirOp(op) {
+  switch (op && op.tipo) {
+    case 'subir':          return 'un archivo (' + (op.ruta || '') + ')';
+    case 'insert-caso':    return 'la creación de un caso';
+    case 'guardar-caso':
+    case 'merge':          return 'cambios del caso ' + (op.numero_caso || '');
+    case 'append-foto':    return 'una foto del caso ' + (op.numero_caso || '');
+    case 'insert-tercero':
+    case 'update-tercero': return 'los datos de un tercero';
+    default:               return 'una operación pendiente';
+  }
+}
+
+// Reintentos antes de dar una operación por imposible. Con los ciclos de flush
+// (al reconectar, al volver a la app y cada 45 s) esto da varios minutos de
+// margen para un fallo transitorio del servidor.
+const MAX_INTENTOS_OP = 10;
+
 /**
  * Procesa la cola en orden. Se detiene ante el primer fallo de red (para
- * conservar el orden y reintentar luego). Un fallo del servidor que se repite
- * mucho se descarta para no bloquear la cola indefinidamente.
+ * conservar el orden y reintentar luego). Un fallo del servidor NO detiene la
+ * cola: solo aparta las operaciones del MISMO caso, que dependen de ella, y
+ * sigue con el resto. Si una operación se repite como imposible, se descarta
+ * diciendo qué era, para no dejar la cola atascada para siempre.
  */
 async function sincronizarPendientes() {
   if (_flushActivo) return;
@@ -404,7 +460,13 @@ async function sincronizarPendientes() {
     const ops = await _all('ops');
     ops.sort((a, b) => a.id - b.id);
     let subidas = 0;
+    // Casos con una operación fallida en este ciclo: sus operaciones siguientes
+    // se dejan para el próximo (van en orden y dependen de la que fallo). El
+    // resto de la cola —otros casos, archivos, terceros— sigue subiendo.
+    const frenados = new Set();
     for (const op of ops) {
+      const suCaso = _casoDeOp(op);
+      if (suCaso && frenados.has(suCaso)) continue;
       try {
         await _ejecutarOp(op);
         await _del('ops', op.id);
@@ -415,15 +477,18 @@ async function sincronizarPendientes() {
         if (_esErrorRed(e)) break; // se cayó la red: reintenta en el próximo ciclo
         // Error del servidor: reintenta unas cuantas veces; si persiste, descarta.
         op.intentos = (op.intentos || 0) + 1;
-        if (op.intentos >= 6) {
+        if (op.intentos >= MAX_INTENTOS_OP) {
           await _del('ops', op.id);
           if (op.blobId) { try { await _del('blobs', op.blobId); } catch (_) {} }
           if (typeof showStatus === 'function') {
-            showStatus('Una operación pendiente no se pudo sincronizar y se descartó: ' + (e.message || e), 'error');
+            showStatus('No se pudo subir ' + _describirOp(op) + ' y se descartó: ' +
+              (e.message || e) + '. Si era evidencia del sitio, vuelve a capturarla.', 'error');
           }
         } else {
           await _put('ops', op);
-          break; // no insistas en bucle en el mismo ciclo
+          // Antes aquí había un `break`: una sola operación imposible frenaba
+          // TODA la cola y los pendientes se acumulaban sin subir ninguno.
+          if (suCaso) frenados.add(suCaso);
         }
       }
     }
