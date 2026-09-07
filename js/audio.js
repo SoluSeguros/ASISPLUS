@@ -17,6 +17,54 @@ const CAMPOS_AUDIO = ['VERSION CONDUCTOR', 'VERSION ASISTENTE'];
 // Grabadores activos por campo (MediaRecorder + stream).
 const _grabadores = {};
 
+/* ------------------------------------------------------------------ *
+ *  Pantalla encendida mientras se graba
+ *
+ *  El conductor da su versión hablando uno o dos minutos y nadie toca el
+ *  teléfono en ese rato, así que el móvil apaga la pantalla por inactividad.
+ *  Eso dejaba la grabación a medias.
+ * ------------------------------------------------------------------ */
+
+let _wakeLock = null;
+
+/** ¿Hay alguna grabación en curso ahora mismo? */
+function hayGrabacionEnCurso() {
+  return Object.keys(_grabadores).some(campo => {
+    const g = _grabadores[campo];
+    return g && g.mr && g.mr.state === 'recording';
+  });
+}
+
+/**
+ * Pide al sistema que no apague la pantalla. El navegador suelta este permiso
+ * por su cuenta en cuanto la pestaña deja de verse, así que hay que volver a
+ * pedirlo al regresar (lo hace el listener de `visibilitychange`).
+ * Devuelve si quedó activo: no todos los navegadores lo permiten, y algunos lo
+ * niegan con la batería baja.
+ */
+async function mantenerPantallaEncendida() {
+  if (!('wakeLock' in navigator)) return false;
+  // `released` lo marca el navegador cuando lo suelta por su cuenta. No basta
+  // con mirar si tenemos el objeto: seguiriamos creyendo que la pantalla esta
+  // retenida cuando ya no lo esta.
+  if (_wakeLock && !_wakeLock.released) return true;
+  _wakeLock = null;
+  try {
+    _wakeLock = await navigator.wakeLock.request('screen');
+    _wakeLock.addEventListener('release', () => { _wakeLock = null; });
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+/** Devuelve el control de la pantalla al sistema (vuelve a apagarse sola). */
+function soltarPantalla() {
+  if (!_wakeLock) return;
+  try { _wakeLock.release(); } catch (_) {}
+  _wakeLock = null;
+}
+
 /** Revoca el Object URL de audio asociado a un widget (evita fuga de memoria). */
 function revocarAudioUrl(widget) {
   if (widget && widget._objUrl) {
@@ -34,13 +82,28 @@ function initAudioRecorders() {
     widget.querySelector('.audio-btn-del').addEventListener('click', () => eliminarGrabacion(campo, widget));
   });
 
-  // Si la app pasa a segundo plano GRABANDO (entra una llamada, se bloquea la
-  // pantalla, el asistente cambia de app), se cierra la grabación en ese
-  // instante. El móvil suspende el micrófono de todas formas: así al menos
-  // queda guardado lo que el conductor alcanzó a decir, en vez de nada.
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) cerrarGrabacionesEnCurso();
+    if (document.hidden) {
+      // AQUÍ NO SE CORTA LA GRABACIÓN. Apagar la pantalla dispara este mismo
+      // evento, y cortarla aquí era justamente el problema: la versión del
+      // conductor se terminaba sola a mitad de frase. Sólo se le pide al
+      // grabador que entregue lo capturado hasta ahora, para no depender de
+      // que llegue el final.
+      Object.keys(_grabadores).forEach(campo => {
+        const g = _grabadores[campo];
+        if (g && g.mr && g.mr.state === 'recording') {
+          try { g.mr.requestData(); } catch (_) {}
+        }
+      });
+      return;
+    }
+    // De vuelta en la app: el navegador ya soltó el permiso de pantalla, así
+    // que se vuelve a pedir si la grabación sigue viva.
+    if (hayGrabacionEnCurso()) mantenerPantallaEncendida();
   });
+
+  // La página se va de verdad (se cierra la pestaña o se navega fuera): ahí sí
+  // hay que cerrar la grabación, porque no habrá otra oportunidad de guardarla.
   window.addEventListener('pagehide', cerrarGrabacionesEnCurso);
 }
 
@@ -53,6 +116,7 @@ function cerrarGrabacionesEnCurso() {
     if (widget) detenerGrabacion(campo, widget);
     else { try { g.mr.stop(); } catch (_) {} }
   });
+  soltarPantalla();
 }
 
 /** Comienza a grabar desde el micrófono. */
@@ -83,12 +147,23 @@ async function iniciarGrabacion(campo, widget) {
     };
 
     _grabadores[campo] = { mr, stream };
-    mr.start();
+    // En trozos de un segundo: lo hablado va llegando durante la grabación en
+    // vez de sólo al final, así una interrupción no se lleva todo.
+    mr.start(1000);
 
     widget.querySelector('.audio-btn-rec').classList.add('hidden');
     widget.querySelector('.audio-btn-stop').classList.remove('hidden');
-    widget.querySelector('.audio-status').textContent = '● Grabando…';
     widget.classList.add('grabando');
+
+    widget.querySelector('.audio-status').textContent = '● Grabando…';
+
+    // Que el teléfono no apague la pantalla mientras el conductor habla. Se
+    // comprueba el estado después de esperar: si en ese instante ya pulsaron
+    // "Detener", no hay que volver a escribir "Grabando" encima.
+    const pantallaFija = await mantenerPantallaEncendida();
+    if (pantallaFija && mr.state === 'recording') {
+      widget.querySelector('.audio-status').textContent = '● Grabando… · la pantalla no se apagará';
+    }
   } catch (e) {
     showStatus('No se pudo acceder al micrófono (permite el acceso).', 'error');
   }
@@ -102,6 +177,8 @@ function detenerGrabacion(campo, widget) {
   widget.querySelector('.audio-btn-stop').classList.add('hidden');
   widget.querySelector('.audio-status').textContent = '';
   widget.classList.remove('grabando');
+  // Ya no hay nada grabando: la pantalla vuelve a apagarse sola.
+  if (!hayGrabacionEnCurso()) soltarPantalla();
 }
 
 /** Muestra el reproductor con el audio (grabado o existente). */
@@ -287,6 +364,7 @@ async function finalizarGrabaciones() {
     }
   }
   if (pendientes.length) await Promise.all(pendientes);
+  soltarPantalla();
 }
 
 /**
