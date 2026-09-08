@@ -92,6 +92,8 @@ function mostrarApp(user) {
   els.userEmail.textContent = user && user.email ? user.email : '';
   limpiarUbicacion();
   cargarPerfil(user);
+  // Si la app se actualizó, contarle al asistente qué cambió.
+  if (typeof initNovedades === 'function') initNovedades();
 }
 
 /** Muestra la pantalla de inicio de sesión (sin sesión). */

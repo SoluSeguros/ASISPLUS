@@ -39,6 +39,7 @@ const ASSETS = [
   './js/ui.js?v=' + APP_VERSION,
   './js/segvial.js?v=' + APP_VERSION,
   './js/dashboard.js?v=' + APP_VERSION,
+  './js/novedades.js?v=' + APP_VERSION,
   './js/main.js?v=' + APP_VERSION,
   './js/conexion.js?v=' + APP_VERSION,
   './js/offline.js?v=' + APP_VERSION,

@@ -2082,6 +2082,16 @@ input[type="password"]:focus {
 .li-orient-cola   { margin-top: 4px; }
 .li-orient-lado   { flex: 0 0 auto; line-height: 1.25; }
 
+/* Selector de costado (solo en la vista lateral), pegado al dibujo. */
+.li-costados { margin-bottom: 12px; text-align: center; }
+.li-costados-tit {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
 .li-silueta { width: 100%; height: auto; display: block; overflow: visible; }
 
 .li-carroceria {
@@ -2540,6 +2550,65 @@ input[type="password"]:focus {
   font-size: 11px;
   opacity: 0.75;
   font-weight: 700;
+}
+
+/* La versión abre las novedades: hay que verla como algo tocable. */
+.app-version-link {
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+.app-version-link:hover { opacity: 1; }
+
+/* ---------- Novedades de la versión ---------- */
+.nov-version + .nov-version {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.nov-version-cab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.nov-version-cab h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--primary);
+}
+.nov-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.nov-lista { list-style: none; margin: 0; padding: 0; }
+
+.nov-punto {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 0;
+}
+.nov-icono { font-size: 20px; line-height: 1.2; flex: 0 0 auto; }
+.nov-punto b { display: block; margin-bottom: 2px; }
+.nov-punto p { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--muted); }
+
+.nov-aviso {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  background: #fff4e8;
+  border: 1px solid #e2a456;
+  border-radius: 10px;
+  color: #7c4a2d;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 /* Aviso de nueva versión (PWA) */

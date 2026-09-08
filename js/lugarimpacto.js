@@ -39,8 +39,14 @@ const TERCIOS_POR_VISTA = {
   POSTERIOR: ['Tercio Izquierdo', 'Tercio Medio', 'Tercio Derecho']
 };
 
+// Costados del vehículo (sólo aplican a la vista lateral).
+const COSTADOS = [
+  { clave: 'IZQUIERDO', nombre: 'Costado izquierdo' },
+  { clave: 'DERECHO', nombre: 'Costado derecho' }
+];
+
 // Estado de la selección en curso dentro del modal.
-const li = { tipo: null, vista: null, tercio: null, otroTexto: '' };
+const li = { tipo: null, vista: null, costado: null, tercio: null, otroTexto: '' };
 
 // Espacio de coordenadas común (vista en planta, morro hacia arriba) para
 // las siluetas de vehículo del Campo 8.9. Todas las siluetas y zonas se
@@ -86,8 +92,13 @@ const LI_SILUETAS = {
   `
 };
 
-/** Devuelve las 3 zonas clicables (posición + etiqueta) según la vista, sobre LI_VIEWBOX. */
-function zonasImpacto(vista) {
+/**
+ * Devuelve las 3 zonas clicables (posición + etiqueta) según la vista, sobre
+ * LI_VIEWBOX. En la vista lateral hace falta además el costado: sus tres
+ * franjas se dibujan sobre esa mitad del vehículo, no cruzando todo el ancho,
+ * para que se vea sobre qué lado se está marcando.
+ */
+function zonasImpacto(vista, costado) {
   const etiquetas = TERCIOS_POR_VISTA[vista] || [];
   if (vista === 'FRONTAL') {
     return [
@@ -104,10 +115,14 @@ function zonasImpacto(vista) {
     ];
   }
   if (vista === 'LATERAL') {
+    if (!costado) return []; // primero hay que decir cuál de los dos costados
+    // Vista en planta: el costado izquierdo del vehículo es la mitad izquierda
+    // del dibujo, el derecho la mitad derecha.
+    const x = costado === 'DERECHO' ? 50 : 0;
     return [
-      { tercio: etiquetas[0], x: 0, y: 4, w: 100, h: 48.7 },
-      { tercio: etiquetas[1], x: 0, y: 52.7, w: 100, h: 48.7 },
-      { tercio: etiquetas[2], x: 0, y: 101.3, w: 100, h: 48.7 }
+      { tercio: etiquetas[0], x, y: 4, w: 50, h: 48.7 },
+      { tercio: etiquetas[1], x, y: 52.7, w: 50, h: 48.7 },
+      { tercio: etiquetas[2], x, y: 101.3, w: 50, h: 48.7 }
     ];
   }
   return [];
@@ -125,7 +140,21 @@ function renderSiluetaTercios() {
     return;
   }
 
-  const zonas = zonasImpacto(li.vista);
+  // Selector de costado: sólo tiene sentido en la vista lateral, y va aquí
+  // pegado al dibujo (no como un paso aparte) porque es parte de señalar dónde
+  // fue el golpe.
+  const costadoHtml = li.vista !== 'LATERAL' ? '' : `
+    <div class="li-costados">
+      <span class="li-costados-tit">¿Cuál costado?</span>
+      <div class="li-vistas">
+        ${COSTADOS.map(c => `
+          <button type="button" class="secondary li-tool${li.costado === c.clave ? ' active' : ''}" data-costado="${c.clave}">${c.nombre}</button>
+        `).join('')}
+      </div>
+    </div>
+  `;
+
+  const zonas = zonasImpacto(li.vista, li.costado);
   const zonasSvg = zonas.map(z => `
     <g>
       <rect class="li-tool li-zona" data-tercio="${z.tercio}" x="${z.x}" y="${z.y}" width="${z.w}" height="${z.h}"></rect>
@@ -133,7 +162,15 @@ function renderSiluetaTercios() {
     </g>
   `).join('');
 
-  els.liTercios.innerHTML = `
+  // Lateral sin costado elegido: se pide primero, sin dibujo que confunda.
+  const ayudaZonas = (li.vista === 'LATERAL' && !li.costado)
+    ? '<p class="li-silueta-ayuda muted">Elige primero de qué costado fue el impacto.</p>'
+    : `<p class="li-silueta-ayuda muted">
+        El vehículo se ve <b>desde arriba</b>. Toca la zona donde ocurrió el impacto.
+        <br><b>Izquierda y derecha son las del vehículo</b>, como las ve el conductor sentado al volante.
+      </p>`;
+
+  els.liTercios.innerHTML = costadoHtml + `
     <div class="li-orientacion li-orient-frente">▲ FRENTE del vehículo</div>
     <div class="li-silueta-fila">
       <span class="li-orientacion li-orient-lado">Costado<br>izquierdo</span>
@@ -146,11 +183,7 @@ function renderSiluetaTercios() {
       <span class="li-orientacion li-orient-lado">Costado<br>derecho</span>
     </div>
     <div class="li-orientacion li-orient-cola">▼ PARTE TRASERA</div>
-    <p class="li-silueta-ayuda muted">
-      El vehículo se ve <b>desde arriba</b>. Toca la zona donde ocurrió el impacto.
-      <br><b>Izquierda y derecha son las del vehículo</b>, como las ve el conductor sentado al volante.
-    </p>
-  `;
+  ` + ayudaZonas;
 
   if (li.tercio) {
     const zonaActiva = els.liTercios.querySelector(`.li-zona[data-tercio="${li.tercio}"]`);
@@ -180,10 +213,14 @@ function initLugarImpacto() {
   // Los botones de tercio se crean dinámicamente según la vista: un solo
   // listener delegado sobre el contenedor los cubre a todos.
   els.liTercios.addEventListener('click', event => {
-    const btn = event.target.closest('.li-tool');
+    // El costado se revisa primero: sus botones también son `.li-tool`.
+    const btnCostado = event.target.closest('[data-costado]');
+    if (btnCostado) { seleccionarCostadoImpacto(btnCostado.dataset.costado); return; }
+
+    const btn = event.target.closest('.li-tool[data-tercio]');
     if (!btn) return;
     li.tercio = btn.dataset.tercio;
-    els.liTercios.querySelectorAll('.li-tool').forEach(b => b.classList.toggle('active', b === btn));
+    els.liTercios.querySelectorAll('.li-zona').forEach(b => b.classList.toggle('active', b === btn));
   });
 
   if (els.liOtroTexto) {
@@ -201,9 +238,18 @@ function seleccionarTipoImpacto(clave) {
   renderSiluetaTercios();
 }
 
+/** Elige el costado (vista lateral) y redibuja las franjas sobre ese lado. */
+function seleccionarCostadoImpacto(costado) {
+  li.costado = costado;
+  li.tercio = null; // el tercio pertenece a un costado concreto
+  renderSiluetaTercios();
+}
+
 function seleccionarVistaImpacto(vista) {
   li.vista = vista;
   li.tercio = null;
+  // El costado sólo vive dentro de la vista lateral.
+  li.costado = null;
   els.liVistas.querySelectorAll('.li-tool').forEach(b => b.classList.toggle('active', b.dataset.vista === vista));
 
   const esOtro = li.tipo === 'OTRO';
@@ -216,7 +262,7 @@ function abrirLugarImpacto() {
   const caso = state.casoActual;
   if (!caso) return;
 
-  li.tipo = null; li.vista = null; li.tercio = null; li.otroTexto = '';
+  li.tipo = null; li.vista = null; li.costado = null; li.tercio = null; li.otroTexto = '';
   els.liTipos.querySelectorAll('.li-tipo').forEach(b => b.classList.remove('active'));
   els.liVistas.querySelectorAll('.li-tool').forEach(b => b.classList.remove('active'));
   els.liTercios.innerHTML = '';
@@ -234,9 +280,17 @@ function abrirLugarImpacto() {
       li.otroTexto = els.liOtroTexto.value;
     } else if (partes[1]) {
       seleccionarVistaImpacto(partes[1].toUpperCase());
-      if (partes[2]) {
-        const zonaTercio = els.liTercios.querySelector(`.li-zona[data-tercio="${partes[2]}"]`);
-        if (zonaTercio) { li.tercio = partes[2]; zonaTercio.classList.add('active'); }
+      // Los registros anteriores traen 3 partes (sin costado); los nuevos, 4.
+      let idxTercio = 2;
+      if (partes[2] && partes[2].indexOf('Costado') === 0) {
+        const c = COSTADOS.find(x => x.nombre === partes[2]);
+        if (c) seleccionarCostadoImpacto(c.clave);
+        idxTercio = 3;
+      }
+      const tercio = partes[idxTercio];
+      if (tercio) {
+        const zonaTercio = els.liTercios.querySelector(`.li-zona[data-tercio="${tercio}"]`);
+        if (zonaTercio) { li.tercio = tercio; zonaTercio.classList.add('active'); }
       }
     }
   }
@@ -262,9 +316,17 @@ async function guardarLugarImpacto() {
     texto = `${tipo.nombre} · ${li.otroTexto.trim()}`;
   } else {
     if (!li.vista) { showStatus('Elige la vista del impacto.', 'error'); return; }
+    if (li.vista === 'LATERAL' && !li.costado) {
+      showStatus('Indica de qué costado fue el impacto.', 'error'); return;
+    }
     if (!li.tercio) { showStatus('Elige el tercio donde ocurrió el impacto.', 'error'); return; }
     const vistaLegible = li.vista.charAt(0) + li.vista.slice(1).toLowerCase();
-    texto = `${tipo.nombre} · ${vistaLegible} · ${li.tercio}`;
+    const costado = COSTADOS.find(c => c.clave === li.costado);
+    // El costado va como una parte propia (no pegado a "Lateral") para que los
+    // registros anteriores, de tres partes, se sigan leyendo igual.
+    texto = costado
+      ? `${tipo.nombre} · ${vistaLegible} · ${costado.nombre} · ${li.tercio}`
+      : `${tipo.nombre} · ${vistaLegible} · ${li.tercio}`;
   }
 
   try {
