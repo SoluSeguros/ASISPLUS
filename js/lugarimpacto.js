@@ -16,9 +16,25 @@ const TIPOS_IMPACTO = [
   { clave: 'OTRO', emoji: '❓', nombre: 'Otro' }
 ];
 
-// Etiquetas exactas de tercios según la vista (Campo 8.9 del manual del IPAT).
+/**
+ * Etiquetas de los tercios (vocabulario del Campo 8.9 del IPAT), ORDENADAS DE
+ * IZQUIERDA A DERECHA DE LA PANTALLA.
+ *
+ * CUIDADO CON EL ESPEJO. El manual del IPAT rotula su vista frontal como
+ * "Tercio Derecho · Medio · Izquierdo", pero lo hace sobre un dibujo del
+ * vehículo VISTO DE FRENTE: ahí el costado derecho del carro queda a la
+ * izquierda de quien mira. Esta app no dibuja alzados: usa una sola silueta EN
+ * PLANTA (desde arriba, morro hacia arriba) y solo resalta la franja de
+ * adelante o la de atrás. Sobre una planta ese espejo NO existe — el conductor
+ * mira hacia arriba de la pantalla, así que su derecha es la derecha de la
+ * pantalla, se esté marcando el frente o la cola.
+ *
+ * Copiar el orden del manual tal cual dejaba el frontal invertido: el asistente
+ * tocaba el costado derecho del bus y quedaba registrado como izquierdo.
+ * Izquierda y derecha son SIEMPRE las del vehículo, como las ve el conductor.
+ */
 const TERCIOS_POR_VISTA = {
-  FRONTAL: ['Tercio Derecho', 'Tercio Medio', 'Tercio Izquierdo'],
+  FRONTAL: ['Tercio Izquierdo', 'Tercio Medio', 'Tercio Derecho'],
   LATERAL: ['Tercio Anterior', 'Tercio Medio', 'Tercio Posterior'],
   POSTERIOR: ['Tercio Izquierdo', 'Tercio Medio', 'Tercio Derecho']
 };
@@ -118,13 +134,22 @@ function renderSiluetaTercios() {
   `).join('');
 
   els.liTercios.innerHTML = `
-    <div class="li-silueta-wrap">
-      <svg viewBox="${LI_VIEWBOX}" class="li-silueta" aria-label="Silueta del vehículo, vista ${li.vista.toLowerCase()}">
-        <g class="li-carroceria">${LI_SILUETAS[li.tipo]}</g>
-        ${zonasSvg}
-      </svg>
+    <div class="li-orientacion li-orient-frente">▲ FRENTE del vehículo</div>
+    <div class="li-silueta-fila">
+      <span class="li-orientacion li-orient-lado">Costado<br>izquierdo</span>
+      <div class="li-silueta-wrap">
+        <svg viewBox="${LI_VIEWBOX}" class="li-silueta" aria-label="Silueta del vehículo vista desde arriba, con el frente hacia arriba">
+          <g class="li-carroceria">${LI_SILUETAS[li.tipo]}</g>
+          ${zonasSvg}
+        </svg>
+      </div>
+      <span class="li-orientacion li-orient-lado">Costado<br>derecho</span>
     </div>
-    <p class="li-silueta-ayuda muted">Toca la zona del vehículo donde ocurrió el impacto.</p>
+    <div class="li-orientacion li-orient-cola">▼ PARTE TRASERA</div>
+    <p class="li-silueta-ayuda muted">
+      El vehículo se ve <b>desde arriba</b>. Toca la zona donde ocurrió el impacto.
+      <br><b>Izquierda y derecha son las del vehículo</b>, como las ve el conductor sentado al volante.
+    </p>
   `;
 
   if (li.tercio) {

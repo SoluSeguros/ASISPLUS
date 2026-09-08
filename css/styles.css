@@ -2060,6 +2060,28 @@ input[type="password"]:focus {
   margin: 0 auto;
 }
 
+/* Orientación del dibujo: la silueta se ve DESDE ARRIBA con el morro hacia
+   arriba, y izquierda/derecha son las del vehículo. Decirlo alrededor del
+   dibujo es lo que evita que se confunda el costado al marcar el impacto. */
+.li-silueta-fila {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.li-orientacion {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+.li-orient-frente { margin-bottom: 4px; }
+.li-orient-cola   { margin-top: 4px; }
+.li-orient-lado   { flex: 0 0 auto; line-height: 1.25; }
+
 .li-silueta { width: 100%; height: auto; display: block; overflow: visible; }
 
 .li-carroceria {
