@@ -8,6 +8,9 @@
 
 const BUCKET_FOTOS = 'fotos-casos';
 
+// Hasta dónde numeraba las fotos el AppSheet viejo (FOTO 1 … FOTO 10).
+const CASO_FOTOS_LEGADO = 10;
+
 /** Registra los eventos de tomar/elegir foto (una sola vez). */
 function initFotos() {
   els.btnTomarFoto.addEventListener('click', tomarFotoSitio);
@@ -214,10 +217,29 @@ async function procesarFotosSitio(archivos) {
   }
 }
 
+/**
+ * Rutas de las fotos del caso, en el orden en que se ven.
+ *
+ * Formato nuevo: datos['FOTOS SITIO'] = [ruta, …], que es lo que escribe la app.
+ * Compatibilidad: los casos importados del AppSheet viejo no traen esa lista;
+ * guardan una ruta por columna numerada (FOTO 1 … FOTO 10). Se leen igual que
+ * las fotos antiguas de tercero en terceros.js, sin reescribir nada en la base.
+ */
+function rutasFotosCaso(caso) {
+  const d = (caso && caso.datos) || {};
+  const rutas = Array.isArray(d['FOTOS SITIO']) ? d['FOTOS SITIO'].slice() : [];
+  for (let i = 1; i <= CASO_FOTOS_LEGADO; i++) {
+    const r = d[`FOTO ${i}`];
+    // Sólo rutas de imagen: en el CSV viejo alguna columna quedó con texto suelto.
+    if (typeof r === 'string' && /\.(png|jpe?g)$/i.test(r) && !rutas.includes(r)) rutas.push(r);
+  }
+  return rutas;
+}
+
 /** Muestra la galería de fotos del caso (con URLs firmadas temporales). */
 async function cargarFotosCaso(caso) {
   const cont = els.fotosGaleria;
-  const lista = Array.isArray(caso.datos && caso.datos['FOTOS SITIO']) ? caso.datos['FOTOS SITIO'] : [];
+  const lista = rutasFotosCaso(caso);
   els.fotosCasoTit.textContent = `Fotos del vehículo asegurado / sitio (${lista.length})`;
   cont.innerHTML = '';
 
@@ -299,6 +321,11 @@ async function eliminarFoto(caso, ruta) {
     await db.storage.from(BUCKET_FOTOS).remove([ruta]);
     await persistirDatosCaso(caso, datos => {
       datos['FOTOS SITIO'] = (Array.isArray(datos['FOTOS SITIO']) ? datos['FOTOS SITIO'] : []).filter(p => p !== ruta);
+      // Las históricas no están en esa lista sino en su columna numerada; si no
+      // se limpia aquí, la foto borrada reaparecería rota en la galería.
+      for (let i = 1; i <= CASO_FOTOS_LEGADO; i++) {
+        if (datos[`FOTO ${i}`] === ruta) delete datos[`FOTO ${i}`];
+      }
       if (datos['DESCRIPCION FOTOS'] && typeof datos['DESCRIPCION FOTOS'] === 'object') {
         const m = Object.assign({}, datos['DESCRIPCION FOTOS']); // nueva referencia
         delete m[ruta];

@@ -23,6 +23,28 @@ const NOVEDADES_KEY = 'asisplus-novedades-vista';
 // De la más nueva a la más vieja.
 const NOVEDADES = [
   {
+    version: '2.18.4',
+    titulo: 'Los casos viejos ya tienen sus fotos',
+    roles: ['admin', 'gestor'],
+    puntos: [
+      {
+        icono: '📷',
+        titulo: 'Se ven las fotos de los casos importados',
+        texto: 'Los casos que venían del aplicativo anterior guardaban el <b>nombre</b> de cada foto, pero la imagen no estaba: al abrirlos no había nada que ver. Ya se subieron las <b>36.503</b> imágenes y ahora la galería las muestra como las de cualquier caso.'
+      },
+      {
+        icono: '✍️',
+        titulo: 'También las firmas y las fotos del tercero',
+        texto: 'Vuelven a aparecer la firma del conductor y la del asistente, y la evidencia del tercero: cédula, licencia, matrícula y los daños de su vehículo.'
+      },
+      {
+        icono: '🗂️',
+        titulo: 'Quedaron todos, sin excepción',
+        texto: 'Se comprobó uno por uno contra la base: los <b>2.596 casos</b> y los <b>2.191 terceros</b> que tenían evidencia registrada la tienen completa. Ninguno se quedó sin imagen.'
+      }
+    ]
+  },
+  {
     version: '2.18.3',
     titulo: 'El historial, más fácil de leer',
     roles: ['empresa', 'admin', 'gestor'],

@@ -40,3 +40,15 @@ vista-previa-*.html
 # Manual del IPAT: 17 MB. El repo es público y esto quedaría en el historial
 # para siempre; se consulta aparte, no hace falta versionarlo.
 Resolucion_*.pdf
+
+# Exportaciones de fotos desde Drive: gigabytes de imagenes historicas.
+# Se suben a Supabase Storage, no al repo.
+*_Images-*.zip
+
+# Rastro local de la subida de fotos historicas (no es parte del aplicativo)
+supabase/herramientas/subidos.txt
+supabase/herramientas/fallidos.txt
+supabase/herramientas/subida.log
+
+# Caché de Python (la generan las herramientas de supabase/herramientas)
+__pycache__/
