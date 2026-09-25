@@ -23,6 +23,28 @@ const NOVEDADES_KEY = 'asisplus-novedades-vista';
 // De la más nueva a la más vieja.
 const NOVEDADES = [
   {
+    version: '2.18.7',
+    titulo: 'La empresa ve su caso completo',
+    roles: ['empresa', 'admin', 'gestor'],
+    puntos: [
+      {
+        icono: '📸',
+        titulo: 'Con las fotos y las firmas',
+        texto: 'Al abrir un caso desde el portal ya no se ve solo texto: aparecen <b>las fotos del siniestro</b>, la firma del conductor y la del asistente, y la ficha de cada tercero con su evidencia. Es la misma información que ve la administración.'
+      },
+      {
+        icono: '🔽',
+        titulo: 'Filtros por año, gravedad y estado',
+        texto: 'Además del buscador, tres selectores para acotar el historial. Se suman entre sí y con lo que escribas: <b>2025 + Daños y lesiones</b> deja solo esos. Solo aparecen los valores que la empresa realmente tiene, para que ningún filtro lleve a una lista vacía.'
+      },
+      {
+        icono: '🧹',
+        titulo: 'Un botón para volver a empezar',
+        texto: 'Cuando hay algo acotando la lista aparece <b>«Limpiar filtros»</b>, y el contador va diciendo cuántos casos se están viendo de cuántos.'
+      }
+    ]
+  },
+  {
     version: '2.18.6',
     titulo: 'Las fotos también en el visor de registros',
     roles: ['admin', 'gestor'],

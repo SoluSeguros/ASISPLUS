@@ -4600,3 +4600,37 @@ body[data-rol="admin"] .bn-crear { display: flex; }
   text-overflow: ellipsis;
   border-top: 1px solid var(--border);
 }
+
+/* ===== Filtros del historial en el portal de empresa =====
+   Los mismos que usa la administración (año, gravedad, estado); el de empresa
+   no aplica aquí porque la RLS ya deja ver solo los casos propios. */
+.emp-filtros {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 0 0 12px;
+}
+
+.emp-filtros select {
+  flex: 0 1 auto;
+  min-width: 150px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--card);
+  font-size: 13px;
+  color: var(--text);
+}
+
+.emp-filtros select:focus {
+  outline: none;
+  border-color: var(--primary-2);
+  box-shadow: 0 0 0 3px rgba(38, 132, 255, 0.18);
+}
+
+.emp-filtros button { padding: 8px 14px; font-size: 13px; }
+
+@media (max-width: 560px) {
+  .emp-filtros select { flex: 1 1 100%; min-width: 0; }
+}

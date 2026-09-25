@@ -202,21 +202,6 @@ function rutasImagenesAsistencia(d) {
   return rutas;
 }
 
-/** Rutas de imagen de un tercero (formato nuevo y columnas nombradas). */
-function rutasImagenesTercero(t) {
-  const rutas = [];
-  (Array.isArray(t['FOTOS TERCERO']) ? t['FOTOS TERCERO'] : []).forEach(f => {
-    if (f && f.ruta && !rutas.includes(f.ruta)) rutas.push(f.ruta);
-  });
-  const cols = (typeof TERCERO_FOTOS !== 'undefined' ? TERCERO_FOTOS.map(x => x[0]) : [])
-    .concat(['FIRMA TERCERO', 'FIRMA CONDUCTOR']);
-  cols.forEach(c => {
-    const r = t[c];
-    if (typeof r === 'string' && ES_IMAGEN.test(r) && !rutas.includes(r)) rutas.push(r);
-  });
-  return rutas;
-}
-
 /**
  * Añade una sección con las imágenes. La sección se engancha de una vez (para
  * que no se cuele detrás de lo que venga después) y se rellena cuando llegan
@@ -319,8 +304,9 @@ function construirTerceroCard(tercero, idx) {
   }
   card.appendChild(full);
 
-  // Evidencia del tercero: cédula, licencia, matrícula y daños del vehículo.
-  agregarFotosDetalle(card, 'Evidencia del tercero', rutasImagenesTercero(tercero));
+  // La evidencia del tercero (cédula, licencia, matrícula, daños) la engancha
+  // agregarEvidenciaTerceroCard desde terceros.js, que es quien tiene las
+  // etiquetas legibles de cada columna. No se duplica aquí.
 
   const toggle = cab.querySelector('.tercero-toggle');
   cab.style.cursor = 'pointer';

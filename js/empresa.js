@@ -26,10 +26,22 @@ function initEmpresaPortal() {
   if (els.btnEmpresaCasosNext) els.btnEmpresaCasosNext.addEventListener('click', () => moverPaginaHistorialEmpresa(1));
   // Al buscar se vuelve a la primera página: quedarse en la 7 de una lista que
   // ahora tiene dos resultados dejaría la pantalla en blanco.
-  cablearBuscador(els.buscarEmpresaCasos, () => {
+  const refiltrar = () => {
     state.empresaCasosPagina = 1;
     renderHistorialEmpresa();
+  };
+  cablearBuscador(els.buscarEmpresaCasos, refiltrar);
+  ['filtroEmpresaAnio', 'filtroEmpresaGravedad', 'filtroEmpresaEstado'].forEach(id => {
+    if (els[id]) els[id].addEventListener('change', refiltrar);
   });
+  if (els.btnEmpresaFiltrosLimpiar) {
+    els.btnEmpresaFiltrosLimpiar.addEventListener('click', () => {
+      if (els.buscarEmpresaCasos) els.buscarEmpresaCasos.value = '';
+      ['filtroEmpresaAnio', 'filtroEmpresaGravedad', 'filtroEmpresaEstado']
+        .forEach(id => { if (els[id]) els[id].value = ''; });
+      refiltrar();
+    });
+  }
   if (els.btnEmpresaCasoCerrar) els.btnEmpresaCasoCerrar.addEventListener('click', cerrarDetalleCasoEmpresa);
   if (els.empresaCasoModal) {
     els.empresaCasoModal.addEventListener('click', event => {
@@ -233,8 +245,9 @@ async function cargarMisCasos() {
       return fb - fa;
     });
     state.empresaCasosPagina = 1;
-    // El contador lo pone renderHistorialEmpresa, que es quien sabe si hay una
-    // búsqueda activa y cuántos casos está mostrando de verdad.
+    llenarFiltrosEmpresa();
+    // El contador lo pone renderHistorialEmpresa, que es quien sabe si hay un
+    // filtro activo y cuántos casos está mostrando de verdad.
     renderHistorialEmpresa();
   } catch (error) {
     tbody.innerHTML = `<div class="ehl-estado">Error: ${escBandeja(error.message || String(error))}</div>`;
@@ -261,6 +274,68 @@ function _horaBonitaEmpresa(caso) {
 const EMPRESA_CASOS_POR_PAGINA = 50;
 
 /**
+ * Filtros del historial. Son los mismos que usa la administración —año,
+ * gravedad y estado— salvo el de empresa, que aquí no tiene sentido: la RLS ya
+ * garantiza que sólo se ven los casos propios.
+ */
+function _valorFiltroEmpresa(id) {
+  return (els[id] && els[id].value) || '';
+}
+
+/** ¿Hay algo acotando la lista (buscador o alguno de los selectores)? */
+function _hayFiltroEmpresa() {
+  return !!(((els.buscarEmpresaCasos && els.buscarEmpresaCasos.value) || '').trim() ||
+    _valorFiltroEmpresa('filtroEmpresaAnio') ||
+    _valorFiltroEmpresa('filtroEmpresaGravedad') ||
+    _valorFiltroEmpresa('filtroEmpresaEstado'));
+}
+
+/** Año del caso por la fecha REAL del siniestro, no por la de importación. */
+function _anioCasoEmpresa(caso) {
+  const dt = _fechaCaso(caso);
+  return dt ? String(dt.getFullYear()) : '';
+}
+
+/** Los casos que se ven: los selectores y, encima, el buscador. */
+function _casosEmpresaFiltrados() {
+  let filas = state.empresaCasosLista || [];
+  const anio = _valorFiltroEmpresa('filtroEmpresaAnio');
+  const grav = _valorFiltroEmpresa('filtroEmpresaGravedad');
+  const est = _valorFiltroEmpresa('filtroEmpresaEstado');
+  if (anio) filas = filas.filter(c => _anioCasoEmpresa(c) === anio);
+  if (grav) filas = filas.filter(c => String((c.datos || {})['GRAVEDAD DEL SINIESTRO'] || '').trim() === grav);
+  if (est) filas = filas.filter(c => String(c.estado || '').trim() === est);
+  return filtrarCasosPorTexto(filas, (els.buscarEmpresaCasos && els.buscarEmpresaCasos.value) || '');
+}
+
+/**
+ * Llena los selectores con lo que REALMENTE hay en el historial de esta
+ * empresa. Ofrecer un año o una gravedad sin casos sólo lleva a una lista
+ * vacía y hace dudar de que el filtro funcione.
+ */
+function llenarFiltrosEmpresa() {
+  const filas = state.empresaCasosLista || [];
+  const unicos = f => [...new Set(filas.map(f).filter(Boolean))];
+
+  const llenar = (el, valores, titulo, etiqueta) => {
+    if (!el) return;
+    const previo = el.value;
+    el.innerHTML = `<option value="">${titulo}</option>` + valores
+      .map(v => `<option value="${escBandeja(v)}">${escBandeja(etiqueta ? etiqueta(v) : v)}</option>`)
+      .join('');
+    el.value = valores.includes(previo) ? previo : '';   // respeta lo elegido si sigue existiendo
+  };
+
+  llenar(els.filtroEmpresaAnio,
+    unicos(_anioCasoEmpresa).sort((a, b) => Number(b) - Number(a)), 'Todos los años');
+  llenar(els.filtroEmpresaGravedad,
+    unicos(c => String((c.datos || {})['GRAVEDAD DEL SINIESTRO'] || '').trim()).sort(),
+    'Toda gravedad', tituloCaseFicha);
+  llenar(els.filtroEmpresaEstado,
+    unicos(c => String(c.estado || '').trim()).sort(), 'Todos los estados', tituloCaseFicha);
+}
+
+/**
  * Dibuja una página del historial.
  *
  * El data-idx es el índice dentro de state.empresaCasosVisibles (la lista ya
@@ -271,20 +346,23 @@ function renderHistorialEmpresa() {
   const tbody = els.empresaCasosBody;
   if (!tbody) return;
 
-  const buscado = ((els.buscarEmpresaCasos && els.buscarEmpresaCasos.value) || '').trim();
-  const todos = filtrarCasosPorTexto(state.empresaCasosLista || [], buscado);
+  const todos = _casosEmpresaFiltrados();
+  const acotado = _hayFiltroEmpresa();
   state.empresaCasosVisibles = todos;
 
+  if (els.btnEmpresaFiltrosLimpiar) {
+    els.btnEmpresaFiltrosLimpiar.classList.toggle('hidden', !acotado);
+  }
   if (els.empresaCasosCount) {
     const n = (state.empresaCasosLista || []).length;
-    els.empresaCasosCount.textContent = buscado
+    els.empresaCasosCount.textContent = acotado
       ? `(${formatNumber(todos.length)} de ${formatNumber(n)})`
       : `(${formatNumber(n)})`;
   }
 
   if (!todos.length) {
-    tbody.innerHTML = buscado
-      ? `<div class="ehl-estado">🔍 Ningún caso coincide con «${escBandeja(buscado)}».</div>`
+    tbody.innerHTML = acotado
+      ? '<div class="ehl-estado">🔍 Ningún caso coincide con lo que estás filtrando.</div>'
       : '<div class="ehl-estado">Sin casos registrados.</div>';
     if (els.empresaCasosPager) els.empresaCasosPager.classList.add('hidden');
     return;
@@ -397,6 +475,16 @@ function verDetalleCasoEmpresa(caso) {
       </div>
     `;
   }
+  // Evidencia, la misma que ve la administración: primero lo que fotografió el
+  // asistente del vehículo asegurado y después la ficha de cada tercero con la
+  // suya. Se reusan las piezas del visor de registros (detalle.js) para que las
+  // dos pantallas muestren exactamente lo mismo y no se separen con el tiempo.
+  if (els.empresaCasoBody && typeof agregarFotosDetalle === 'function') {
+    agregarFotosDetalle(els.empresaCasoBody, 'Fotos y firmas del siniestro',
+      rutasImagenesAsistencia(d));
+    cargarTercerosDelDetalle(caso.key, els.empresaCasoBody);
+  }
+
   if (els.empresaCasoModal) els.empresaCasoModal.classList.add('show');
 }
 
