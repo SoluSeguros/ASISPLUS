@@ -307,13 +307,83 @@ async function agregarFotosDetalle(cont, titulo, rutas) {
   h.textContent = `${titulo} (${vistas})`;
 }
 
-/**
- * Documentos adjuntos del caso (IPAT, SOAT, tecnomecánica…). Se guardan en
- * `datos['DOCUMENTOS RUTA']` como [{ruta, nombre}] y viven en un bucket
- * privado, así que cada uno necesita su URL firmada.
+/* ------------------------------------------------------------------ *
+ *  Qué es cada documento adjunto
  *
- * Antes salían como un JSON crudo dentro de la grilla de texto, que no le sirve
- * a nadie; aquí son enlaces que se abren.
+ *  Sólo se guarda {ruta, nombre}, así que todo lo que se puede decir del
+ *  documento sale de ahí. Es poco, pero es más que el nombre del archivo
+ *  suelto: qué clase de documento es (del nombre), de qué tipo de archivo
+ *  (de la extensión) y cuándo se subió (del sello que la app le pone
+ *  delante a la ruta: "1790358905748_Declaracion.pdf").
+ * ------------------------------------------------------------------ */
+
+// Palabras que identifican un documento del expediente. La lista es lo que se
+// ve en la práctica; lo que no reconoce se queda sin etiqueta, que es mejor que
+// inventarle una.
+const DOC_CLASES = [
+  [/DESISTIMIENTO/, 'Desistimiento'],
+  [/CONCILIACION|ACUERDO/, 'Acuerdo de conciliación'],
+  [/CONTRATO|TRANSACCION/, 'Contrato'],
+  [/PAZ ?Y ?SALVO/, 'Paz y salvo'],
+  [/DECLARACION|VERSION/, 'Declaración'],
+  [/IPAT/, 'IPAT (informe policial)'],
+  [/FURIPS/, 'FURIPS'],
+  [/HISTORIA ?CLINICA|EPICRISIS/, 'Historia clínica'],
+  [/INCAPACIDAD/, 'Incapacidad'],
+  [/COMPARENDO/, 'Comparendo'],
+  [/SOAT/, 'SOAT'],
+  [/TECNOMEC|TECNICOMEC|RTM/, 'Tecnomecánica'],
+  [/POLIZA/, 'Póliza'],
+  [/LICENCIA/, 'Licencia de conducción'],
+  [/TARJETA ?DE ?PROPIEDAD|MATRICULA/, 'Tarjeta de propiedad'],
+  [/CEDULA|DOCUMENTO ?DE ?IDENTIDAD/, 'Documento de identidad'],
+  [/FACTURA|COTIZACION|PRESUPUESTO/, 'Factura o cotización'],
+  [/RECIBO|CONSIGNACION|TRANSFERENCIA/, 'Soporte de pago'],
+  [/PERITAJE|AVALUO/, 'Peritaje'],
+  [/CROQUIS/, 'Croquis'],
+  [/TECNIC[OA]/, 'Informe técnico']
+];
+
+/** Qué clase de documento es, deducida del nombre del archivo. */
+function claseDocumento(nombre) {
+  const n = (typeof normalizarBusqueda === 'function')
+    ? normalizarBusqueda(nombre)
+    : String(nombre || '').toUpperCase();
+  for (const [re, etiqueta] of DOC_CLASES) if (re.test(n)) return etiqueta;
+  return '';
+}
+
+/** Icono y tipo de archivo, por la extensión. */
+function tipoArchivo(nombre) {
+  const ext = String(nombre || '').split('.').pop().toLowerCase();
+  if (ext === 'pdf') return { icono: '📄', tipo: 'PDF' };
+  if (/^(png|jpe?g|gif|webp|heic)$/.test(ext)) return { icono: '🖼️', tipo: 'Imagen' };
+  if (/^(doc|docx)$/.test(ext)) return { icono: '📝', tipo: 'Word' };
+  if (/^(xls|xlsx|csv)$/.test(ext)) return { icono: '📊', tipo: 'Hoja de cálculo' };
+  if (/^(mp3|m4a|wav|ogg|webm)$/.test(ext)) return { icono: '🔊', tipo: 'Audio' };
+  return { icono: '📎', tipo: ext ? ext.toUpperCase() : 'Archivo' };
+}
+
+/**
+ * Cuándo se subió. La app antepone el epoch en milisegundos al nombre del
+ * archivo ("1790358905748_Declaracion.pdf"), así que la fecha está ahí aunque
+ * nunca se haya guardado como dato.
+ */
+function fechaSubidaDoc(ruta) {
+  const base = String(ruta || '').split('/').pop();
+  const m = base.match(/^(\d{13})_/);
+  if (!m) return '';
+  const f = (typeof formatTimestamp === 'function') ? formatTimestamp(Number(m[1])) : '';
+  return (f && f !== m[1]) ? f : '';
+}
+
+/**
+ * Documentos adjuntos del caso (IPAT, declaraciones, desistimientos…). Se
+ * guardan en `datos['DOCUMENTOS RUTA']` como [{ruta, nombre}] y viven en un
+ * bucket privado, así que cada uno necesita su URL firmada.
+ *
+ * Antes salían como un JSON crudo dentro de la grilla de texto; luego como un
+ * enlace con el nombre del archivo, que tampoco dice qué es.
  */
 async function agregarDocsDetalle(cont, d) {
   if (!cont) return;
@@ -346,9 +416,28 @@ async function agregarDocsDetalle(cont, d) {
   lista.innerHTML = '';
   items.forEach((it, i) => {
     const nombre = (it && (it.nombre || String(it.ruta || '').split('/').pop())) || 'Documento';
+    const { icono, tipo } = tipoArchivo(nombre);
+    const clase = claseDocumento(nombre);
+    const subido = fechaSubidaDoc(it && it.ruta);
+
     const a = document.createElement('a');
     a.className = 'detalle-doc';
-    a.textContent = `📄 ${nombre}`;
+
+    const cab = document.createElement('div');
+    cab.className = 'detalle-doc-tit';
+    // Qué es el documento manda sobre cómo se llama el archivo.
+    cab.textContent = `${icono} ${clase || nombre}`;
+    a.appendChild(cab);
+
+    const pie = document.createElement('div');
+    pie.className = 'detalle-doc-meta';
+    const partes = [];
+    if (clase) partes.push(nombre);          // el archivo, cuando ya se dijo qué es
+    partes.push(tipo);
+    if (subido) partes.push(`subido el ${subido}`);
+    pie.textContent = partes.join('  ·  ');
+    a.appendChild(pie);
+
     if (urls[i]) {
       a.href = urls[i];
       a.target = '_blank';
@@ -359,6 +448,41 @@ async function agregarDocsDetalle(cont, d) {
     }
     lista.appendChild(a);
   });
+}
+
+/**
+ * Acuerdos firmados del caso: los contratos del módulo /contratos/ que nacieron
+ * de este siniestro (`form_data.casoOrigen`).
+ *
+ * Es lo que cierra un caso de verdad —quién acordó qué, por cuánto y si ya
+ * firmó—, y hasta ahora sólo se veía dentro del flujo de cierre, tercero por
+ * tercero. En el detalle no había ni rastro: aparecía el PDF del desistimiento
+ * entre los adjuntos, sin decir de qué acuerdo salía.
+ *
+ * Se reutiliza tal cual la tarjeta de cierre.js para que las dos pantallas
+ * digan lo mismo. El rol "empresa" no alcanza `firma_cases` por RLS: entonces
+ * no llega ninguna fila y la sección sencillamente no se dibuja.
+ */
+async function agregarAcuerdosDetalle(cont, numeroCaso) {
+  if (!cont || !numeroCaso) return;
+  if (typeof fetchContratosCaso !== 'function' || typeof itemContratoGenerado !== 'function') return;
+
+  const filas = await fetchContratosCaso(numeroCaso);
+  if (!filas || !filas.length) return;   // null = sin permiso; [] = no hay
+
+  const sec = document.createElement('div');
+  sec.className = 'detalle-seccion';
+  const h = document.createElement('h4');
+  h.className = 'detalle-seccion-tit';
+  h.textContent = `Acuerdos firmados (${filas.length})`;
+  sec.appendChild(h);
+  const lista = document.createElement('div');
+  lista.className = 'detalle-acuerdos';
+  filas.forEach(row => {
+    try { lista.appendChild(itemContratoGenerado(row)); } catch (_) { /* uno malo no tumba el resto */ }
+  });
+  sec.appendChild(lista);
+  cont.appendChild(sec);
 }
 
 /* ------------------------------------------------------------------ *
@@ -657,9 +781,14 @@ function construirCuerpoDetalle(cont, d) {
 /** Abre el detalle de una asistencia desde el Registro de Asistencias. */
 function abrirDetalleAsistencia(row) {
   const d = row || {};
+  // Lo adjunta vistas-bd.js (no está dentro de `datos`): sirve para titular el
+  // detalle y para cruzar los acuerdos firmados.
+  const numeroCaso = d._numeroCaso || '';
 
-  els.detalleAsisTitulo.textContent =
-    `${d['EMPRESA'] || 'Asistencia'} · ${d['PLACA VEHICULO'] || ''}`.trim();
+  els.detalleAsisTitulo.textContent = [
+    numeroCaso ? `Caso N.º ${numeroCaso}` : '',
+    d['EMPRESA'] || 'Asistencia', d['PLACA VEHICULO'] || ''
+  ].filter(Boolean).join('  ·  ');
   els.detalleAsisSub.textContent = [
     d['FECHA DEL SINIESTRO'], d['HORA DEL SINIESTRO'], d['NOMBRE CONDUCTOR']
   ].filter(Boolean).join('  ·  ');
@@ -674,6 +803,7 @@ function abrirDetalleAsistencia(row) {
   // del vehículo asegurado.
   agregarFotosDetalle(cont, 'Fotos y firmas del siniestro', rutasImagenesAsistencia(d));
   agregarDocsDetalle(cont, d);
+  agregarAcuerdosDetalle(cont, numeroCaso);
 
   els.detalleAsisModal.classList.add('show');
 

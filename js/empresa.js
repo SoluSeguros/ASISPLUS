@@ -491,6 +491,10 @@ function verDetalleCasoEmpresa(caso) {
     // Evidencia: primero la del vehículo asegurado, después cada tercero.
     agregarFotosDetalle(cont, 'Fotos y firmas del siniestro', rutasImagenesAsistencia(d));
     agregarDocsDetalle(cont, d);
+    // Los acuerdos firmados: hoy la política de firma_cases no alcanza al rol
+    // empresa, así que no llega ninguna fila y la sección no se dibuja. Queda
+    // enganchado para que el día que se abra aparezca sin tocar nada.
+    agregarAcuerdosDetalle(cont, caso.numero_caso);
     // El cruce con terceros va por KEY. Normalmente viene en la columna; en los
     // importados también está dentro de `datos`, así que se usa como respaldo.
     const clave = caso.key || (typeof getKey === 'function' ? getKey(d, 'KEY') : '');

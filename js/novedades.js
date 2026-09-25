@@ -23,6 +23,27 @@ const NOVEDADES_KEY = 'asisplus-novedades-vista';
 // De la más nueva a la más vieja.
 const NOVEDADES = [
   {
+    version: '2.21.0',
+    titulo: 'Los documentos dicen qué son, y aparecen los acuerdos',
+    puntos: [
+      {
+        icono: '📄',
+        titulo: 'Cada adjunto dice qué es y de cuándo',
+        texto: 'Antes salía sólo el nombre del archivo («DESISTIMIENTO (10).pdf»). Ahora cada documento dice <b>qué clase de documento es</b> —desistimiento, declaración, IPAT, historia clínica…—, de qué tipo de archivo se trata y <b>la fecha en que se subió</b>.'
+      },
+      {
+        icono: '🤝',
+        titulo: 'Acuerdos firmados del caso',
+        texto: 'Si del siniestro salió un acuerdo, ahora se ve en el detalle: <b>de qué tipo es, con quién se acordó, por cuánto, cómo se paga y quién firmó</b>, con el PDF a un clic. Antes el desistimiento aparecía suelto entre los adjuntos, sin decir de qué acuerdo salía, y esa información sólo se veía dentro del flujo de cierre.'
+      },
+      {
+        icono: '🔖',
+        titulo: 'El número de caso en el visor',
+        texto: 'El Registro de Asistencias no mostraba el número del caso al abrir el detalle. Ahora encabeza la ficha.'
+      }
+    ]
+  },
+  {
     version: '2.20.1',
     titulo: 'Reclamaciones y Seguridad Vial ven todos los casos',
     roles: ['seguridad_vial', 'reclamaciones', 'admin'],

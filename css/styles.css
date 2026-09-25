@@ -4720,6 +4720,23 @@ body[data-rol="admin"] .bn-crear { display: flex; }
   word-break: break-word;
 }
 
+/* Qué es el documento va primero; el nombre del archivo, la fecha y el tipo
+   debajo, en pequeño: sirven para identificarlo, no para leerlo. */
+.detalle-doc-tit { font-size: 14px; font-weight: 700; }
+
+.detalle-doc-meta {
+  margin-top: 2px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.detalle-acuerdos {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .detalle-doc:hover { background: var(--card); border-color: var(--primary-2); }
 
 /* El archivo ya no está en el bucket: se muestra pero no se puede abrir. */

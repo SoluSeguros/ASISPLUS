@@ -42,14 +42,24 @@ async function fetchAsistenciasOrdenado() {
   while (true) {
     const { data, error } = await db
       .from('registro_asistencias')
-      .select('datos, actualizado_en')
+      .select('numero_caso, datos, actualizado_en')
       .order('actualizado_en', { ascending: false })
       .order('id', { ascending: false })
       .range(desde, desde + PAGE - 1);
 
     if (error) throw error;
 
-    todas.push(...data.map(r => r.datos));
+    // El número de caso vive en su propia columna, no dentro de `datos`, y el
+    // detalle lo necesita para cruzar los acuerdos firmados. Va como propiedad
+    // NO enumerable para que no se cuele como una columna más de la tabla ni
+    // como un campo suelto en el detalle.
+    todas.push(...data.map(r => {
+      const d = r.datos || {};
+      Object.defineProperty(d, '_numeroCaso', {
+        value: r.numero_caso || '', enumerable: false, configurable: true, writable: true
+      });
+      return d;
+    }));
     if (data.length < PAGE) break;
     desde += PAGE;
   }
