@@ -217,7 +217,7 @@ async function traerAsistenciasPaginado() {
   while (true) {
     const { data, error } = await db
       .from('registro_asistencias')
-      .select('numero_caso, estado, datos, creado_en')
+      .select('key, numero_caso, estado, datos, creado_en')
       .order('creado_en', { ascending: false })
       .range(desde, desde + PAGE - 1);
     if (error) throw error;
@@ -490,7 +490,10 @@ function verDetalleCasoEmpresa(caso) {
 
     // Evidencia: primero la del vehículo asegurado, después cada tercero.
     agregarFotosDetalle(cont, 'Fotos y firmas del siniestro', rutasImagenesAsistencia(d));
-    cargarTercerosDelDetalle(caso.key, cont);
+    // El cruce con terceros va por KEY. Normalmente viene en la columna; en los
+    // importados también está dentro de `datos`, así que se usa como respaldo.
+    const clave = caso.key || (typeof getKey === 'function' ? getKey(d, 'KEY') : '');
+    cargarTercerosDelDetalle(clave, cont);
   }
 
   if (els.empresaCasoModal) els.empresaCasoModal.classList.add('show');

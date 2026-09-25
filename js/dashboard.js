@@ -40,7 +40,7 @@ async function cargarDashboard() {
     while (true) {
       const { data, error } = await db
         .from('registro_asistencias')
-        .select('numero_caso, estado, creado_en, datos')
+        .select('key, numero_caso, estado, creado_en, datos')
         .order('creado_en', { ascending: false })
         .range(desde, desde + PAGE - 1);
       if (error) throw error;
