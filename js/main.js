@@ -41,6 +41,20 @@ if (els.dashTabs) {
 if (els.dashEmpresaSel) els.dashEmpresaSel.addEventListener('change', renderFichaEmpresaAdmin);
 if (els.dashEmpDesde) els.dashEmpDesde.addEventListener('change', renderFichaEmpresaAdmin);
 if (els.dashEmpHasta) els.dashEmpHasta.addEventListener('change', renderFichaEmpresaAdmin);
+// Abre el portal COMPLETO de la empresa elegida, tal como lo ve ella.
+if (els.btnVerPortalEmpresa) {
+  els.btnVerPortalEmpresa.addEventListener('click', () => {
+    const empresa = (els.dashEmpresaSel && els.dashEmpresaSel.value) || '';
+    if (empresa) abrirEmpresaPortal(empresa);
+  });
+}
+// Volver al dashboard desde el portal visto como admin.
+if (els.btnEmpresaVolver) {
+  els.btnEmpresaVolver.addEventListener('click', () => {
+    state.empresaVistaAdmin = null;
+    volverAlDashboard();
+  });
+}
 if (els.btnDashEmpLimpiar) els.btnDashEmpLimpiar.addEventListener('click', () => {
   if (els.dashEmpDesde) els.dashEmpDesde.value = '';
   if (els.dashEmpHasta) els.dashEmpHasta.value = '';

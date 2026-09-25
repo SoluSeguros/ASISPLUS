@@ -330,6 +330,19 @@ function onDashboardDrill(ev) {
 
 const DASH_VISTAS = { general: 'dashVistaGeneral', empresa: 'dashVistaEmpresa' };
 
+/**
+ * Vuelve al dashboard desde el portal de una empresa SIN volver a descargar
+ * los casos: son ~2.800 filas y ya están en memoria. Si por lo que sea no lo
+ * están (recarga de la página), entonces sí se cargan.
+ */
+async function volverAlDashboard() {
+  if (!_dashRows.length) { await abrirDashboard(); return; }
+  ocultarPantallas();
+  els.dashboardCard.classList.remove('hidden');
+  marcarUbicacion('btnMenuDashboard', 'Dashboard de métricas');
+  cambiarVistaDashboard('empresa');   // se regresa a donde estaba
+}
+
 /** Cambia entre "General" y "Ficha por empresa". */
 function cambiarVistaDashboard(vista) {
   if (!DASH_VISTAS[vista]) return;

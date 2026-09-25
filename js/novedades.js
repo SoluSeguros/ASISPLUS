@@ -23,6 +23,28 @@ const NOVEDADES_KEY = 'asisplus-novedades-vista';
 // De la más nueva a la más vieja.
 const NOVEDADES = [
   {
+    version: '2.18.1',
+    titulo: 'Ver el portal de cualquier empresa',
+    roles: ['admin', 'gestor'],
+    puntos: [
+      {
+        icono: '👁️',
+        titulo: 'Entra al portal tal como lo ve la empresa',
+        texto: 'En <b>Dashboard → Ficha por empresa</b>, el botón <b>«Ver su portal completo»</b> abre la pantalla que ve esa empresa: sus métricas, su historial de casos y su parque. No es una imitación, es la misma pantalla.'
+      },
+      {
+        icono: '📄',
+        titulo: 'El historial ahora va por páginas',
+        texto: 'Antes se dibujaban todos los casos de golpe. Con empresas de 400 o más eso hacía pesada la pantalla en el celular; ahora van de 50 en 50.'
+      },
+      {
+        icono: '🔢',
+        titulo: 'Y se traen completos',
+        texto: 'La consulta no pedía más de 1.000 casos, así que una empresa grande habría quedado contada de menos <b>sin avisar</b>. Ya se traen todos.'
+      }
+    ]
+  },
+  {
     version: '2.18.0',
     titulo: 'Ficha de siniestralidad por empresa',
     roles: ['empresa', 'admin', 'gestor'],

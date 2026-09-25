@@ -4418,3 +4418,10 @@ body[data-rol="admin"] .bn-crear { display: flex; }
   .fe-sel { max-width: 100%; width: 100%; }
   .dash-bar-row.fe-sin-rank { grid-template-columns: minmax(84px, 1.3fr) 2fr auto; }
 }
+
+/* Aviso de "estás viendo el portal de otra empresa" (solo gestor/admin) */
+.emp-aviso-admin {
+  background: #eef4ff; border: 1px solid #c5d8fb; color: #1d4ed8;
+  border-radius: 12px; padding: 10px 14px; font-size: 13.5px; margin-bottom: 12px;
+}
+.emp-aviso-admin.hidden { display: none; }

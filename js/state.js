@@ -43,5 +43,7 @@ const state = {
   // Portal de empresa
   empresaCasosLista: [],       // casos propios (la RLS ya filtra por empresa)
   empresaVehiculosTotal: 0,    // tamaño del parque: base de la tasa por 100 vehículos
-  fichaEmpresaSel: ''          // empresa elegida en el dashboard de SoluAsistencia
+  fichaEmpresaSel: '',         // empresa elegida en el dashboard de SoluAsistencia
+  empresaVistaAdmin: null,     // si un admin está viendo el portal de una empresa, su nombre
+  empresaCasosPagina: 1        // página actual del historial de la empresa
 };
