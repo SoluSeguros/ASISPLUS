@@ -23,6 +23,18 @@ const NOVEDADES_KEY = 'asisplus-novedades-vista';
 // De la más nueva a la más vieja.
 const NOVEDADES = [
   {
+    version: '2.20.1',
+    titulo: 'Reclamaciones y Seguridad Vial ven todos los casos',
+    roles: ['seguridad_vial', 'reclamaciones', 'admin'],
+    puntos: [
+      {
+        icono: '🔎',
+        titulo: 'El registro completo, además de tu bandeja',
+        texto: 'Tu bandeja sigue mostrando lo que te toca atender. Pero ahora tienes también el <b>Registro de Asistencias</b> y <b>Terceros</b> en el inicio: cualquier siniestro, con toda su información (versiones, fotos, documentos y terceros). Para revisar antecedentes de un conductor o un tercero que ya apareció antes, ya no hay que pedirlo.'
+      }
+    ]
+  },
+  {
     version: '2.20.0',
     titulo: 'Las versiones, como se deben leer (y oír)',
     puntos: [

@@ -174,9 +174,15 @@ function aplicarRol() {
   // gestor para dar seguimiento, las áreas para gestionar sus rutas y el admin
   // para todo); el rol "empresa" tiene su propio portal aislado, sin bandeja.
   const veBandeja = rol !== 'empresa';
-  // Los módulos de análisis (cruce, registro completo, terceros) son para
-  // gestor/admin; asistente y áreas trabajan enfocados en su bandeja.
+  // Los módulos de análisis (cruce de archivos, dashboard de métricas) son de
+  // gestor/admin.
   const veAnalisis = rol === 'gestor' || rol === 'admin';
+  // El registro completo de siniestros y de terceros lo ven ADEMÁS las áreas.
+  // Su bandeja sigue enfocada en lo que les toca atender, pero para gestionar
+  // un caso necesitan poder consultar cualquier otro: los antecedentes del
+  // conductor, un tercero que ya apareció antes, cómo se resolvió algo
+  // parecido. Antes tenían que pedirlo.
+  const veRegistros = veAnalisis || esArea;
 
   els.btnMenuCrearCaso.classList.toggle('hidden', !puedeCrear);
   els.btnMenuBandeja.classList.toggle('hidden', !veBandeja);
@@ -191,8 +197,8 @@ function aplicarRol() {
   // Ver quién está conectado: solo el administrador.
   if (els.btnMenuConectados) els.btnMenuConectados.classList.toggle('hidden', rol !== 'admin');
   els.btnVerCruce.classList.toggle('hidden', !veAnalisis);
-  els.btnVerAsistenciasBD.classList.toggle('hidden', !veAnalisis);
-  els.btnVerTercerosBD.classList.toggle('hidden', !veAnalisis);
+  els.btnVerAsistenciasBD.classList.toggle('hidden', !veRegistros);
+  els.btnVerTercerosBD.classList.toggle('hidden', !veRegistros);
   // El parque queda disponible para gestor/asistente/admin; las áreas se enfocan
   // y la empresa tiene su propio listado restringido en su portal.
   els.btnVerParque.classList.toggle('hidden', esArea || rol === 'empresa');
