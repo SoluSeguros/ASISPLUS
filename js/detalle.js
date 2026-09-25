@@ -374,18 +374,13 @@ function parseCoords(texto) {
 }
 
 /** Abre el detalle de una asistencia (fila = objeto de datos). */
-function abrirDetalleAsistencia(row) {
-  const d = row || {};
-
-  els.detalleAsisTitulo.textContent =
-    `${d['EMPRESA'] || 'Asistencia'} · ${d['PLACA VEHICULO'] || ''}`.trim();
-  els.detalleAsisSub.textContent = [
-    d['FECHA DEL SINIESTRO'], d['HORA DEL SINIESTRO'], d['NOMBRE CONDUCTOR']
-  ].filter(Boolean).join('  ·  ');
-
-  // --- Mapa ---
+/**
+ * Mapa del lugar del siniestro dentro de `wrap` (Google Maps embebido, sin API
+ * key). Si no hay coordenadas lo dice, en vez de dejar un hueco.
+ */
+function agregarMapaDetalle(wrap, d) {
+  if (!wrap) return;
   const coords = parseCoords(d['COORDENADAS ASISTENCIA']) || parseCoords(d['COORDENADAS DEL SINIESTRO']);
-  const wrap = els.detalleAsisMapaWrap;
   wrap.innerHTML = '';
   if (coords) {
     const iframe = document.createElement('iframe');
@@ -404,10 +399,18 @@ function abrirDetalleAsistencia(row) {
   } else {
     wrap.innerHTML = '<div class="mapa-sin">📍 Sin coordenadas registradas para mostrar el mapa.</div>';
   }
+}
 
-  // --- Campos organizados por secciones ---
-  const cont = els.detalleAsisCampos;
-  cont.innerHTML = '';
+/**
+ * Pinta en `cont` TODOS los campos del registro, agrupados en secciones, y los
+ * que no encajan en ninguna bajo "Otros datos".
+ *
+ * La usan el visor de registros y el portal de empresa: la empresa debe ver lo
+ * mismo que la administración, y con una sola pieza no hay forma de que una
+ * pantalla se quede atrás cuando se agregue un campo nuevo.
+ */
+function construirCuerpoDetalle(cont, d) {
+  if (!cont) return;
 
   const tieneValor = k => {
     const val = d[k];
@@ -429,14 +432,31 @@ function abrirDetalleAsistencia(row) {
     .filter(k => !mostrados.has(k) && k !== 'TERCEROS' && tieneValor(k))
     .map(k => ({ label: k, val: d[k], key: k }));
   if (otros.length) cont.appendChild(construirSeccionDetalle('Otros datos', otros));
+}
 
-  // --- Fotos y firmas del siniestro ---
-  // Va antes que los terceros: primero lo del vehículo asegurado.
+/** Abre el detalle de una asistencia desde el Registro de Asistencias. */
+function abrirDetalleAsistencia(row) {
+  const d = row || {};
+
+  els.detalleAsisTitulo.textContent =
+    `${d['EMPRESA'] || 'Asistencia'} · ${d['PLACA VEHICULO'] || ''}`.trim();
+  els.detalleAsisSub.textContent = [
+    d['FECHA DEL SINIESTRO'], d['HORA DEL SINIESTRO'], d['NOMBRE CONDUCTOR']
+  ].filter(Boolean).join('  ·  ');
+
+  agregarMapaDetalle(els.detalleAsisMapaWrap, d);
+
+  const cont = els.detalleAsisCampos;
+  cont.innerHTML = '';
+  construirCuerpoDetalle(cont, d);
+
+  // Fotos y firmas del siniestro: antes que los terceros, porque primero va lo
+  // del vehículo asegurado.
   agregarFotosDetalle(cont, 'Fotos y firmas del siniestro', rutasImagenesAsistencia(d));
 
   els.detalleAsisModal.classList.add('show');
 
-  // --- Terceros relacionados (cruce por KEY, desde Supabase) ---
+  // Terceros relacionados (cruce por KEY, desde Supabase).
   cargarTercerosDelDetalle(getKey(d, 'KEY'), cont);
 }
 

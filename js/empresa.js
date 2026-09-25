@@ -461,47 +461,36 @@ function moverPaginaHistorialEmpresa(paso) {
 /** Muestra el detalle de un caso del historial (mismo patrón de "fila" que el resto de la app). */
 function verDetalleCasoEmpresa(caso) {
   const d = caso.datos || {};
-  const fila = (lab, val) => val
-    ? `<div class="detalle-item"><div class="detalle-lab">${lab}</div><div class="detalle-val">${escBandeja(String(val))}</div></div>`
-    : '';
 
-  const idVeh = [d['PLACA VEHICULO'], d['NUMERO INTERNO VEHICULO'] ? `Interno #${d['NUMERO INTERNO VEHICULO']}` : '']
-    .filter(Boolean).join(' · ');
-  const fechaHora = [d['FECHA DEL SINIESTRO'], d['HORA DEL SINIESTRO']].filter(Boolean).join('  ');
-
-  if (els.empresaCasoTitulo) els.empresaCasoTitulo.textContent = caso.numero_caso ? `Caso N.º ${caso.numero_caso}` : 'Caso histórico';
-  if (els.empresaCasoSub) els.empresaCasoSub.textContent = caso.estado || '';
-
-  if (els.empresaCasoBody) {
-    els.empresaCasoBody.innerHTML = `
-      <h4 class="detalle-seccion-tit">Vehículo</h4>
-      <div class="detalle-grid">
-        ${fila('Vehículo', idVeh)}
-        ${fila('Tipo', d['TIPO DE VEHICULO'])}
-        ${fila('Lugar de impacto', d['LUGAR DE IMPACTO'])}
-        ${fila('Conductor', d['NOMBRE CONDUCTOR'])}
-      </div>
-
-      <h4 class="detalle-seccion-tit">Siniestro</h4>
-      <div class="detalle-grid">
-        ${fila('Fecha y hora', fechaHora)}
-        ${fila('Ruta', d['RUTA'])}
-        ${fila('Dirección del lugar', d['DIRECCION DEL LUGAR DEL SINIESTRO'])}
-        ${fila('Gravedad', d['GRAVEDAD DEL SINIESTRO'])}
-        ${fila('Responsabilidad del conductor', d['RESPONSABILIDAD DEL CONDUCTOR'])}
-        ${fila('Descripción de los daños', d['DESCRIPCION DAÑOS EMPRESA'])}
-        ${fila('Observaciones', d['OBSERVACIONES'])}
-      </div>
-    `;
+  if (els.empresaCasoTitulo) {
+    els.empresaCasoTitulo.textContent =
+      caso.numero_caso ? `Caso N.º ${caso.numero_caso}` : 'Caso histórico';
   }
-  // Evidencia, la misma que ve la administración: primero lo que fotografió el
-  // asistente del vehículo asegurado y después la ficha de cada tercero con la
-  // suya. Se reusan las piezas del visor de registros (detalle.js) para que las
-  // dos pantallas muestren exactamente lo mismo y no se separen con el tiempo.
-  if (els.empresaCasoBody && typeof agregarFotosDetalle === 'function') {
-    agregarFotosDetalle(els.empresaCasoBody, 'Fotos y firmas del siniestro',
-      rutasImagenesAsistencia(d));
-    cargarTercerosDelDetalle(caso.key, els.empresaCasoBody);
+  if (els.empresaCasoSub) {
+    els.empresaCasoSub.textContent = [
+      caso.estado, d['PLACA VEHICULO'], d['NOMBRE CONDUCTOR']
+    ].filter(Boolean).join('  ·  ');
+  }
+
+  const cont = els.empresaCasoBody;
+  if (cont) {
+    cont.innerHTML = '';
+
+    // El mapa del lugar, igual que en el visor de registros.
+    const mapa = document.createElement('div');
+    mapa.className = 'mapa-wrap';
+    cont.appendChild(mapa);
+    agregarMapaDetalle(mapa, d);
+
+    // TODOS los campos, no una selección: la versión del conductor, la
+    // hipótesis, la categorización y lo demás que antes se quedaba fuera.
+    // Es la misma pieza que usa la administración, así que cuando se agregue
+    // un campo nuevo aparece en las dos pantallas a la vez.
+    construirCuerpoDetalle(cont, d);
+
+    // Evidencia: primero la del vehículo asegurado, después cada tercero.
+    agregarFotosDetalle(cont, 'Fotos y firmas del siniestro', rutasImagenesAsistencia(d));
+    cargarTercerosDelDetalle(caso.key, cont);
   }
 
   if (els.empresaCasoModal) els.empresaCasoModal.classList.add('show');

@@ -23,6 +23,28 @@ const NOVEDADES_KEY = 'asisplus-novedades-vista';
 // De la más nueva a la más vieja.
 const NOVEDADES = [
   {
+    version: '2.18.9',
+    titulo: 'La empresa ve el caso entero',
+    roles: ['empresa', 'admin', 'gestor'],
+    puntos: [
+      {
+        icono: '📋',
+        titulo: 'Todos los campos, no una selección',
+        texto: 'El detalle mostraba diez campos escogidos a mano. Ahora trae <b>todo lo registrado</b>: la versión del conductor, la hipótesis, la categorización, los lesionados, las observaciones y lo que venga. Si mañana se agrega un campo nuevo, aparece solo.'
+      },
+      {
+        icono: '👥',
+        titulo: 'Los terceros involucrados',
+        texto: 'Con su ficha completa y su evidencia: cédula, licencia, matrícula y los daños de su vehículo.'
+      },
+      {
+        icono: '🗺️',
+        titulo: 'Y el mapa del lugar',
+        texto: 'Si el caso tiene coordenadas, se ve dónde pasó y se puede abrir en Google Maps.'
+      }
+    ]
+  },
+  {
     version: '2.18.8',
     titulo: 'Un usuario puede tener varias empresas',
     roles: ['admin', 'empresa'],
