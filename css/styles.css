@@ -4502,3 +4502,53 @@ body[data-rol="admin"] .bn-crear { display: flex; }
   .ehl-veh { font-size: 14.5px; }
   .ehl-veh small { display: block; margin-left: 0; margin-top: 1px; }
 }
+
+/* ===== Buscador de casos (bandeja y portal de empresa) =====
+   Mismo componente en las dos pantallas: quien aprende a buscar en una,
+   sabe buscar en la otra. La lupa va de fondo para no meter un icono más
+   en el marcado. */
+.buscador {
+  min-width: 260px;
+  flex: 1 1 260px;
+  max-width: 420px;
+  padding: 9px 34px 9px 34px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--card) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round'><circle cx='11' cy='11' r='7'/><path d='M20 20l-3.5-3.5'/></svg>") no-repeat 10px center;
+  background-size: 16px 16px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.buscador::placeholder { color: var(--muted); }
+
+.buscador:focus {
+  outline: none;
+  border-color: var(--primary-2);
+  box-shadow: 0 0 0 3px rgba(38, 132, 255, 0.18);
+}
+
+/* En el portal ocupa su propia línea, encima de la lista. */
+.buscador-ancho {
+  display: block;
+  width: 100%;
+  max-width: none;
+  margin: 0 0 12px;
+}
+
+/* Pista bajo el "no hay resultados" de la bandeja. */
+.bandeja-vacio-sub {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+/* Aviso de que la lista viene recortada por ser muy larga. */
+.bandeja-mas {
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 12px 16px;
+  border-top: 1px dashed var(--border);
+}

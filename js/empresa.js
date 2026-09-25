@@ -14,7 +14,9 @@ function initEmpresaPortal() {
       if (!fila) return;
       if (event.type === 'keydown' && event.key !== 'Enter' && event.key !== ' ') return;
       if (event.type === 'keydown') event.preventDefault(); // evita el scroll con espacio
-      const caso = (state.empresaCasosLista || [])[Number(fila.dataset.idx)];
+      // Indexa sobre lo que se está viendo (ya filtrado), no sobre la lista
+      // completa: si no, buscar abriría un caso distinto al que se tocó.
+      const caso = (state.empresaCasosVisibles || [])[Number(fila.dataset.idx)];
       if (caso) verDetalleCasoEmpresa(caso);
     };
     els.empresaCasosBody.addEventListener('click', abrirDesdeFila);
@@ -22,6 +24,12 @@ function initEmpresaPortal() {
   }
   if (els.btnEmpresaCasosPrev) els.btnEmpresaCasosPrev.addEventListener('click', () => moverPaginaHistorialEmpresa(-1));
   if (els.btnEmpresaCasosNext) els.btnEmpresaCasosNext.addEventListener('click', () => moverPaginaHistorialEmpresa(1));
+  // Al buscar se vuelve a la primera página: quedarse en la 7 de una lista que
+  // ahora tiene dos resultados dejaría la pantalla en blanco.
+  cablearBuscador(els.buscarEmpresaCasos, () => {
+    state.empresaCasosPagina = 1;
+    renderHistorialEmpresa();
+  });
   if (els.btnEmpresaCasoCerrar) els.btnEmpresaCasoCerrar.addEventListener('click', cerrarDetalleCasoEmpresa);
   if (els.empresaCasoModal) {
     els.empresaCasoModal.addEventListener('click', event => {
@@ -225,7 +233,8 @@ async function cargarMisCasos() {
       return fb - fa;
     });
     state.empresaCasosPagina = 1;
-    if (els.empresaCasosCount) els.empresaCasosCount.textContent = `(${formatNumber((data || []).length)})`;
+    // El contador lo pone renderHistorialEmpresa, que es quien sabe si hay una
+    // búsqueda activa y cuántos casos está mostrando de verdad.
     renderHistorialEmpresa();
   } catch (error) {
     tbody.innerHTML = `<div class="ehl-estado">Error: ${escBandeja(error.message || String(error))}</div>`;
@@ -254,17 +263,29 @@ const EMPRESA_CASOS_POR_PAGINA = 50;
 /**
  * Dibuja una página del historial.
  *
- * El data-idx es el índice ABSOLUTO dentro de state.empresaCasosLista, no el
- * de la página: así el clic sigue abriendo el caso correcto sin tocar el
- * manejador que ya existía.
+ * El data-idx es el índice dentro de state.empresaCasosVisibles (la lista ya
+ * filtrada por el buscador), no el de la página: así el clic abre el caso
+ * correcto tanto si se está buscando como si no.
  */
 function renderHistorialEmpresa() {
   const tbody = els.empresaCasosBody;
   if (!tbody) return;
-  const todos = state.empresaCasosLista || [];
+
+  const buscado = ((els.buscarEmpresaCasos && els.buscarEmpresaCasos.value) || '').trim();
+  const todos = filtrarCasosPorTexto(state.empresaCasosLista || [], buscado);
+  state.empresaCasosVisibles = todos;
+
+  if (els.empresaCasosCount) {
+    const n = (state.empresaCasosLista || []).length;
+    els.empresaCasosCount.textContent = buscado
+      ? `(${formatNumber(todos.length)} de ${formatNumber(n)})`
+      : `(${formatNumber(n)})`;
+  }
 
   if (!todos.length) {
-    tbody.innerHTML = '<div class="ehl-estado">Sin casos registrados.</div>';
+    tbody.innerHTML = buscado
+      ? `<div class="ehl-estado">🔍 Ningún caso coincide con «${escBandeja(buscado)}».</div>`
+      : '<div class="ehl-estado">Sin casos registrados.</div>';
     if (els.empresaCasosPager) els.empresaCasosPager.classList.add('hidden');
     return;
   }

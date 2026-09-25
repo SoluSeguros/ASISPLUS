@@ -23,6 +23,28 @@ const NOVEDADES_KEY = 'asisplus-novedades-vista';
 // De la más nueva a la más vieja.
 const NOVEDADES = [
   {
+    version: '2.18.5',
+    titulo: 'Ya se pueden buscar los casos',
+    roles: ['empresa', 'admin', 'gestor', 'asistente', 'seguridad_vial'],
+    puntos: [
+      {
+        icono: '🔍',
+        titulo: 'Un buscador en la bandeja y en el historial',
+        texto: 'Escribe lo que recuerdes y la lista se va filtrando: <b>número de caso</b>, <b>empresa</b>, <b>placa</b>, <b>número interno</b>, <b>conductor</b>, <b>cédula</b>, <b>dirección</b> o <b>fecha</b>. No hace falta acertar con las tildes ni con las mayúsculas.'
+      },
+      {
+        icono: '➕',
+        titulo: 'Varias palabras afinan la búsqueda',
+        texto: 'Si escribes más de una, deben aparecer todas. <b>«cootranspinal 2026»</b> trae los de esa empresa en ese año; <b>«TSG045 lesiones»</b>, los de esa placa que dejaron heridos. El orden da igual.'
+      },
+      {
+        icono: '🗄️',
+        titulo: 'Los casos antiguos también, si los pides',
+        texto: 'La bandeja sigue mostrando el trabajo del día. Para llegar a los 2.707 casos importados, marca <b>«Buscar también en históricos»</b> y busca: se traen una sola vez y quedan listos.'
+      }
+    ]
+  },
+  {
     version: '2.18.4',
     titulo: 'Los casos viejos ya tienen sus fotos',
     roles: ['admin', 'gestor'],

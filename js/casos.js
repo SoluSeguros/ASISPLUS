@@ -1349,15 +1349,67 @@ function renderBandejaFiltroBanner() {
 }
 
 /** Aplica los filtros de estado (menú), ruta (resumen) y drill-down sobre el set base. */
+/**
+ * Los casos históricos, para poder buscarlos desde la bandeja.
+ *
+ * La bandeja trabaja con los casos vivos (unas decenas). Los 2.707 importados
+ * del aplicativo anterior son otro orden de magnitud, así que se traen una sola
+ * vez y sólo cuando alguien marca "buscar también en históricos".
+ */
+let _bandejaHistoricos = null;
+let _bandejaHistoricosCargando = false;
+
+async function cargarHistoricosBandeja() {
+  if (_bandejaHistoricos || _bandejaHistoricosCargando) { aplicarFiltrosBandeja(); return; }
+  _bandejaHistoricosCargando = true;
+  try {
+    showLoader(true);
+    // Paginado: sin `range` Supabase devuelve 1.000 filas y calla, y faltarían
+    // casos sin que nada lo avise.
+    const filas = [];
+    for (let desde = 0; ; desde += 1000) {
+      const { data, error } = await db
+        .from('registro_asistencias')
+        .select('numero_caso, estado, key, creado_en, asignado_a, datos')
+        .eq('estado', 'HISTORICO')
+        .order('creado_en', { ascending: false })
+        .range(desde, desde + 999);
+      if (error) throw error;
+      filas.push(...(data || []));
+      if (!data || data.length < 1000) break;
+    }
+    _bandejaHistoricos = filas;
+    showStatus(`Históricos listos para buscar (${formatNumber(filas.length)} casos).`, 'ok');
+  } catch (e) {
+    _bandejaHistoricos = null;
+    if (els.filtroHistoricos) els.filtroHistoricos.checked = false;
+    showStatus('No se pudieron traer los históricos: ' + (e.message || e), 'error');
+  } finally {
+    _bandejaHistoricosCargando = false;
+    showLoader(false);
+    aplicarFiltrosBandeja();
+  }
+}
+
 function aplicarFiltrosBandeja() {
+  const texto = (els.buscarBandeja && els.buscarBandeja.value) || '';
   let filas = state.bandejaCache || [];
+
+  // Los históricos entran SÓLO cuando hay algo escrito: sin texto serían 2.707
+  // filas cerradas tapando la bandeja de trabajo.
+  const conHistoricos = !!(texto.trim() && els.filtroHistoricos && els.filtroHistoricos.checked);
+  if (conHistoricos && _bandejaHistoricos) filas = filas.concat(_bandejaHistoricos);
+
   filas = aplicarFiltroExtra(filas);
   const est = els.filtroEstado && els.filtroEstado.value;
   if (est) filas = filas.filter(c => (c.estado || '') === est);
   if (filtroRutaActivo === 'SIN') filas = filas.filter(c => !rutaDeCaso(c));
   else if (filtroRutaActivo) filas = filas.filter(c => rutaDeCaso(c) === filtroRutaActivo);
+
+  filas = filtrarCasosPorTexto(filas, texto);
+
   renderBandejaFiltroBanner();
-  renderBandeja(filas);
+  renderBandeja(filas, texto);
 }
 
 /** Dibuja la lista de casos. */
@@ -1429,14 +1481,32 @@ function filaBandejaHTML(caso, i) {
  * Dibuja la bandeja como una lista responsive: tabla ordenada en pantallas
  * grandes y tarjetas cómodas en móvil (mismo marcado, layout por CSS).
  */
-function renderBandeja(casos) {
-  const cont = els.casoListaBody;
-  els.casoListaCount.textContent = `${formatNumber(casos.length)} casos`;
+// Tope de filas dibujadas de una vez. Una búsqueda ancha sobre los históricos
+// puede calzar con cientos: se muestran las primeras y se pide afinar, en vez
+// de dejar el navegador pintando miles de tarjetas.
+const BANDEJA_MAX_FILAS = 300;
 
-  if (!casos.length) {
-    cont.innerHTML = '<div class="bandeja-vacio">📭 No hay casos para mostrar.</div>';
+function renderBandeja(casos, consulta) {
+  const cont = els.casoListaBody;
+  const total = casos.length;
+  const buscado = String(consulta || '').trim();
+  els.casoListaCount.textContent = `${formatNumber(total)} casos`;
+
+  if (!total) {
+    if (buscado) {
+      // Si no marcó los históricos, lo más probable es que el caso esté allí.
+      const sugerir = els.filtroHistoricos && !els.filtroHistoricos.checked;
+      cont.innerHTML = `<div class="bandeja-vacio">🔍 Ningún caso coincide con «${escBandeja(buscado)}».` +
+        (sugerir ? '<br><span class="bandeja-vacio-sub">Los casos importados no se buscan por defecto: marca «Buscar también en históricos».</span>' : '') +
+        '</div>';
+    } else {
+      cont.innerHTML = '<div class="bandeja-vacio">📭 No hay casos para mostrar.</div>';
+    }
     return;
   }
+
+  // Lo que realmente se dibuja: el clic indexa sobre esta lista, no sobre todas.
+  const visibles = total > BANDEJA_MAX_FILAS ? casos.slice(0, BANDEJA_MAX_FILAS) : casos;
 
   const head = `<div class="bl-head" role="row">
     <span class="blh">Caso / Estado</span>
@@ -1448,8 +1518,11 @@ function renderBandeja(casos) {
     <span class="blh">Registrado</span>
   </div>`;
 
-  const filas = casos.map((caso, i) => filaBandejaHTML(caso, i)).join('');
-  cont.innerHTML = `<div class="bandeja-lista">${head}${filas}</div>`;
+  const filas = visibles.map((caso, i) => filaBandejaHTML(caso, i)).join('');
+  const aviso = total > visibles.length
+    ? `<div class="bandeja-mas">Se muestran los primeros ${formatNumber(visibles.length)} de ${formatNumber(total)}. Afina la búsqueda para ver el resto.</div>`
+    : '';
+  cont.innerHTML = `<div class="bandeja-lista">${head}${filas}</div>${aviso}`;
 
   // Delegación de clic/teclado sobre la lista (el listener vive en el elemento
   // recién creado, así que no se acumula entre renderes).
@@ -1457,7 +1530,7 @@ function renderBandeja(casos) {
   const abrirDesde = ev => {
     const row = ev.target.closest('.bl-row');
     if (!row) return;
-    const caso = casos[Number(row.dataset.idx)];
+    const caso = visibles[Number(row.dataset.idx)];
     if (caso) abrirCaso(caso);
   };
   lista.addEventListener('click', abrirDesde);

@@ -17,6 +17,7 @@ const ASSETS = [
   './js/config.js?v=' + APP_VERSION,
   './js/utils.js?v=' + APP_VERSION,
   './js/state.js?v=' + APP_VERSION,
+  './js/buscar.js?v=' + APP_VERSION,
   './js/dom.js?v=' + APP_VERSION,
   './js/supabase.js?v=' + APP_VERSION,
   './js/auth.js?v=' + APP_VERSION,

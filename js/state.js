@@ -42,6 +42,7 @@ const state = {
   audioEliminar: {},
   // Portal de empresa
   empresaCasosLista: [],       // casos propios (la RLS ya filtra por empresa)
+  empresaCasosVisibles: [],    // los de arriba tras el buscador: lo que se ve
   empresaVehiculosTotal: 0,    // tamaño del parque: base de la tasa por 100 vehículos
   fichaEmpresaSel: '',         // empresa elegida en el dashboard de SoluAsistencia
   empresaVistaAdmin: null,     // si un admin está viendo el portal de una empresa, su nombre

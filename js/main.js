@@ -86,6 +86,15 @@ els.filtroEstado.addEventListener('change', aplicarFiltrosBandeja);
 els.filtroMisCasos.addEventListener('change', cargarBandeja);
 els.btnRefrescarBandeja.addEventListener('click', cargarBandeja);
 
+// Búsqueda de la bandeja. Los históricos se traen la primera vez que se piden.
+cablearBuscador(els.buscarBandeja, aplicarFiltrosBandeja);
+if (els.filtroHistoricos) {
+  els.filtroHistoricos.addEventListener('change', () => {
+    if (els.filtroHistoricos.checked) cargarHistoricosBandeja();
+    else aplicarFiltrosBandeja();
+  });
+}
+
 // Campanita: abre la bandeja con los casos pendientes del usuario.
 els.btnNotif.addEventListener('click', () => {
   if (state.perfil && state.perfil.rol === 'asistente') els.filtroMisCasos.checked = true;

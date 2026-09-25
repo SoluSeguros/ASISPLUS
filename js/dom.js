@@ -145,6 +145,7 @@ const els = {
   empresaVehiculosBody: document.getElementById('empresaVehiculosBody'),
   empresaVehiculosCount: document.getElementById('empresaVehiculosCount'),
   empresaCasosBody: document.getElementById('empresaCasosBody'),
+  buscarEmpresaCasos: document.getElementById('buscarEmpresaCasos'),
   empresaCasosCount: document.getElementById('empresaCasosCount'),
   empresaCasosPager: document.getElementById('empresaCasosPager'),
   empresaCasosPageInfo: document.getElementById('empresaCasosPageInfo'),
@@ -201,6 +202,9 @@ const els = {
   bandejaFiltroBanner: document.getElementById('bandejaFiltroBanner'),
   filtroEstado: document.getElementById('filtroEstado'),
   filtroMisCasos: document.getElementById('filtroMisCasos'),
+  buscarBandeja: document.getElementById('buscarBandeja'),
+  filtroHistoricos: document.getElementById('filtroHistoricos'),
+  labelBandejaHistoricos: document.getElementById('labelBandejaHistoricos'),
   btnRefrescarBandeja: document.getElementById('btnRefrescarBandeja'),
   btnBandejaVolver: document.getElementById('btnBandejaVolver'),
 
