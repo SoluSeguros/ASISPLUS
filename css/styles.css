@@ -4552,3 +4552,51 @@ body[data-rol="admin"] .bn-crear { display: flex; }
   padding: 12px 16px;
   border-top: 1px dashed var(--border);
 }
+
+/* ===== Galería de imágenes dentro del detalle de un registro =====
+   Miniaturas cuadradas para poder barrer muchas de un vistazo; el pie dice
+   qué campo era (FOTO 3, FIRMA CONDUCTOR, CEDULA...). Clic abre el original. */
+.detalle-fotos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.detalle-foto {
+  display: block;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg-2);
+  text-decoration: none;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.detalle-foto:hover,
+.detalle-foto:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
+.detalle-foto img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  /* `contain` y no `cover`: en una firma o en la foto de una cédula, recortar
+     los bordes es justo perder lo que se quiere leer. */
+  object-fit: contain;
+  background: #fff;
+}
+
+.detalle-foto span {
+  display: block;
+  padding: 6px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-top: 1px solid var(--border);
+}

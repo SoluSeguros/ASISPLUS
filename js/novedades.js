@@ -23,6 +23,23 @@ const NOVEDADES_KEY = 'asisplus-novedades-vista';
 // De la más nueva a la más vieja.
 const NOVEDADES = [
   {
+    version: '2.18.6',
+    titulo: 'Las fotos también en el visor de registros',
+    roles: ['admin', 'gestor'],
+    puntos: [
+      {
+        icono: '🖼️',
+        titulo: 'Al abrir un registro ahora se ven las imágenes',
+        texto: 'El visor de «Registro de asistencias» mostraba solo texto: las fotos y las firmas estaban escondidas porque antes no había archivo que mostrar, únicamente su nombre. Ahora aparecen como <b>miniaturas</b>, y al tocarlas se abren en grande.'
+      },
+      {
+        icono: '🧾',
+        titulo: 'Las del siniestro y las de cada tercero, por separado',
+        texto: 'Arriba, lo que fotografió el asistente del vehículo asegurado, con la firma del conductor y la suya. Abajo, dentro de la ficha de cada tercero, su cédula, licencia, matrícula y los daños de su vehículo.'
+      }
+    ]
+  },
+  {
     version: '2.18.5',
     titulo: 'Ya se pueden buscar los casos',
     roles: ['empresa', 'admin', 'gestor', 'asistente', 'seguridad_vial'],

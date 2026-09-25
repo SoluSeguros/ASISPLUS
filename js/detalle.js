@@ -167,6 +167,112 @@ function agregarGrid(cont, items) {
   cont.appendChild(grid);
 }
 
+/* ------------------------------------------------------------------ *
+ *  Imágenes del registro
+ *
+ *  `datos` sólo guarda la RUTA de cada archivo; la imagen vive en el bucket
+ *  privado y hay que pedir una URL firmada para verla. Las columnas con esas
+ *  rutas están ocultas en las grillas de texto (COLUMNAS_OCULTAS en ui.js),
+ *  porque un nombre de archivo suelto no le sirve a nadie: aquí se dibujan
+ *  como lo que son.
+ * ------------------------------------------------------------------ */
+
+const ES_IMAGEN = /\.(png|jpe?g)$/i;
+
+/**
+ * Nombre legible de una imagen. Los archivos importados llevan el campo en el
+ * propio nombre (`<key>.FOTO 3.230604.jpg`); los que sube la app, no.
+ */
+function etiquetaRutaFoto(ruta) {
+  const base = String(ruta || '').split('/').pop();
+  const partes = base.split('.');
+  if (partes.length >= 4) return partes[1];              // <key>.<CAMPO>.<hhmmss>.<ext>
+  const sinExt = partes.slice(0, -1).join('.');
+  if (/^[A-Z_]+$/.test(sinExt)) return sinExt.replace(/_/g, ' ');   // FIRMA_CONDUCTOR.png
+  return 'Foto';
+}
+
+/** Rutas de imagen del siniestro: primero lo que fotografió el asistente. */
+function rutasImagenesAsistencia(d) {
+  const rutas = (typeof rutasFotosCaso === 'function') ? rutasFotosCaso({ datos: d }) : [];
+  ['CROQUIS DEL ACCIDENTE', 'FIRMA CONDUCTOR', 'FIRMA ASISTENTE EN SITIO'].forEach(c => {
+    const r = d[c];
+    if (typeof r === 'string' && ES_IMAGEN.test(r) && !rutas.includes(r)) rutas.push(r);
+  });
+  return rutas;
+}
+
+/** Rutas de imagen de un tercero (formato nuevo y columnas nombradas). */
+function rutasImagenesTercero(t) {
+  const rutas = [];
+  (Array.isArray(t['FOTOS TERCERO']) ? t['FOTOS TERCERO'] : []).forEach(f => {
+    if (f && f.ruta && !rutas.includes(f.ruta)) rutas.push(f.ruta);
+  });
+  const cols = (typeof TERCERO_FOTOS !== 'undefined' ? TERCERO_FOTOS.map(x => x[0]) : [])
+    .concat(['FIRMA TERCERO', 'FIRMA CONDUCTOR']);
+  cols.forEach(c => {
+    const r = t[c];
+    if (typeof r === 'string' && ES_IMAGEN.test(r) && !rutas.includes(r)) rutas.push(r);
+  });
+  return rutas;
+}
+
+/**
+ * Añade una sección con las imágenes. La sección se engancha de una vez (para
+ * que no se cuele detrás de lo que venga después) y se rellena cuando llegan
+ * las URLs firmadas, que se piden todas en paralelo.
+ */
+async function agregarFotosDetalle(cont, titulo, rutas) {
+  if (!cont || !rutas || !rutas.length) return;
+
+  const sec = document.createElement('div');
+  sec.className = 'detalle-seccion';
+  const h = document.createElement('h4');
+  h.className = 'detalle-seccion-tit';
+  h.textContent = `${titulo} (${rutas.length})`;
+  sec.appendChild(h);
+  const grid = document.createElement('div');
+  grid.className = 'detalle-fotos';
+  grid.innerHTML = '<div class="tercero-estado">Cargando imágenes…</div>';
+  sec.appendChild(grid);
+  cont.appendChild(sec);
+
+  const urls = await Promise.all(rutas.map(async ruta => {
+    try {
+      const { data } = await db.storage.from(BUCKET_FOTOS).createSignedUrl(ruta, 3600);
+      return (data && data.signedUrl) || '';
+    } catch (_) { return ''; }        // un archivo que falte no tumba el resto
+  }));
+
+  grid.innerHTML = '';
+  let vistas = 0;
+  urls.forEach((url, i) => {
+    if (!url) return;
+    vistas++;
+    const a = document.createElement('a');
+    a.href = url;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.className = 'detalle-foto';
+    const etiqueta = etiquetaRutaFoto(rutas[i]);
+    a.title = etiqueta;
+    const img = document.createElement('img');
+    img.src = url;
+    img.loading = 'lazy';
+    img.alt = etiqueta;
+    a.appendChild(img);
+    const cap = document.createElement('span');
+    cap.textContent = etiqueta;
+    a.appendChild(cap);
+    grid.appendChild(a);
+  });
+
+  if (!vistas) {
+    grid.innerHTML = '<div class="tercero-estado">Las imágenes de este registro no están disponibles.</div>';
+  }
+  h.textContent = `${titulo} (${vistas})`;
+}
+
 /** ¿Tiene valor y es una columna visible? */
 function campoConValor(obj, key) {
   const val = obj[key];
@@ -212,6 +318,9 @@ function construirTerceroCard(tercero, idx) {
     full.appendChild(p);
   }
   card.appendChild(full);
+
+  // Evidencia del tercero: cédula, licencia, matrícula y daños del vehículo.
+  agregarFotosDetalle(card, 'Evidencia del tercero', rutasImagenesTercero(tercero));
 
   const toggle = cab.querySelector('.tercero-toggle');
   cab.style.cursor = 'pointer';
@@ -334,6 +443,10 @@ function abrirDetalleAsistencia(row) {
     .filter(k => !mostrados.has(k) && k !== 'TERCEROS' && tieneValor(k))
     .map(k => ({ label: k, val: d[k], key: k }));
   if (otros.length) cont.appendChild(construirSeccionDetalle('Otros datos', otros));
+
+  // --- Fotos y firmas del siniestro ---
+  // Va antes que los terceros: primero lo del vehículo asegurado.
+  agregarFotosDetalle(cont, 'Fotos y firmas del siniestro', rutasImagenesAsistencia(d));
 
   els.detalleAsisModal.classList.add('show');
 
