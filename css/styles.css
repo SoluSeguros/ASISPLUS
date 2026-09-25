@@ -4699,3 +4699,32 @@ body[data-rol="admin"] .bn-crear { display: flex; }
   gap: 12px;
   flex-wrap: wrap;
 }
+
+/* ===== Documentos adjuntos dentro del detalle ===== */
+.detalle-docs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.detalle-doc {
+  display: block;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-2);
+  color: var(--primary);
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+  word-break: break-word;
+}
+
+.detalle-doc:hover { background: var(--card); border-color: var(--primary-2); }
+
+/* El archivo ya no está en el bucket: se muestra pero no se puede abrir. */
+.detalle-doc.no-disponible {
+  color: var(--muted);
+  cursor: not-allowed;
+  text-decoration: line-through;
+}

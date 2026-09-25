@@ -120,6 +120,47 @@ const TERCERO_CAMPOS = [
 ];
 
 /** Construye una sección del detalle con su título y una grilla de campos. */
+// Campos que tienen su propia sección más abajo, así que no deben salir además
+// como texto en las grillas.
+const CAMPOS_CON_SECCION_PROPIA = new Set(['DOCUMENTOS RUTA']);
+
+/**
+ * Cómo se muestra el valor de un campo.
+ *
+ * Unos cuantos se guardan en el formato que le sirve a la máquina y no a quien
+ * lee: marcas de tiempo en milisegundos (`1790118425127`) y objetos JSON
+ * (`{"IPAT": false, …}`). Se traducen aquí, que es el único sitio por donde
+ * pasan todos los campos del detalle.
+ */
+function valorLegible(clave, valor) {
+  const s = String(valor == null ? '' : valor).trim();
+  if (!s) return s;
+
+  // Marca de tiempo en milisegundos: LLEGADA TS, FIN ATENCION TS.
+  if (/^\d{13}$/.test(s)) {
+    const f = formatTimestamp(Number(s));
+    if (f && f !== s) return f;
+  }
+
+  if (s[0] === '{' || s[0] === '[') {
+    try {
+      const o = JSON.parse(s);
+      if (Array.isArray(o)) {
+        return o.length === 1 ? '1 elemento' : `${o.length} elementos`;
+      }
+      const claves = Object.keys(o);
+      if (!claves.length) return 'Ninguno';
+      // Casillas marcadas (NOTIF DOCS): se nombran solo las que están en sí.
+      if (claves.every(k => typeof o[k] === 'boolean')) {
+        const si = claves.filter(k => o[k]);
+        return si.length ? si.join(', ') : 'Ninguno';
+      }
+      return claves.join(', ');
+    } catch (_) { /* no era JSON válido: se deja tal cual */ }
+  }
+  return s;
+}
+
 function construirSeccionDetalle(titulo, items) {
   const sec = document.createElement('div');
   sec.className = 'detalle-seccion';
@@ -138,7 +179,7 @@ function construirSeccionDetalle(titulo, items) {
     lab.textContent = x.label;
     const v = document.createElement('div');
     v.className = 'detalle-val';
-    v.textContent = x.val;
+    v.textContent = valorLegible(x.key || x.label, x.val);
     item.appendChild(lab);
     item.appendChild(v);
     grid.appendChild(item);
@@ -159,7 +200,7 @@ function agregarGrid(cont, items) {
     lab.textContent = x.label;
     const v = document.createElement('div');
     v.className = 'detalle-val';
-    v.textContent = x.val;
+    v.textContent = valorLegible(x.key || x.label, x.val);
     item.appendChild(lab);
     item.appendChild(v);
     grid.appendChild(item);
@@ -256,6 +297,60 @@ async function agregarFotosDetalle(cont, titulo, rutas) {
     grid.innerHTML = '<div class="tercero-estado">Las imágenes de este registro no están disponibles.</div>';
   }
   h.textContent = `${titulo} (${vistas})`;
+}
+
+/**
+ * Documentos adjuntos del caso (IPAT, SOAT, tecnomecánica…). Se guardan en
+ * `datos['DOCUMENTOS RUTA']` como [{ruta, nombre}] y viven en un bucket
+ * privado, así que cada uno necesita su URL firmada.
+ *
+ * Antes salían como un JSON crudo dentro de la grilla de texto, que no le sirve
+ * a nadie; aquí son enlaces que se abren.
+ */
+async function agregarDocsDetalle(cont, d) {
+  if (!cont) return;
+  let items = d['DOCUMENTOS RUTA'];
+  if (typeof items === 'string') {
+    try { items = JSON.parse(items); } catch (_) { return; }
+  }
+  if (!Array.isArray(items) || !items.length) return;
+
+  const sec = document.createElement('div');
+  sec.className = 'detalle-seccion';
+  const h = document.createElement('h4');
+  h.className = 'detalle-seccion-tit';
+  h.textContent = `Documentos del caso (${items.length})`;
+  sec.appendChild(h);
+  const lista = document.createElement('div');
+  lista.className = 'detalle-docs';
+  lista.innerHTML = '<div class="tercero-estado">Cargando documentos…</div>';
+  sec.appendChild(lista);
+  cont.appendChild(sec);
+
+  const urls = await Promise.all(items.map(async it => {
+    if (!it || !it.ruta) return '';
+    try {
+      const { data } = await db.storage.from(BUCKET_DOCS).createSignedUrl(it.ruta, 3600);
+      return (data && data.signedUrl) || '';
+    } catch (_) { return ''; }
+  }));
+
+  lista.innerHTML = '';
+  items.forEach((it, i) => {
+    const nombre = (it && (it.nombre || String(it.ruta || '').split('/').pop())) || 'Documento';
+    const a = document.createElement('a');
+    a.className = 'detalle-doc';
+    a.textContent = `📄 ${nombre}`;
+    if (urls[i]) {
+      a.href = urls[i];
+      a.target = '_blank';
+      a.rel = 'noopener';
+    } else {
+      a.classList.add('no-disponible');
+      a.title = 'Este archivo no está disponible.';
+    }
+    lista.appendChild(a);
+  });
 }
 
 /** ¿Tiene valor y es una columna visible? */
@@ -414,7 +509,8 @@ function construirCuerpoDetalle(cont, d) {
 
   const tieneValor = k => {
     const val = d[k];
-    return val !== undefined && val !== null && String(val).trim() !== '' && columnaVisible(k);
+    return val !== undefined && val !== null && String(val).trim() !== ''
+      && columnaVisible(k) && !CAMPOS_CON_SECCION_PROPIA.has(k);
   };
   const mostrados = new Set();
 
@@ -453,6 +549,7 @@ function abrirDetalleAsistencia(row) {
   // Fotos y firmas del siniestro: antes que los terceros, porque primero va lo
   // del vehículo asegurado.
   agregarFotosDetalle(cont, 'Fotos y firmas del siniestro', rutasImagenesAsistencia(d));
+  agregarDocsDetalle(cont, d);
 
   els.detalleAsisModal.classList.add('show');
 

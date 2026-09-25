@@ -23,6 +23,27 @@ const NOVEDADES_KEY = 'asisplus-novedades-vista';
 // De la más nueva a la más vieja.
 const NOVEDADES = [
   {
+    version: '2.19.0',
+    titulo: 'La app se actualiza sola',
+    puntos: [
+      {
+        icono: '🔄',
+        titulo: 'Ya no hay que recargar a mano',
+        texto: 'Antes la app solo miraba si había versión nueva <b>al abrirla</b>. Como se queda abierta todo el día, una mejora podía tardar días en llegarte. Ahora revisa cada pocos minutos y al volver a la pestaña, y se actualiza sola.'
+      },
+      {
+        icono: '🛡️',
+        titulo: 'Pero nunca en medio de tu trabajo',
+        texto: 'Si estás llenando un caso, subiendo fotos o te quedan cambios por sincronizar, <b>no se recarga</b>: espera a que termines. Solo entonces entra la versión nueva. Si prefieres aplicarla de una, el aviso de siempre sigue ahí.'
+      },
+      {
+        icono: '📄',
+        titulo: 'Los datos del caso se leen mejor',
+        texto: 'Las horas de llegada y de fin de atención se ven como fecha y no como un número largo, las notificaciones dicen qué se notificó, y <b>los documentos adjuntos ahora se abren</b> con un clic en vez de mostrar un texto ilegible.'
+      }
+    ]
+  },
+  {
     version: '2.18.9',
     titulo: 'La empresa ve el caso entero',
     roles: ['empresa', 'admin', 'gestor'],
