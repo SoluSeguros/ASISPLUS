@@ -31,6 +31,21 @@ if (els.dashboardBody) {
   els.dashboardBody.addEventListener('click', onDashboardDrill);
   els.dashboardBody.addEventListener('keydown', onDashboardDrill);
 }
+// Pestañas del dashboard: General / Ficha por empresa.
+if (els.dashTabs) {
+  els.dashTabs.addEventListener('click', ev => {
+    const btn = ev.target.closest('.tab');
+    if (btn) cambiarVistaDashboard(btn.dataset.vista);
+  });
+}
+if (els.dashEmpresaSel) els.dashEmpresaSel.addEventListener('change', renderFichaEmpresaAdmin);
+if (els.dashEmpDesde) els.dashEmpDesde.addEventListener('change', renderFichaEmpresaAdmin);
+if (els.dashEmpHasta) els.dashEmpHasta.addEventListener('change', renderFichaEmpresaAdmin);
+if (els.btnDashEmpLimpiar) els.btnDashEmpLimpiar.addEventListener('click', () => {
+  if (els.dashEmpDesde) els.dashEmpDesde.value = '';
+  if (els.dashEmpHasta) els.dashEmpHasta.value = '';
+  renderFichaEmpresaAdmin();
+});
 els.btnSegvialVolver.addEventListener('click', ocultarPantallas);
 els.btnRefrescarSegvial.addEventListener('click', cargarCasosCategoria);
 els.casoVehiculoBuscar.addEventListener('input', filtrarVehiculos);

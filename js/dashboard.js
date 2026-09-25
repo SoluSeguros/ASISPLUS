@@ -8,6 +8,10 @@
  */
 
 let _dashRows = [];
+// Tamaño del parque por empresa. Sin esto no se puede comparar una empresa con
+// otra: 411 casos en una flota de 103 buses y 184 en una de 597 no son el mismo
+// problema, y la lista por volumen bruto hace ver mal a quien más vehículos tiene.
+let _dashParque = {};
 
 /** Escapa texto para insertarlo con seguridad en HTML. */
 function escDash(v) {
@@ -45,12 +49,43 @@ async function cargarDashboard() {
       desde += PAGE;
     }
     _dashRows = filas;
+    _dashParque = await cargarParquePorEmpresa();
+    llenarSelectorEmpresasDash();
     renderDashboard();
   } catch (error) {
     if (cont) cont.innerHTML = `<div class="tercero-estado">Error al cargar las métricas: ${escDash(error.message || error)}</div>`;
   } finally {
     showLoader(false);
   }
+}
+
+/**
+ * Cuenta los vehículos de cada empresa. Se normaliza el nombre igual que en los
+ * casos (recortado y en mayúsculas) porque en los datos conviven "COOTRANSI" y
+ * "Cootransi", y sin normalizar quedarían como dos empresas distintas.
+ */
+async function cargarParquePorEmpresa() {
+  const mapa = {};
+  try {
+    let desde = 0;
+    const PAGE = 1000;
+    while (true) {
+      const { data, error } = await db
+        .from('parque_automotor')
+        .select('empresa')
+        .range(desde, desde + PAGE - 1);
+      if (error) throw error;
+      (data || []).forEach(v => {
+        const e = String(v.empresa || '').trim().toUpperCase();
+        if (e) mapa[e] = (mapa[e] || 0) + 1;
+      });
+      if (!data || data.length < PAGE) break;
+      desde += PAGE;
+    }
+  } catch (_) {
+    // Sin parque la ficha sigue sirviendo: solo se queda sin la tasa por vehículo.
+  }
+  return mapa;
 }
 
 /** Fecha de referencia de un caso (siniestro si es válida; si no, creación). */
@@ -208,7 +243,35 @@ function renderDashboard() {
     <div class="dash-cols">${mesHTML}</div>
   </div>`;
 
-  cont.innerHTML = avisoHTML + kpis + topEmpBlock + mesBlock;
+  // --- Comparativo normalizado por flota ---
+  // El Top 10 de arriba ordena por volumen; este ordena por riesgo real.
+  const comp = _comparativoEmpresas(rows, meses.length);
+  let compBlock = '';
+  if (comp.length >= 2) {
+    const maxTasa = comp[0].tasa || 1;
+    let filasHTML = '';
+    comp.forEach((c, i) => {
+      const pct = Math.max(4, Math.round((c.tasa / maxTasa) * 100));
+      filasHTML += `<div class="dash-bar-row dash-clic${i === 0 ? ' es-lider' : ''}" role="button" tabindex="0" data-drill="empresa" data-val="${escDash(c.empresa)}" title="Ver los ${c.casos} casos de ${escDash(c.empresa)}">
+        <span class="dash-bar-rank">${i + 1}</span>
+        <span class="dash-bar-nom">${escDash(tituloCaseFicha(c.empresa))} <small class="fe-sub">${c.vehiculos} veh. · ${c.casos} casos</small></span>
+        <span class="dash-bar-track"><span class="dash-bar-fill" style="width:${pct}%"></span></span>
+        <span class="dash-bar-val">${c.tasa.toFixed(1)}</span>
+      </div>`;
+    });
+    const peor = comp[0], mejor = comp[comp.length - 1];
+    const veces = mejor.tasa > 0 ? Math.round(peor.tasa / mejor.tasa) : 0;
+    compBlock = `<div class="dash-panel">
+      <div class="dash-panel-head">
+        <h3>⚖️ Siniestralidad comparada (por cada 100 vehículos al mes)</h3>
+        <span class="dash-panel-sub">${veces > 1 ? `<b>${escDash(tituloCaseFicha(peor.empresa))}</b> tiene ${veces} veces la siniestralidad de <b>${escDash(tituloCaseFicha(mejor.empresa))}</b>` : ''}</span>
+      </div>
+      <p class="audio-nota">El Top 10 de arriba ordena por cantidad, así que las flotas grandes siempre encabezan. Esta lista descuenta el tamaño de la flota: es la que dice quién tiene de verdad un problema. Solo entran empresas con parque registrado y 5 o más casos en el periodo.</p>
+      <div class="dash-bars">${filasHTML}</div>
+    </div>`;
+  }
+
+  cont.innerHTML = avisoHTML + kpis + topEmpBlock + mesBlock + compBlock;
 }
 
 /** Tarjeta-KPI (clicable si se pasa un tipo de drill). */
@@ -259,4 +322,109 @@ function onDashboardDrill(ev) {
   }
 
   abrirBandejaFiltrada(extra);
+}
+
+/* ------------------------------------------------------------------ *
+ *  Ficha por empresa (la misma que ve la empresa en su portal)
+ * ------------------------------------------------------------------ */
+
+const DASH_VISTAS = { general: 'dashVistaGeneral', empresa: 'dashVistaEmpresa' };
+
+/** Cambia entre "General" y "Ficha por empresa". */
+function cambiarVistaDashboard(vista) {
+  if (!DASH_VISTAS[vista]) return;
+  if (els.dashTabs) {
+    els.dashTabs.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.vista === vista));
+  }
+  Object.keys(DASH_VISTAS).forEach(v => {
+    const el = els[DASH_VISTAS[v]];
+    if (el) el.classList.toggle('hidden', v !== vista);
+  });
+  if (vista === 'empresa') renderFichaEmpresaAdmin();
+}
+
+/** Nombre de empresa de una fila, normalizado para agrupar. */
+function _empresaDeFila(f) {
+  return String((f.datos && f.datos['EMPRESA']) || '').trim().toUpperCase();
+}
+
+/** Llena el selector de empresas con las que tienen casos, de mayor a menor. */
+function llenarSelectorEmpresasDash() {
+  const sel = els.dashEmpresaSel;
+  if (!sel) return;
+  const conteo = {};
+  _dashRows.forEach(f => {
+    const e = _empresaDeFila(f);
+    if (e) conteo[e] = (conteo[e] || 0) + 1;
+  });
+  const empresas = Object.keys(conteo).sort((a, b) => conteo[b] - conteo[a] || a.localeCompare(b));
+  if (!empresas.length) {
+    sel.innerHTML = '<option value="">Sin empresas</option>';
+    return;
+  }
+  const previa = state.fichaEmpresaSel;
+  sel.innerHTML = empresas
+    .map(e => `<option value="${escDash(e)}">${escDash(tituloCaseFicha(e))} (${conteo[e]})</option>`)
+    .join('');
+  // Conserva la empresa elegida al refrescar; si no había, arranca por la primera.
+  state.fichaEmpresaSel = (previa && empresas.includes(previa)) ? previa : empresas[0];
+  sel.value = state.fichaEmpresaSel;
+}
+
+/** Rango Desde/Hasta de la pestaña "Ficha por empresa". */
+function _rangoFichaAdmin() {
+  const parse = (s, fin) => {
+    if (!s) return null;
+    const p = String(s).split('-').map(Number);
+    if (p.length !== 3 || !p[0] || !p[1] || !p[2]) return null;
+    return fin ? new Date(p[0], p[1] - 1, p[2], 23, 59, 59, 999)
+               : new Date(p[0], p[1] - 1, p[2], 0, 0, 0, 0);
+  };
+  return {
+    desde: els.dashEmpDesde ? parse(els.dashEmpDesde.value, false) : null,
+    hasta: els.dashEmpHasta ? parse(els.dashEmpHasta.value, true) : null
+  };
+}
+
+/** Dibuja la ficha de la empresa elegida en el selector. */
+function renderFichaEmpresaAdmin() {
+  const cont = els.dashEmpresaBody;
+  if (!cont) return;
+  const empresa = (els.dashEmpresaSel && els.dashEmpresaSel.value) || state.fichaEmpresaSel || '';
+  state.fichaEmpresaSel = empresa;
+  if (!empresa) {
+    cont.innerHTML = '<div class="dash-panel"><div class="tercero-estado">Elige una empresa.</div></div>';
+    return;
+  }
+  const filas = _dashRows.filter(f => _empresaDeFila(f) === empresa);
+  const { desde, hasta } = _rangoFichaAdmin();
+  const metricas = calcularFichaEmpresa(filas, _dashParque[empresa] || 0, { desde, hasta });
+  renderFichaEmpresa(cont, metricas, { nombreEmpresa: tituloCaseFicha(empresa) });
+}
+
+/**
+ * Comparativo de siniestralidad entre empresas, normalizado por flota.
+ *
+ * Es la vista que le faltaba a SoluAsistencia: el Top 10 por volumen premia a
+ * las flotas grandes y castiga a las pequeñas. Aquí se mide siniestros por cada
+ * 100 vehículos al mes, que sí es comparable. Solo entran las empresas con
+ * parque conocido y con al menos 5 casos: por debajo de eso el indicador se
+ * mueve tanto por azar que induce a error.
+ */
+function _comparativoEmpresas(rows, meses) {
+  const conteo = {};
+  rows.forEach(f => {
+    const e = _empresaDeFila(f);
+    if (e) conteo[e] = (conteo[e] || 0) + 1;
+  });
+  const MIN_CASOS = 5;
+  return Object.keys(conteo)
+    .map(empresa => {
+      const veh = _dashParque[empresa] || 0;
+      const casos = conteo[empresa];
+      const tasa = (veh > 0 && meses > 0) ? ((casos / meses) / veh) * 100 : null;
+      return { empresa, casos, vehiculos: veh, tasa };
+    })
+    .filter(x => x.tasa != null && x.casos >= MIN_CASOS)
+    .sort((a, b) => b.tasa - a.tasa);
 }

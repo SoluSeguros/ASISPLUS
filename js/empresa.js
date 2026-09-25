@@ -27,12 +27,12 @@ function initEmpresaPortal() {
     });
   }
 
-  // Filtro de fechas de "Mis siniestros por mes".
-  if (els.btnEmpresaMesFiltrar) els.btnEmpresaMesFiltrar.addEventListener('click', renderSiniestrosPorMesEmpresa);
+  // Filtro de fechas de la ficha de siniestralidad.
+  if (els.btnEmpresaMesFiltrar) els.btnEmpresaMesFiltrar.addEventListener('click', renderFichaEmpresaPropia);
   if (els.btnEmpresaMesLimpiar) els.btnEmpresaMesLimpiar.addEventListener('click', () => {
     if (els.empresaMesDesde) els.empresaMesDesde.value = '';
     if (els.empresaMesHasta) els.empresaMesHasta.value = '';
-    renderSiniestrosPorMesEmpresa();
+    renderFichaEmpresaPropia();
   });
 
   // Submenú: Dashboard / Históricos / Vehículos registrados.
@@ -78,65 +78,23 @@ function _empresaRangoFiltro() {
 }
 
 /**
- * Dibuja "Mis siniestros por mes" (barras) a partir de state.empresaCasosLista,
- * acotado al rango Desde/Hasta si hay filtro activo. Reutiliza los mismos
- * ayudantes de fecha/mes de dashboard.js (_fechaCaso, _claveMes, _MESES_CORTOS).
+ * Dibuja la ficha de siniestralidad de la empresa, acotada al rango Desde/Hasta
+ * si hay filtro activo. El cálculo y el dibujo viven en ficha-empresa.js: es
+ * exactamente la misma ficha que SoluAsistencia ve desde su dashboard, para que
+ * ambas partes miren los mismos números calculados igual.
  */
-function renderSiniestrosPorMesEmpresa() {
-  const cont = els.empresaMesCols;
+function renderFichaEmpresaPropia() {
+  const cont = els.empresaFichaBody;
   if (!cont) return;
-
-  const todas = state.empresaCasosLista || [];
   const { desde, hasta } = _empresaRangoFiltro();
-  const hoy = new Date();
-  const rows = (desde || hasta) ? todas.filter(f => {
-    const dt = _fechaCaso(f);
-    if (!dt) return false;
-    if (desde && dt < desde) return false;
-    if (hasta && dt > hasta) return false;
-    return true;
-  }) : todas;
-
-  // Ventana de meses: últimos 12 sin filtro, o los meses del rango elegido.
-  let iniMes = desde ? new Date(desde.getFullYear(), desde.getMonth(), 1) : null;
-  let finMes = hasta ? new Date(hasta.getFullYear(), hasta.getMonth(), 1) : null;
-  if (!iniMes && !finMes) {
-    finMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-    iniMes = new Date(hoy.getFullYear(), hoy.getMonth() - 11, 1);
-  } else if (!iniMes) {
-    iniMes = new Date(finMes.getFullYear(), finMes.getMonth() - 11, 1);
-  } else if (!finMes) {
-    finMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-    if (finMes < iniMes) finMes = new Date(iniMes.getFullYear(), iniMes.getMonth(), 1);
-  }
-  let numMeses = (finMes.getFullYear() - iniMes.getFullYear()) * 12 + (finMes.getMonth() - iniMes.getMonth()) + 1;
-  if (numMeses > 24) { iniMes = new Date(finMes.getFullYear(), finMes.getMonth() - 23, 1); numMeses = 24; }
-  if (numMeses < 1) numMeses = 1;
-
-  const meses = [];
-  for (let i = 0; i < numMeses; i++) {
-    const dt = new Date(iniMes.getFullYear(), iniMes.getMonth() + i, 1);
-    meses.push({ clave: _claveMes(dt), etiqueta: _MESES_CORTOS[dt.getMonth()], anio: String(dt.getFullYear()).slice(2), n: 0 });
-  }
-  const idxMes = {};
-  meses.forEach((m, i) => { idxMes[m.clave] = i; });
-  rows.forEach(f => { const dt = _fechaCaso(f); if (!dt) return; const k = _claveMes(dt); if (idxMes[k] != null) meses[idxMes[k]].n++; });
-  const maxMes = Math.max(1, ...meses.map(m => m.n));
-
-  const ALTO_PLOT = 130;
-  let html = '';
-  meses.forEach(m => {
-    const h = m.n ? Math.max(4, Math.round((m.n / maxMes) * ALTO_PLOT)) : 2;
-    html += `<div class="dash-col" title="${escBandeja(m.etiqueta)} ${escBandeja(m.anio)}: ${m.n} caso${m.n === 1 ? '' : 's'}">
-      <span class="dash-col-val">${m.n || ''}</span>
-      <span class="dash-col-bar" style="height:${h}px"></span>
-      <span class="dash-col-lab">${escBandeja(m.etiqueta)}<small>${escBandeja(m.anio)}</small></span>
-    </div>`;
+  const metricas = calcularFichaEmpresa(
+    state.empresaCasosLista || [],
+    state.empresaVehiculosTotal || 0,
+    { desde, hasta }
+  );
+  renderFichaEmpresa(cont, metricas, {
+    nombreEmpresa: (state.perfil && state.perfil.empresa) || ''
   });
-  cont.innerHTML = html;
-
-  const total = meses.reduce((s, m) => s + m.n, 0);
-  if (els.empresaMesTotal) els.empresaMesTotal.textContent = `${total} caso${total === 1 ? '' : 's'} en el periodo`;
 }
 
 /** Abre el portal de empresa: parque propio + historial de casos propio. */
@@ -148,6 +106,7 @@ async function abrirEmpresaPortal() {
   marcarUbicacion('empresaCard', nombreEmpresa);
   cambiarVistaEmpresa('dashboard');
   await Promise.all([cargarMisVehiculos(), cargarMisCasos()]);
+  renderFichaEmpresaPropia();
 }
 
 /** Carga el listado de vehículos de la empresa (RLS ya filtra por empresa). */
@@ -161,6 +120,7 @@ async function cargarMisVehiculos() {
       .select('placa, numero_interno, tipo')
       .order('placa', { ascending: true });
     if (error) throw error;
+    state.empresaVehiculosTotal = (data || []).length;
     if (els.empresaVehiculosCount) els.empresaVehiculosCount.textContent = `(${formatNumber((data || []).length)})`;
     if (!data || data.length === 0) {
       tbody.innerHTML = '<tr><td colspan="3">Sin vehículos registrados.</td></tr>';
@@ -189,7 +149,6 @@ async function cargarMisCasos() {
       .order('creado_en', { ascending: false });
     if (error) throw error;
     state.empresaCasosLista = data || [];
-    renderSiniestrosPorMesEmpresa();
     if (els.empresaCasosCount) els.empresaCasosCount.textContent = `(${formatNumber((data || []).length)})`;
     if (!data || data.length === 0) {
       tbody.innerHTML = '<tr><td colspan="5">Sin casos registrados.</td></tr>';

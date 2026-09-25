@@ -11,12 +11,49 @@
  * principio de NOVEDADES con la versión de js/version.js. Si una versión no
  * cambia nada que el asistente note (un arreglo interno, por ejemplo), NO la
  * agregues: el aviso pierde su valor si aparece por cosas que no le importan.
+ *
+ * Si el cambio solo le sirve a algunos roles (por ejemplo, algo del portal de
+ * empresa), ponle `roles: ['empresa', 'admin']` a la entrada y solo esos lo
+ * verán. Sin `roles`, la novedad es para todos. Existe para no interrumpir al
+ * asistente en la vía con un aviso sobre una pantalla que él no abre.
  */
 
 const NOVEDADES_KEY = 'asisplus-novedades-vista';
 
 // De la más nueva a la más vieja.
 const NOVEDADES = [
+  {
+    version: '2.18.0',
+    titulo: 'Ficha de siniestralidad por empresa',
+    roles: ['empresa', 'admin', 'gestor'],
+    puntos: [
+      {
+        icono: '📊',
+        titulo: 'La empresa ya no ve solo una barra por mes',
+        texto: 'El portal abre con una <b>ficha completa</b>: cuántos siniestros hubo, si subieron o bajaron frente al periodo anterior, qué tan graves fueron y cuántos fueron responsabilidad del conductor.'
+      },
+      {
+        icono: '⚖️',
+        titulo: 'Siniestros por cada 100 vehículos',
+        texto: 'Contar casos sueltos hace ver mal a quien tiene más buses. Ahora se mide <b>descontando el tamaño de la flota</b>, que es lo único comparable entre una empresa de 30 vehículos y una de 600.'
+      },
+      {
+        icono: '🚌',
+        titulo: 'Qué vehículos y qué conductores repiten',
+        texto: 'Dos listas nuevas muestran las placas y los conductores con más siniestros en el periodo. Es lo accionable: revisar ese bus, sentarse con ese conductor.'
+      },
+      {
+        icono: '🕐',
+        titulo: 'A qué hora y qué día pasan',
+        texto: 'La ficha señala la <b>franja horaria</b> y el <b>día de la semana</b> donde se concentran los siniestros, para ajustar turnos y despachos.'
+      },
+      {
+        icono: '🏢',
+        titulo: 'SoluAsistencia ve la misma ficha',
+        texto: 'En el Dashboard hay una pestaña <b>Ficha por empresa</b> con exactamente la misma pantalla que ve la empresa, más un comparativo de siniestralidad entre todas. La reunión mensual se hace sobre los mismos números.'
+      }
+    ]
+  },
   {
     version: '2.17.5',
     titulo: 'Lugar de impacto (IPAT)',
@@ -96,8 +133,19 @@ function compararVersiones(a, b) {
 function novedadesPendientes() {
   let vista = '';
   try { vista = localStorage.getItem(NOVEDADES_KEY) || ''; } catch (_) { return []; }
-  if (!vista) return NOVEDADES.slice(0, 1);
-  return NOVEDADES.filter(n => compararVersiones(n.version, vista) > 0);
+  // Se filtra por rol ANTES de recortar: a quien recién instala hay que
+  // mostrarle la última novedad que le sirva A ÉL, no la última de todas
+  // (si esa fuera de otro rol, se quedaría sin ver ninguna).
+  const mias = NOVEDADES.filter(esParaMiRol);
+  if (!vista) return mias.slice(0, 1);
+  return mias.filter(n => compararVersiones(n.version, vista) > 0);
+}
+
+/** ¿Esta novedad le toca al rol de quien está usando la app ahora? */
+function esParaMiRol(n) {
+  if (!n.roles || !n.roles.length) return true;   // sin destinatario = para todos
+  const rol = (typeof state !== 'undefined' && state.perfil && state.perfil.rol) || '';
+  return n.roles.includes(rol);
 }
 
 /** Deja constancia de que ya se leyeron, para no repetir el aviso. */
@@ -181,7 +229,10 @@ function initNovedadesUI() {
   if (ver) {
     ver.classList.add('app-version-link');
     ver.title = 'Ver qué cambió en esta versión';
-    ver.addEventListener('click', () => abrirNovedades(NOVEDADES.slice(0, 1)));
+    ver.addEventListener('click', () => {
+      const mias = NOVEDADES.filter(esParaMiRol);
+      abrirNovedades(mias.slice(0, 1));
+    });
   }
 }
 

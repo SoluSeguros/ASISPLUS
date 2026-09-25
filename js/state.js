@@ -39,5 +39,9 @@ const state = {
   casoPaso: 1,
   hipotesisLista: [],
   audioBlobs: {},
-  audioEliminar: {}
+  audioEliminar: {},
+  // Portal de empresa
+  empresaCasosLista: [],       // casos propios (la RLS ya filtra por empresa)
+  empresaVehiculosTotal: 0,    // tamaño del parque: base de la tasa por 100 vehículos
+  fichaEmpresaSel: ''          // empresa elegida en el dashboard de SoluAsistencia
 };

@@ -38,6 +38,7 @@ const ASSETS = [
   './js/cierre.js?v=' + APP_VERSION,
   './js/ui.js?v=' + APP_VERSION,
   './js/segvial.js?v=' + APP_VERSION,
+  './js/ficha-empresa.js?v=' + APP_VERSION,
   './js/dashboard.js?v=' + APP_VERSION,
   './js/novedades.js?v=' + APP_VERSION,
   './js/main.js?v=' + APP_VERSION,

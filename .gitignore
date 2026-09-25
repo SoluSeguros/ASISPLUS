@@ -33,3 +33,10 @@ usuarios*.xlsx
 crear-admin*.js
 *.sql
 !supabase/migrations/*.sql
+
+# Vista previa generada para revisar el diseño (no es parte de la app)
+vista-previa-*.html
+
+# Manual del IPAT: 17 MB. El repo es público y esto quedaría en el historial
+# para siempre; se consulta aparte, no hace falta versionarlo.
+Resolucion_*.pdf
