@@ -682,6 +682,34 @@ function validarCasoCompleto() {
   return true;
 }
 
+/**
+ * Deja el nombre de la empresa en su forma canónica.
+ *
+ * El campo es de texto libre (con sugerencias), y por ahí se colaron variantes
+ * que la base trataba como empresas distintas: "Cootransi" convivía con
+ * "COOTRANSI" y contaban por separado. Eso además rompe el portal de la
+ * empresa, porque la RLS compara el nombre por igualdad exacta contra el del
+ * perfil: una letra distinta y el usuario no ve ninguno de sus casos.
+ *
+ * Si lo escrito coincide con una empresa del parque (ignorando mayúsculas,
+ * tildes y espacios), se adopta la escritura del parque, que es la buena. Si
+ * es una empresa nueva de verdad, se guarda en mayúsculas y sin espacios
+ * sobrantes, que es como está escrito todo lo demás.
+ */
+function empresaCanonica(valor) {
+  const limpio = String(valor || '').trim().replace(/\s+/g, ' ');
+  if (!limpio) return '';
+  const plano = t => String(t).toUpperCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Z0-9]/g, '');
+  const buscado = plano(limpio);
+  const conocidas = [...new Set(
+    (state.parqueRows || []).map(v => String(v.empresa || '').trim()).filter(Boolean)
+  )];
+  const calce = conocidas.find(e => plano(e) === buscado);
+  return calce || limpio.toUpperCase();
+}
+
 /** Llena la lista de empresas y el desplegable de tipos con valores del parque. */
 function llenarListasVehiculo() {
   const distintos = campo => [...new Set(
@@ -926,7 +954,7 @@ async function guardarCaso(event) {
   const vSel = state.parqueRows.find(x => x.key === els.casoVehiculo.value);
 
   const datos = {
-    'EMPRESA': els.casoEmpresa.value.trim(),
+    'EMPRESA': empresaCanonica(els.casoEmpresa.value),
     'PLACA VEHICULO': placa,
     'NUMERO INTERNO VEHICULO': els.casoInterno.value.trim(),
     'TIPO DE VEHICULO': els.casoTipo.value.trim(),
