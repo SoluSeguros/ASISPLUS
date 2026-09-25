@@ -213,13 +213,39 @@ async function cargarMisCasos() {
     } else {
       data = await traerAsistenciasPaginado();
     }
-    state.empresaCasosLista = data || [];
+    // Orden por la fecha REAL del siniestro, del más reciente al más antiguo.
+    // Antes se ordenaba por creado_en, y eso salía al azar: los 2.707
+    // históricos se importaron todos el mismo día, así que comparten
+    // exactamente la misma marca de tiempo.
+    state.empresaCasosLista = (data || []).slice().sort((a, b) => {
+      const fa = _fechaCaso(a), fb = _fechaCaso(b);
+      if (!fa && !fb) return 0;
+      if (!fa) return 1;
+      if (!fb) return -1;
+      return fb - fa;
+    });
     state.empresaCasosPagina = 1;
     if (els.empresaCasosCount) els.empresaCasosCount.textContent = `(${formatNumber((data || []).length)})`;
     renderHistorialEmpresa();
   } catch (error) {
     tbody.innerHTML = `<tr><td colspan="5">Error: ${escBandeja(error.message || String(error))}</td></tr>`;
   }
+}
+
+/** Fecha del siniestro como dd/mm/aaaa (el dato viene en dos formatos). */
+function _fechaBonitaEmpresa(caso) {
+  const dt = _fechaCaso(caso);
+  if (!dt) return '—';
+  const dd = String(dt.getDate()).padStart(2, '0');
+  const mm = String(dt.getMonth() + 1).padStart(2, '0');
+  return `${dd}/${mm}/${dt.getFullYear()}`;
+}
+
+/** Hora del siniestro en formato corto (viene como "8:00:00" o "16:00"). */
+function _horaBonitaEmpresa(caso) {
+  const s = String((caso.datos || {})['HORA DEL SINIESTRO'] || '').trim();
+  const m = s.match(/^(\d{1,2}):(\d{2})/);
+  return m ? `${m[1].padStart(2, '0')}:${m[2]}` : '';
 }
 
 /** Cuántos casos por página en el historial de la empresa. */
@@ -252,24 +278,31 @@ function renderHistorialEmpresa() {
   const inicio = (pag - 1) * EMPRESA_CASOS_POR_PAGINA;
   const trozo = todos.slice(inicio, inicio + EMPRESA_CASOS_POR_PAGINA);
 
-  // En vez de "Estado" (en los históricos siempre dice lo mismo) se muestra el
-  // tipo de vehículo y la gravedad, que sí distinguen un caso de otro.
+  // Cada celda lleva un dato principal y, debajo y más chico, el que lo
+  // acompaña: la hora bajo la fecha, el tipo y el interno bajo la placa. Así se
+  // ve más información en menos ancho y la columna principal queda legible.
   tbody.innerHTML = trozo.map((c, i) => {
     const d = c.datos || {};
-    const fecha = d['FECHA DEL SINIESTRO'] || '—';
+    const num = c.numero_caso || '—';
+    const esHistorico = /^H-/.test(num);
+    const hora = _horaBonitaEmpresa(c);
     const placa = d['PLACA VEHICULO'] || '—';
-    const tipo = d['TIPO DE VEHICULO'] || '—';
+    const interno = String(d['NUMERO INTERNO VEHICULO'] || '').trim();
+    const tipo = String(d['TIPO DE VEHICULO'] || '').trim();
+    const bajoPlaca = [interno ? `Interno ${interno}` : '', tipo ? tituloCaseFicha(tipo) : '']
+      .filter(Boolean).join(' · ');
+    const conductor = String(d['NOMBRE CONDUCTOR'] || '').trim();
     const gravedad = d['GRAVEDAD DEL SINIESTRO'] || '';
     const gravedadHTML = gravedad
-      ? `<span class="ct-grav ${claseGravedad(gravedad)}">${escBandeja(gravedad)}</span>`
-      : '—';
+      ? `<span class="ct-grav ${claseGravedad(gravedad)}">${escBandeja(tituloCaseFicha(gravedad))}</span>`
+      : '<span class="eh-sin">Sin registrar</span>';
     return `
       <tr class="fila-clic" data-idx="${inicio + i}" tabindex="0">
-        <td>${escBandeja(c.numero_caso || '—')}</td>
-        <td>${escBandeja(fecha)}</td>
-        <td>${escBandeja(placa)}</td>
-        <td>${escBandeja(tipo)}</td>
-        <td>${gravedadHTML}</td>
+        <td data-lab="Caso"><span class="eh-num${esHistorico ? ' es-hist' : ''}">${escBandeja(num)}</span></td>
+        <td data-lab="Fecha"><span class="eh-fuerte">${escBandeja(_fechaBonitaEmpresa(c))}</span>${hora ? `<small class="eh-sub">${escBandeja(hora)}</small>` : ''}</td>
+        <td data-lab="Vehículo"><span class="eh-fuerte">${escBandeja(placa)}</span>${bajoPlaca ? `<small class="eh-sub">${escBandeja(bajoPlaca)}</small>` : ''}</td>
+        <td data-lab="Conductor">${conductor ? escBandeja(tituloCaseFicha(conductor)) : '<span class="eh-sin">—</span>'}</td>
+        <td data-lab="Gravedad">${gravedadHTML}</td>
       </tr>`;
   }).join('');
 

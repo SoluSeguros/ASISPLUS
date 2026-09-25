@@ -23,6 +23,33 @@ const NOVEDADES_KEY = 'asisplus-novedades-vista';
 // De la más nueva a la más vieja.
 const NOVEDADES = [
   {
+    version: '2.18.2',
+    titulo: 'El historial de casos, legible',
+    roles: ['empresa', 'admin', 'gestor'],
+    puntos: [
+      {
+        icono: '🔢',
+        titulo: 'Los casos viejos ya tienen número',
+        texto: 'Los siniestros anteriores al sistema actual salían con un guion en la columna del número, porque nunca lo tuvieron. Ahora llevan uno propio, tipo <b>H-2025-1440</b>, y se puede citar por teléfono o por correo. Los de la app siguen siendo <b>CASO-2026-…</b>, para saber de dónde viene cada uno.'
+      },
+      {
+        icono: '🔽',
+        titulo: 'El más reciente va primero',
+        texto: 'El listado salía desordenado. La culpa era de ordenar por la fecha en que el caso entró al sistema: los históricos se cargaron todos el mismo día, así que esa fecha no distingue nada. Ahora se ordena por la <b>fecha real del siniestro</b>.'
+      },
+      {
+        icono: '📅',
+        titulo: 'Fechas como se leen aquí',
+        texto: 'Se veían como 9/1/2026, que se presta a confusión. Ahora salen <b>dd/mm/aaaa</b>, con la hora debajo.'
+      },
+      {
+        icono: '👁️',
+        titulo: 'Más información en menos espacio',
+        texto: 'La tabla tenía columnas anchas y casi vacías. Ahora cada caso muestra también el <b>conductor</b>, el número interno y el tipo de vehículo, sin ocupar más. En el celular cada caso se ve como una tarjeta.'
+      }
+    ]
+  },
+  {
     version: '2.18.1',
     titulo: 'Ver el portal de cualquier empresa',
     roles: ['admin', 'gestor'],
