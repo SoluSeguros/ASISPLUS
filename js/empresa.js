@@ -114,9 +114,18 @@ function renderFichaEmpresaPropia() {
     state.empresaVehiculosTotal || 0,
     { desde, hasta }
   );
-  renderFichaEmpresa(cont, metricas, {
-    nombreEmpresa: state.empresaVistaAdmin || (state.perfil && state.perfil.empresa) || ''
-  });
+  renderFichaEmpresa(cont, metricas, { nombreEmpresa: _nombreEmpresaActual() });
+}
+
+/**
+ * Cómo se llama lo que se está viendo. En modo admin, la empresa elegida; si no,
+ * la principal del usuario, con un «+ N más» cuando está vinculado a varias.
+ */
+function _nombreEmpresaActual() {
+  if (state.empresaVistaAdmin) return state.empresaVistaAdmin;
+  const mias = (state.perfil && state.perfil.empresas) || [];
+  const principal = mias[0] || (state.perfil && state.perfil.empresa) || '';
+  return mias.length > 1 ? `${principal} + ${mias.length - 1} más` : principal;
 }
 
 /**
@@ -137,8 +146,18 @@ async function abrirEmpresaPortal(empresaNombre) {
   ocultarPantallas();
   els.empresaCard.classList.remove('hidden');
 
-  const titulo = comoAdmin ? empresaNombre : ((state.perfil && state.perfil.empresa) || 'Mi empresa');
-  if (els.empresaNombreTitulo) els.empresaNombreTitulo.textContent = titulo;
+  // Un usuario puede estar vinculado a varias empresas (opera vehículos que en
+  // el parque figuran a nombre de otra). El título lleva la principal y, si hay
+  // más, cuántas; el detalle va en el tooltip para no alargar el encabezado.
+  const mias = (state.perfil && state.perfil.empresas) || [];
+  const titulo = comoAdmin
+    ? empresaNombre
+    : (mias[0] || (state.perfil && state.perfil.empresa) || 'Mi empresa');
+  if (els.empresaNombreTitulo) {
+    els.empresaNombreTitulo.textContent =
+      (!comoAdmin && mias.length > 1) ? `${titulo} + ${mias.length - 1} más` : titulo;
+    els.empresaNombreTitulo.title = (!comoAdmin && mias.length > 1) ? mias.join(' · ') : '';
+  }
 
   // El aviso y el botón de volver solo existen en el modo admin: la empresa no
   // tiene menú al que regresar ni necesita que le digan de quién es el portal.

@@ -17,7 +17,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
 
   <!-- Estilos de la aplicación -->
-  <link rel="stylesheet" href="css/styles.css?v=2.18.7" />
+  <link rel="stylesheet" href="css/styles.css?v=2.18.8" />
 
   <!-- Librería para leer y descargar Excel -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -31,39 +31,39 @@
        (Service Worker o del navegador) puede seguir sirviendo un .js anterior
        aunque el archivo en el servidor ya esté actualizado. Sube este número
        junto con APP_VERSION en js/version.js en cada release. -->
-  <script src="js/version.js?v=2.18.7" defer></script>
-  <script src="js/config.js?v=2.18.7" defer></script>
-  <script src="js/utils.js?v=2.18.7" defer></script>
-  <script src="js/state.js?v=2.18.7" defer></script>
-  <script src="js/buscar.js?v=2.18.7" defer></script>
-  <script src="js/dom.js?v=2.18.7" defer></script>
-  <script src="js/supabase.js?v=2.18.7" defer></script>
-  <script src="js/auth.js?v=2.18.7" defer></script>
-  <script src="js/relationship.js?v=2.18.7" defer></script>
-  <script src="js/excel.js?v=2.18.7" defer></script>
-  <script src="js/parque.js?v=2.18.7" defer></script>
-  <script src="js/vistas-bd.js?v=2.18.7" defer></script>
-  <script src="js/casos.js?v=2.18.7" defer></script>
-  <script src="js/audio.js?v=2.18.7" defer></script>
-  <script src="js/camara.js?v=2.18.7" defer></script>
-  <script src="js/fotos.js?v=2.18.7" defer></script>
-  <script src="js/croquis.js?v=2.18.7" defer></script>
-  <script src="js/lugarimpacto.js?v=2.18.7" defer></script>
-  <script src="js/instalarapp.js?v=2.18.7" defer></script>
-  <script src="js/usuarios.js?v=2.18.7" defer></script>
-  <script src="js/empresa.js?v=2.18.7" defer></script>
-  <script src="js/detalle.js?v=2.18.7" defer></script>
-  <script src="js/terceros.js?v=2.18.7" defer></script>
-  <script src="js/cierre.js?v=2.18.7" defer></script>
-  <script src="js/ui.js?v=2.18.7" defer></script>
-  <script src="js/segvial.js?v=2.18.7" defer></script>
-  <script src="js/ficha-empresa.js?v=2.18.7" defer></script>
-  <script src="js/dashboard.js?v=2.18.7" defer></script>
-  <script src="js/novedades.js?v=2.18.7" defer></script>
-  <script src="js/main.js?v=2.18.7" defer></script>
-  <script src="js/conexion.js?v=2.18.7" defer></script>
-  <script src="js/offline.js?v=2.18.7" defer></script>
-  <script src="js/pwa.js?v=2.18.7" defer></script>
+  <script src="js/version.js?v=2.18.8" defer></script>
+  <script src="js/config.js?v=2.18.8" defer></script>
+  <script src="js/utils.js?v=2.18.8" defer></script>
+  <script src="js/state.js?v=2.18.8" defer></script>
+  <script src="js/buscar.js?v=2.18.8" defer></script>
+  <script src="js/dom.js?v=2.18.8" defer></script>
+  <script src="js/supabase.js?v=2.18.8" defer></script>
+  <script src="js/auth.js?v=2.18.8" defer></script>
+  <script src="js/relationship.js?v=2.18.8" defer></script>
+  <script src="js/excel.js?v=2.18.8" defer></script>
+  <script src="js/parque.js?v=2.18.8" defer></script>
+  <script src="js/vistas-bd.js?v=2.18.8" defer></script>
+  <script src="js/casos.js?v=2.18.8" defer></script>
+  <script src="js/audio.js?v=2.18.8" defer></script>
+  <script src="js/camara.js?v=2.18.8" defer></script>
+  <script src="js/fotos.js?v=2.18.8" defer></script>
+  <script src="js/croquis.js?v=2.18.8" defer></script>
+  <script src="js/lugarimpacto.js?v=2.18.8" defer></script>
+  <script src="js/instalarapp.js?v=2.18.8" defer></script>
+  <script src="js/usuarios.js?v=2.18.8" defer></script>
+  <script src="js/empresa.js?v=2.18.8" defer></script>
+  <script src="js/detalle.js?v=2.18.8" defer></script>
+  <script src="js/terceros.js?v=2.18.8" defer></script>
+  <script src="js/cierre.js?v=2.18.8" defer></script>
+  <script src="js/ui.js?v=2.18.8" defer></script>
+  <script src="js/segvial.js?v=2.18.8" defer></script>
+  <script src="js/ficha-empresa.js?v=2.18.8" defer></script>
+  <script src="js/dashboard.js?v=2.18.8" defer></script>
+  <script src="js/novedades.js?v=2.18.8" defer></script>
+  <script src="js/main.js?v=2.18.8" defer></script>
+  <script src="js/conexion.js?v=2.18.8" defer></script>
+  <script src="js/offline.js?v=2.18.8" defer></script>
+  <script src="js/pwa.js?v=2.18.8" defer></script>
 </head>
 <body>
   <header class="appbar">
@@ -1178,6 +1178,33 @@
   </div>
 
   <!-- Detalle de caso (solo lectura, portal de empresa) -->
+  <!-- Empresas de un usuario: una compañía puede operar vehículos que en el
+       parque figuran a nombre de otra, así que el vínculo es uno a varios. -->
+  <div class="modal-overlay" id="usuEmpresasModal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <div>
+          <h2>Empresas del usuario</h2>
+          <span class="muted" id="usuEmpresasSub"></span>
+        </div>
+        <button class="secondary" id="btnUsuEmpresasCerrar">✕ Cerrar</button>
+      </div>
+      <div class="modal-body">
+        <p class="audio-nota">
+          Marca todas las empresas cuyos casos y vehículos debe ver este usuario.
+          La principal viene de cuando se creó y se cambia desde la columna «Rol».
+        </p>
+        <input type="search" id="buscarUsuEmpresas" class="buscador buscador-ancho"
+               placeholder="Buscar empresa…" autocomplete="off" aria-label="Buscar empresa" />
+        <div id="usuEmpresasLista" class="usu-emp-lista"></div>
+        <div class="usu-emp-pie">
+          <span class="muted" id="usuEmpresasResumen"></span>
+          <button id="btnUsuEmpresasGuardar">Guardar empresas</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="empresaCasoModal">
     <div class="modal-box">
       <div class="modal-head">

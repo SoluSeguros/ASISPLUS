@@ -4634,3 +4634,68 @@ body[data-rol="admin"] .bn-crear { display: flex; }
 @media (max-width: 560px) {
   .emp-filtros select { flex: 1 1 100%; min-width: 0; }
 }
+
+/* ===== Empresas de un usuario (panel de usuarios) =====
+   Un usuario de empresa puede estar vinculado a varias: la principal se marca
+   distinto para que se vea de un golpe cuál es. */
+.usu-emp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+}
+
+.usu-emp-chip {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.usu-emp-chip.principal {
+  background: rgba(20, 85, 217, 0.08);
+  border-color: rgba(20, 85, 217, 0.25);
+  color: var(--primary);
+}
+
+.usu-emp-editar { padding: 3px 10px; font-size: 11.5px; }
+
+/* --- Modal para elegirlas --- */
+.usu-emp-lista {
+  max-height: 44vh;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 12px;
+}
+
+.usu-emp-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.usu-emp-item:last-child { border-bottom: 0; }
+.usu-emp-item:hover { background: var(--bg-2); }
+.usu-emp-item input { width: auto; margin: 0; cursor: pointer; }
+
+/* La principal no se puede soltar aquí: se cambia desde la columna Rol. */
+.usu-emp-item.principal { background: rgba(20, 85, 217, 0.05); cursor: default; }
+.usu-emp-item.principal span { color: var(--primary); font-weight: 600; }
+
+.usu-emp-pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}

@@ -62,13 +62,52 @@ async function cargarListaEmpresas() {
   }
 }
 
+/**
+ * Empresas ADICIONALES por perfil (perfil_empresas). La principal viene en
+ * `u.empresa`, que es lo que devuelve la función edge.
+ *
+ * Una compañía puede operar vehículos que en el parque figuran a nombre de
+ * otra: COOMETROPOL tiene 11 siniestros con placas de COOINVETRANS,
+ * TRANSLAMAYA GUAYABAL, INVETRANS y TRANSCONOR. Sin esto su usuario no los ve.
+ */
+let _extrasPorPerfil = {};
+
+async function cargarEmpresasExtra() {
+  _extrasPorPerfil = {};
+  try {
+    const { data, error } = await db.from('perfil_empresas').select('perfil_id, empresa');
+    if (error) throw error;
+    (data || []).forEach(r => {
+      (_extrasPorPerfil[r.perfil_id] = _extrasPorPerfil[r.perfil_id] || []).push(r.empresa);
+    });
+  } catch (_) {
+    // Si falta la migración, el panel sigue sirviendo con la empresa principal.
+    _extrasPorPerfil = {};
+  }
+}
+
+/** Todas las empresas de un usuario: la principal primero, sin repetir. */
+function empresasDeUsuario(u) {
+  const lista = [];
+  const principal = String(u.empresa || '').trim();
+  if (principal) lista.push(principal);
+  (_extrasPorPerfil[u.id] || []).forEach(e => {
+    const v = String(e || '').trim();
+    if (v && !lista.includes(v)) lista.push(v);
+  });
+  return lista;
+}
+
 /** Carga y muestra la lista de usuarios. */
 async function cargarUsuarios() {
   const tbody = els.usuariosBody;
   tbody.innerHTML = '<tr><td colspan="6">Cargando...</td></tr>';
   try {
     showLoader(true);
-    const data = await llamarAdminUsuarios({ action: 'list' });
+    const [data] = await Promise.all([
+      llamarAdminUsuarios({ action: 'list' }),
+      cargarEmpresasExtra()
+    ]);
     renderUsuarios(data.usuarios || []);
   } catch (error) {
     const msg = (typeof escBandeja === 'function') ? escBandeja(error.message) : String(error.message || '');
@@ -148,8 +187,36 @@ function renderUsuarios(usuarios) {
     tdRol.appendChild(sel);
     tr.appendChild(tdRol);
 
+    // Empresa(s). El rol empresa puede tener varias: se listan como fichas y
+    // se administran en un modal, porque un select suelto no da para esto.
     const tdEmpresa = document.createElement('td');
-    tdEmpresa.textContent = u.empresa || '—';
+    if (u.rol === 'empresa') {
+      const lista = empresasDeUsuario(u);
+      const chips = document.createElement('div');
+      chips.className = 'usu-emp-chips';
+      if (!lista.length) {
+        const vacio = document.createElement('span');
+        vacio.className = 'muted';
+        vacio.textContent = 'Sin empresa';
+        chips.appendChild(vacio);
+      }
+      lista.forEach((e, i) => {
+        const chip = document.createElement('span');
+        chip.className = 'usu-emp-chip' + (i === 0 ? ' principal' : '');
+        chip.textContent = e;
+        if (i === 0) chip.title = 'Empresa principal';
+        chips.appendChild(chip);
+      });
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'secondary usu-emp-editar';
+      btn.textContent = lista.length > 1 ? `Editar (${lista.length})` : 'Agregar';
+      btn.addEventListener('click', () => abrirEmpresasUsuario(u));
+      chips.appendChild(btn);
+      tdEmpresa.appendChild(chips);
+    } else {
+      tdEmpresa.textContent = u.empresa || '—';
+    }
     tr.appendChild(tdEmpresa);
 
     const tdAcceso = document.createElement('td');
@@ -291,6 +358,111 @@ async function eliminarUsuario(u) {
     await cargarUsuarios();
   } catch (error) {
     showStatus('Error al eliminar el usuario: ' + error.message, 'error');
+  } finally {
+    showLoader(false);
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ *  Empresas de un usuario (modal)
+ *
+ *  El vínculo usuario→empresa dejó de ser uno a uno: una compañía puede
+ *  operar vehículos que en el parque figuran a nombre de otra. La principal
+ *  sigue en `perfiles.empresa` (la escribe la función edge al crear el
+ *  usuario o al cambiarle el rol); las demás viven en `perfil_empresas`,
+ *  que el admin escribe directo con su propia política.
+ * ------------------------------------------------------------------ */
+
+let _usuEmpresasActual = null;          // usuario que se está editando
+let _usuEmpresasSel = new Set();        // lo marcado, se conserva al filtrar
+
+function abrirEmpresasUsuario(u) {
+  _usuEmpresasActual = u;
+  _usuEmpresasSel = new Set(empresasDeUsuario(u));
+  if (els.usuEmpresasSub) {
+    els.usuEmpresasSub.textContent =
+      (u.nombre && u.nombre !== u.email) ? `${u.nombre} · ${u.email}` : (u.email || '');
+  }
+  if (els.buscarUsuEmpresas) els.buscarUsuEmpresas.value = '';
+  renderEmpresasUsuario();
+  if (els.usuEmpresasModal) els.usuEmpresasModal.classList.add('show');
+}
+
+function cerrarEmpresasUsuario() {
+  if (els.usuEmpresasModal) els.usuEmpresasModal.classList.remove('show');
+  _usuEmpresasActual = null;
+}
+
+/** Pinta las casillas de todas las empresas del parque, filtradas por el buscador. */
+function renderEmpresasUsuario() {
+  const cont = els.usuEmpresasLista;
+  if (!cont || !_usuEmpresasActual) return;
+
+  const principal = String(_usuEmpresasActual.empresa || '').trim();
+  const q = ((els.buscarUsuEmpresas && els.buscarUsuEmpresas.value) || '').trim().toUpperCase();
+  const todas = state.empresasDisponibles || [];
+  const visibles = q ? todas.filter(e => String(e).toUpperCase().includes(q)) : todas;
+
+  cont.innerHTML = '';
+  if (!visibles.length) {
+    cont.innerHTML = '<div class="tercero-estado">Ninguna empresa coincide con lo que escribiste.</div>';
+    actualizarResumenUsuEmpresas();
+    return;
+  }
+
+  visibles.forEach(e => {
+    const esPrincipal = e === principal;
+    const lab = document.createElement('label');
+    lab.className = 'usu-emp-item' + (esPrincipal ? ' principal' : '');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = _usuEmpresasSel.has(e);
+    // La principal se cambia desde la columna «Rol»: aquí no se puede soltar,
+    // porque dejaría al usuario sin la empresa con la que se creó.
+    cb.disabled = esPrincipal;
+    cb.addEventListener('change', () => {
+      if (cb.checked) _usuEmpresasSel.add(e); else _usuEmpresasSel.delete(e);
+      actualizarResumenUsuEmpresas();
+    });
+    const txt = document.createElement('span');
+    txt.textContent = esPrincipal ? `${e}  ·  principal` : e;
+    lab.appendChild(cb);
+    lab.appendChild(txt);
+    cont.appendChild(lab);
+  });
+  actualizarResumenUsuEmpresas();
+}
+
+function actualizarResumenUsuEmpresas() {
+  if (!els.usuEmpresasResumen) return;
+  const n = _usuEmpresasSel.size;
+  els.usuEmpresasResumen.textContent =
+    n === 1 ? '1 empresa seleccionada' : `${formatNumber(n)} empresas seleccionadas`;
+}
+
+/** Guarda la lista. La principal no se toca; las demás se reescriben enteras. */
+async function guardarEmpresasUsuario() {
+  const u = _usuEmpresasActual;
+  if (!u) return;
+  const principal = String(u.empresa || '').trim();
+  const extras = [..._usuEmpresasSel].filter(e => e && e !== principal);
+
+  try {
+    showLoader(true);
+    // Borrar y reescribir: son unas pocas filas, y así no hay que calcular
+    // diferencias ni se puede quedar a medias con una lista inconsistente.
+    const { error: errBorrar } = await db.from('perfil_empresas').delete().eq('perfil_id', u.id);
+    if (errBorrar) throw errBorrar;
+    if (extras.length) {
+      const { error: errInsertar } = await db.from('perfil_empresas')
+        .insert(extras.map(empresa => ({ perfil_id: u.id, empresa })));
+      if (errInsertar) throw errInsertar;
+    }
+    cerrarEmpresasUsuario();
+    showStatus(`Empresas actualizadas: ${formatNumber(extras.length + (principal ? 1 : 0))}.`, 'ok');
+    await cargarUsuarios();
+  } catch (error) {
+    showStatus('No se pudieron guardar las empresas: ' + (error.message || error), 'error');
   } finally {
     showLoader(false);
   }

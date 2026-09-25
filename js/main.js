@@ -178,6 +178,17 @@ els.btnRefrescarUsuarios.addEventListener('click', cargarUsuarios);
 els.btnUsuVolver.addEventListener('click', ocultarPantallas);
 if (els.usuRol) els.usuRol.addEventListener('change', actualizarVisibilidadEmpresa);
 
+// Modal de empresas del usuario (un usuario de empresa puede tener varias).
+if (els.btnUsuEmpresasCerrar) els.btnUsuEmpresasCerrar.addEventListener('click', cerrarEmpresasUsuario);
+if (els.btnUsuEmpresasGuardar) els.btnUsuEmpresasGuardar.addEventListener('click', guardarEmpresasUsuario);
+cablearBuscador(els.buscarUsuEmpresas, renderEmpresasUsuario);
+if (els.usuEmpresasModal) {
+  // Clic en el fondo cierra, como en los demás modales de la app.
+  els.usuEmpresasModal.addEventListener('click', ev => {
+    if (ev.target === els.usuEmpresasModal) cerrarEmpresasUsuario();
+  });
+}
+
 // Usuarios conectados (solo admin).
 els.btnMenuConectados.addEventListener('click', abrirConectados);
 

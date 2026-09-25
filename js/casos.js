@@ -27,6 +27,29 @@ const CAMPOS_LARGOS = /OBSERVAC|VERSION|DESCRIPCION|DAÑOS|CROQUIS/;
  *  Perfil / rol
  * ------------------------------------------------------------------ */
 
+/**
+ * Todas las empresas del usuario: la principal (`perfiles.empresa`) más las
+ * adicionales de `perfil_empresas`. Solo aplica al rol empresa; para los demás
+ * devuelve lo que haya sin consultar nada.
+ */
+async function empresasDelPerfil(perfil) {
+  const principal = String((perfil && perfil.empresa) || '').trim();
+  const lista = principal ? [principal] : [];
+  if (!perfil || perfil.rol !== 'empresa') return lista;
+  try {
+    const { data, error } = await db
+      .from('perfil_empresas').select('empresa').eq('perfil_id', perfil.id);
+    if (error) throw error;
+    (data || []).forEach(r => {
+      const v = String(r.empresa || '').trim();
+      if (v && !lista.includes(v)) lista.push(v);
+    });
+  } catch (_) {
+    // Sin la migración aplicada queda solo la principal, que es como estaba antes.
+  }
+  return lista;
+}
+
 /** Carga el perfil (rol) del usuario autenticado y adapta el menú. */
 async function cargarPerfil(user) {
   try {
@@ -41,6 +64,10 @@ async function cargarPerfil(user) {
     state.perfil = { rol: 'asistente', nombre: user.email, empresa: null };
   }
   state.perfil.id = user.id; // se usa para el heartbeat de presencia
+  // Un usuario de empresa puede estar vinculado a VARIAS: la principal más las
+  // de perfil_empresas. La RLS ya trabaja con todas (empresas_actual()); esto
+  // es para poder decírselo en pantalla.
+  state.perfil.empresas = await empresasDelPerfil(state.perfil);
   aplicarRol();
   // El portal de empresa es de solo lectura y autocontenido: no abre el editor
   // de casos ni precachea el parque completo aunque llegue un deep-link ?caso=.

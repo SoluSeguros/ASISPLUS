@@ -23,6 +23,28 @@ const NOVEDADES_KEY = 'asisplus-novedades-vista';
 // De la más nueva a la más vieja.
 const NOVEDADES = [
   {
+    version: '2.18.8',
+    titulo: 'Un usuario puede tener varias empresas',
+    roles: ['admin', 'empresa'],
+    puntos: [
+      {
+        icono: '🏢',
+        titulo: 'Porque un vehículo no siempre está a nombre de quien lo opera',
+        texto: 'COOMETROPOL tiene <b>11 siniestros</b> con placas que en el parque figuran a nombre de COOINVETRANS, TRANSLAMAYA GUAYABAL, INVETRANS y TRANSCONOR. Su usuario no los veía, porque el vínculo era con <b>una sola</b> empresa.'
+      },
+      {
+        icono: '☑️',
+        titulo: 'Se eligen desde el panel de usuarios',
+        texto: 'En la columna <b>Empresa</b> de cada usuario hay un botón para marcar todas las que debe ver. La principal aparece resaltada y se sigue cambiando desde la columna «Rol».'
+      },
+      {
+        icono: '🔒',
+        titulo: 'Cada empresa sigue viendo solo lo suyo',
+        texto: 'El permiso no se abrió: solo dejó de limitarse a un nombre. Un usuario ve los casos, vehículos y terceros de <b>las empresas que tenga marcadas</b>, ni una más.'
+      }
+    ]
+  },
+  {
     version: '2.18.7',
     titulo: 'La empresa ve su caso completo',
     roles: ['empresa', 'admin', 'gestor'],
