@@ -23,6 +23,28 @@ const NOVEDADES_KEY = 'asisplus-novedades-vista';
 // De la más nueva a la más vieja.
 const NOVEDADES = [
   {
+    version: '2.18.3',
+    titulo: 'El historial, más fácil de leer',
+    roles: ['empresa', 'admin', 'gestor'],
+    puntos: [
+      {
+        icono: '🟩',
+        titulo: 'Una franja de color dice qué tan grave fue',
+        texto: 'Cada caso lleva una barra a la izquierda: <b>verde</b> si fue solo daños, <b>naranja</b> si hubo lesiones, <b>rojo</b> si hubo homicidio. Se puede recorrer la lista entera y ver dónde está lo grave sin leer una palabra.'
+      },
+      {
+        icono: '🗓️',
+        titulo: 'Cada caso es una tarjeta, no una fila de tabla',
+        texto: 'La tabla se estiraba a lo ancho y separaba datos que van juntos: la placa quedaba lejísimos de su conductor. Ahora cada caso agrupa <b>cuándo fue</b>, <b>qué vehículo y quién manejaba</b>, y <b>cómo resultó</b>.'
+      },
+      {
+        icono: '📅',
+        titulo: 'La fecha se ve de un vistazo',
+        texto: 'Va en un bloque tipo calendario, con el día grande y el mes debajo. La hora y el número de caso pasan a segundo plano: sirven para citar el caso, no para buscarlo.'
+      }
+    ]
+  },
+  {
     version: '2.18.2',
     titulo: 'El historial de casos, legible',
     roles: ['empresa', 'admin', 'gestor'],

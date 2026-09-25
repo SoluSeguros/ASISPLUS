@@ -10,7 +10,7 @@
 function initEmpresaPortal() {
   if (els.empresaCasosBody) {
     const abrirDesdeFila = event => {
-      const fila = event.target.closest('tr[data-idx]');
+      const fila = event.target.closest('[data-idx]');
       if (!fila) return;
       if (event.type === 'keydown' && event.key !== 'Enter' && event.key !== ' ') return;
       if (event.type === 'keydown') event.preventDefault(); // evita el scroll con espacio
@@ -201,7 +201,7 @@ async function traerAsistenciasPaginado() {
 async function cargarMisCasos() {
   const tbody = els.empresaCasosBody;
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="5">Cargando...</td></tr>';
+  tbody.innerHTML = '<div class="ehl-estado">Cargando…</div>';
   try {
     let data;
     if (state.empresaVistaAdmin) {
@@ -228,7 +228,7 @@ async function cargarMisCasos() {
     if (els.empresaCasosCount) els.empresaCasosCount.textContent = `(${formatNumber((data || []).length)})`;
     renderHistorialEmpresa();
   } catch (error) {
-    tbody.innerHTML = `<tr><td colspan="5">Error: ${escBandeja(error.message || String(error))}</td></tr>`;
+    tbody.innerHTML = `<div class="ehl-estado">Error: ${escBandeja(error.message || String(error))}</div>`;
   }
 }
 
@@ -264,7 +264,7 @@ function renderHistorialEmpresa() {
   const todos = state.empresaCasosLista || [];
 
   if (!todos.length) {
-    tbody.innerHTML = '<tr><td colspan="5">Sin casos registrados.</td></tr>';
+    tbody.innerHTML = '<div class="ehl-estado">Sin casos registrados.</div>';
     if (els.empresaCasosPager) els.empresaCasosPager.classList.add('hidden');
     return;
   }
@@ -278,32 +278,50 @@ function renderHistorialEmpresa() {
   const inicio = (pag - 1) * EMPRESA_CASOS_POR_PAGINA;
   const trozo = todos.slice(inicio, inicio + EMPRESA_CASOS_POR_PAGINA);
 
-  // Cada celda lleva un dato principal y, debajo y más chico, el que lo
-  // acompaña: la hora bajo la fecha, el tipo y el interno bajo la placa. Así se
-  // ve más información en menos ancho y la columna principal queda legible.
+  // Una tabla de cinco columnas se estiraba a lo ancho y quedaba hueca. Cada
+  // caso es ahora una fila-tarjeta con tres bloques y una jerarquía clara:
+  // cuándo, qué vehículo y quién, y a la derecha lo que califica el caso. El
+  // borde de color a la izquierda (por gravedad) permite barrer la lista de un
+  // vistazo sin leer. Es el mismo lenguaje visual de la bandeja (.bl-row).
+  const MESES_EHL = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
   tbody.innerHTML = trozo.map((c, i) => {
     const d = c.datos || {};
+    const dt = _fechaCaso(c);
+    const dia = dt ? String(dt.getDate()).padStart(2, '0') : '—';
+    const mesAnio = dt ? `${MESES_EHL[dt.getMonth()]} ${String(dt.getFullYear()).slice(2)}` : '';
+
     const num = c.numero_caso || '—';
     const esHistorico = /^H-/.test(num);
     const hora = _horaBonitaEmpresa(c);
+
     const placa = d['PLACA VEHICULO'] || '—';
     const interno = String(d['NUMERO INTERNO VEHICULO'] || '').trim();
     const tipo = String(d['TIPO DE VEHICULO'] || '').trim();
-    const bajoPlaca = [interno ? `Interno ${interno}` : '', tipo ? tituloCaseFicha(tipo) : '']
+    const subVeh = [tipo ? tituloCaseFicha(tipo) : '', interno ? `Interno ${interno}` : '']
       .filter(Boolean).join(' · ');
+
     const conductor = String(d['NOMBRE CONDUCTOR'] || '').trim();
-    const gravedad = d['GRAVEDAD DEL SINIESTRO'] || '';
-    const gravedadHTML = gravedad
-      ? `<span class="ct-grav ${claseGravedad(gravedad)}">${escBandeja(tituloCaseFicha(gravedad))}</span>`
-      : '<span class="eh-sin">Sin registrar</span>';
+    const gravedad = String(d['GRAVEDAD DEL SINIESTRO'] || '').trim();
+    const gravCls = gravedad ? claseGravedad(gravedad) : 'grav-otro';
+
     return `
-      <tr class="fila-clic" data-idx="${inicio + i}" tabindex="0">
-        <td data-lab="Caso"><span class="eh-num${esHistorico ? ' es-hist' : ''}">${escBandeja(num)}</span></td>
-        <td data-lab="Fecha"><span class="eh-fuerte">${escBandeja(_fechaBonitaEmpresa(c))}</span>${hora ? `<small class="eh-sub">${escBandeja(hora)}</small>` : ''}</td>
-        <td data-lab="Vehículo"><span class="eh-fuerte">${escBandeja(placa)}</span>${bajoPlaca ? `<small class="eh-sub">${escBandeja(bajoPlaca)}</small>` : ''}</td>
-        <td data-lab="Conductor">${conductor ? escBandeja(tituloCaseFicha(conductor)) : '<span class="eh-sin">—</span>'}</td>
-        <td data-lab="Gravedad">${gravedadHTML}</td>
-      </tr>`;
+      <button type="button" class="ehl-row" data-idx="${inicio + i}" data-grav="${escBandeja(gravCls)}">
+        <span class="ehl-fecha"><b>${escBandeja(dia)}</b><small>${escBandeja(mesAnio)}</small></span>
+        <span class="ehl-main">
+          <span class="ehl-veh">${escBandeja(placa)}${subVeh ? `<small>${escBandeja(subVeh)}</small>` : ''}</span>
+          <span class="ehl-cond">${conductor ? escBandeja(tituloCaseFicha(conductor)) : '<i>Conductor sin registrar</i>'}</span>
+        </span>
+        <span class="ehl-side">
+          ${gravedad
+            ? `<span class="ct-grav ${escBandeja(gravCls)}">${escBandeja(tituloCaseFicha(gravedad))}</span>`
+            : '<span class="ehl-sin">Gravedad sin registrar</span>'}
+          <span class="ehl-meta">
+            <span class="ehl-num${esHistorico ? ' es-hist' : ''}">${escBandeja(num)}</span>
+            ${hora ? `<span class="ehl-hora">${escBandeja(hora)}</span>` : ''}
+          </span>
+        </span>
+      </button>`;
   }).join('');
 
   if (els.empresaCasosPager) els.empresaCasosPager.classList.toggle('hidden', paginas <= 1);
