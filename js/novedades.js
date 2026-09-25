@@ -23,6 +23,27 @@ const NOVEDADES_KEY = 'asisplus-novedades-vista';
 // De la más nueva a la más vieja.
 const NOVEDADES = [
   {
+    version: '2.20.0',
+    titulo: 'Las versiones, como se deben leer (y oír)',
+    puntos: [
+      {
+        icono: '🗣️',
+        titulo: 'La versión del conductor y la del asistente, destacadas',
+        texto: 'Son lo que más se lee de un caso, y estaban apretadas en una columna estrecha como un dato más. Ahora ocupan el ancho del detalle, con el relato completo y respetando los saltos de línea.'
+      },
+      {
+        icono: '🔊',
+        titulo: 'Las versiones grabadas por fin se pueden oír',
+        texto: 'El asistente puede <b>dictar</b> la versión en vez de escribirla. Hasta ahora, en el detalle salía el nombre del archivo: el caso parecía <b>no tener versión</b>. Ahora hay un reproductor ahí mismo, con una etiqueta que avisa si la versión está grabada.'
+      },
+      {
+        icono: '🏢',
+        titulo: 'También para la empresa',
+        texto: 'El portal de empresa usa la misma pieza que la administración, así que las empresas ven el relato completo y oyen las grabaciones de sus propios casos.'
+      }
+    ]
+  },
+  {
     version: '2.19.0',
     titulo: 'La app se actualiza sola',
     puntos: [

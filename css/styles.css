@@ -4728,3 +4728,66 @@ body[data-rol="admin"] .bn-crear { display: flex; }
   cursor: not-allowed;
   text-decoration: line-through;
 }
+
+/* ===== Versiones del conductor y del asistente =====
+   Es el relato del siniestro: se lee entero y seguido, así que ocupa el ancho
+   del detalle en vez de una columna de la grilla. */
+.detalle-versiones {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.detalle-version {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  background: var(--bg-2);
+}
+
+.detalle-version-tit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--primary-dark);
+}
+
+/* Avisa de que la versión se dictó, para que nadie la dé por vacía. */
+.detalle-version-chip {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  text-transform: none;
+}
+
+.detalle-version-txt {
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--text);
+  white-space: pre-wrap;   /* el asistente escribe con saltos de línea */
+  word-break: break-word;
+}
+
+.detalle-audio {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.detalle-version-aviso {
+  margin-top: 8px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.detalle-version-aviso.no-disponible { color: var(--danger); }

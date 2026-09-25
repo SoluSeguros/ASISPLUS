@@ -65,6 +65,9 @@ const DETALLE_SECCIONES = [
   },
   {
     titulo: 'Versiones y daños',
+    // Se dibuja distinto: a ancho completo y con el audio cuando la versión se
+    // dictó en vez de escribirse. Ver `construirSeccionVersiones`.
+    tipo: 'versiones',
     campos: [
       ['VERSION CONDUCTOR', 'Versión del conductor'],
       ['VERSION ASISTENTE', 'Versión del asistente'],
@@ -122,7 +125,12 @@ const TERCERO_CAMPOS = [
 /** Construye una sección del detalle con su título y una grilla de campos. */
 // Campos que tienen su propia sección más abajo, así que no deben salir además
 // como texto en las grillas.
-const CAMPOS_CON_SECCION_PROPIA = new Set(['DOCUMENTOS RUTA']);
+const CAMPOS_CON_SECCION_PROPIA = new Set([
+  'DOCUMENTOS RUTA',
+  // Son rutas de archivo: se oyen en la sección de versiones, no se leen.
+  'VERSION CONDUCTOR AUDIO',
+  'VERSION ASISTENTE AUDIO'
+]);
 
 /**
  * Cómo se muestra el valor de un campo.
@@ -353,6 +361,114 @@ async function agregarDocsDetalle(cont, d) {
   });
 }
 
+/* ------------------------------------------------------------------ *
+ *  Versiones del conductor y del asistente
+ *
+ *  Es lo que más se lee de un caso: de ahí que vaya a ancho completo y no
+ *  espachurrado en una columna de la grilla.
+ *
+ *  Y es lo único que puede venir GRABADO. El asistente elige entre escribir la
+ *  versión o dictarla (audio.js), y la dictada se guardaba en
+ *  `VERSION CONDUCTOR AUDIO` como una ruta: aquí salía el nombre del archivo y
+ *  nadie podía oírlo. Un caso dictado se veía, sencillamente, sin versión.
+ * ------------------------------------------------------------------ */
+
+// audio.js lo declara y se carga antes; el literal es para quien cargue este
+// archivo suelto (las pruebas).
+const BUCKET_VERSION_AUDIO = (typeof BUCKET_AUDIO === 'string') ? BUCKET_AUDIO : 'versiones-audio';
+
+/** Ruta del audio de una versión, si se dictó. La convención la fija audio.js. */
+function rutaAudioVersion(d, clave) {
+  const r = d[clave + ' AUDIO'];
+  return (typeof r === 'string' && r.trim()) ? r.trim() : '';
+}
+
+/** Pide las URLs firmadas y engancha cada grabación a su reproductor. */
+async function cargarAudiosVersion(pendientes) {
+  await Promise.all(pendientes.map(async p => {
+    let url = '';
+    try {
+      const { data } = await db.storage.from(BUCKET_VERSION_AUDIO).createSignedUrl(p.ruta, 3600);
+      url = (data && data.signedUrl) || '';
+    } catch (_) { /* un archivo que falte no tumba el resto */ }
+    if (url) {
+      p.audio.src = url;
+      p.audio.classList.remove('hidden');
+      p.aviso.remove();
+    } else {
+      p.aviso.textContent = 'La grabación no está disponible.';
+      p.aviso.classList.add('no-disponible');
+    }
+  }));
+}
+
+/**
+ * Sección "Versiones y daños". Un campo entra si tiene texto O grabación: con
+ * el filtro normal, una versión solo dictada no aparecería.
+ */
+function construirSeccionVersiones(seccion, d) {
+  const items = seccion.campos
+    .map(([key, label]) => ({ key, label, val: d[key], ruta: rutaAudioVersion(d, key) }))
+    .filter(x => (x.val != null && String(x.val).trim() !== '') || x.ruta);
+  if (!items.length) return null;
+
+  const sec = document.createElement('div');
+  sec.className = 'detalle-seccion';
+  const h = document.createElement('h4');
+  h.className = 'detalle-seccion-tit';
+  h.textContent = seccion.titulo;
+  sec.appendChild(h);
+
+  const lista = document.createElement('div');
+  lista.className = 'detalle-versiones';
+  const pendientes = [];
+
+  items.forEach(x => {
+    const card = document.createElement('div');
+    card.className = 'detalle-version';
+
+    const tit = document.createElement('div');
+    tit.className = 'detalle-version-tit';
+    tit.textContent = x.label;
+    const texto = String(x.val == null ? '' : x.val).trim();
+    if (x.ruta) {
+      const chip = document.createElement('span');
+      chip.className = 'detalle-version-chip';
+      chip.textContent = texto ? '🔊 Escrita y grabada' : '🔊 Grabada';
+      tit.appendChild(chip);
+    }
+    card.appendChild(tit);
+
+    if (texto) {
+      const p = document.createElement('div');
+      p.className = 'detalle-version-txt';
+      p.textContent = texto;
+      card.appendChild(p);
+    }
+
+    if (x.ruta) {
+      const audio = document.createElement('audio');
+      audio.controls = true;
+      audio.preload = 'none';        // no descargar 45 grabaciones al abrir
+      audio.className = 'detalle-audio hidden';
+      const aviso = document.createElement('div');
+      aviso.className = 'detalle-version-aviso';
+      aviso.textContent = 'Cargando la grabación…';
+      card.appendChild(audio);
+      card.appendChild(aviso);
+      pendientes.push({ ruta: x.ruta, audio, aviso });
+    }
+
+    lista.appendChild(card);
+  });
+
+  sec.appendChild(lista);
+  // La sección ya está armada: las grabaciones entran cuando lleguen sus URLs.
+  // Si eso falla, se queda el aviso; nunca debe tumbar el resto del detalle.
+  if (pendientes.length) cargarAudiosVersion(pendientes).catch(() => {});
+  return sec;
+}
+
 /** ¿Tiene valor y es una columna visible? */
 function campoConValor(obj, key) {
   const val = obj[key];
@@ -515,6 +631,14 @@ function construirCuerpoDetalle(cont, d) {
   const mostrados = new Set();
 
   DETALLE_SECCIONES.forEach(sec => {
+    // Las versiones se dibujan aparte (ancho completo y con audio), pero en su
+    // sitio: mover la sección al final la escondería bajo las fotos.
+    if (sec.tipo === 'versiones') {
+      sec.campos.forEach(([key]) => mostrados.add(key));
+      const el = construirSeccionVersiones(sec, d);
+      if (el) cont.appendChild(el);
+      return;
+    }
     const items = sec.campos
       .filter(([key]) => tieneValor(key))
       .map(([key, label]) => ({ label, val: d[key], key }));
