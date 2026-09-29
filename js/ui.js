@@ -13,6 +13,7 @@ function getCurrentRows() {
   if (state.currentView === 'parque') return state.parqueRows;
   if (state.currentView === 'asistenciasBD') return state.asistenciasBDRows;
   if (state.currentView === 'tercerosBD') return state.tercerosBDRows;
+  if (state.currentView === 'apl') return state.aplRows;
   return [];
 }
 
@@ -25,6 +26,7 @@ function getCurrentTitle() {
   if (state.currentView === 'parque') return 'Parque automotor (base de datos)';
   if (state.currentView === 'asistenciasBD') return 'Registro de asistencias (base de datos)';
   if (state.currentView === 'tercerosBD') return 'Terceros (base de datos)';
+  if (state.currentView === 'apl') return 'Registros de APL (hoja en línea)';
   return 'Datos';
 }
 

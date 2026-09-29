@@ -222,6 +222,10 @@ els.btnVerTercerosBD.addEventListener('click', () => {
   cargarTercerosBD();
 });
 
+// Registros de APL: la hoja se lee al entrar y el botón la vuelve a pedir.
+if (els.btnVerAPL) els.btnVerAPL.addEventListener('click', () => cargarAPL(false));
+if (els.btnAPLActualizar) els.btnAPLActualizar.addEventListener('click', () => cargarAPL(true));
+
 // --- Búsqueda y paginación ---
 els.searchInput.addEventListener('input', event => {
   state.search = event.target.value.trim().toLowerCase();

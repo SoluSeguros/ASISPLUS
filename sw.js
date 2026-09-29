@@ -25,6 +25,7 @@ const ASSETS = [
   './js/excel.js?v=' + APP_VERSION,
   './js/parque.js?v=' + APP_VERSION,
   './js/vistas-bd.js?v=' + APP_VERSION,
+  './js/apl.js?v=' + APP_VERSION,
   './js/casos.js?v=' + APP_VERSION,
   './js/audio.js?v=' + APP_VERSION,
   './js/camara.js?v=' + APP_VERSION,

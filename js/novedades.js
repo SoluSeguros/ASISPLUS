@@ -23,6 +23,23 @@ const NOVEDADES_KEY = 'asisplus-novedades-vista';
 // De la más nueva a la más vieja.
 const NOVEDADES = [
   {
+    version: '2.22.0',
+    titulo: 'Consulta de los registros de APL',
+    roles: ['admin'],
+    puntos: [
+      {
+        icono: '📡',
+        titulo: 'La hoja de APL, dentro de ASIS PLUS',
+        texto: 'En el inicio hay un módulo nuevo: <b>Registros de APL</b>. Lee la hoja publicada en línea y muestra sus registros con el mismo buscador, paginación y descarga a Excel que el resto. El botón <b>🔄 Actualizar</b> la vuelve a leer, así que siempre puedes ver lo último sin salir de la aplicación.'
+      },
+      {
+        icono: 'ℹ️',
+        titulo: 'No se guarda nada',
+        texto: 'Los registros se consultan, no se importan: quien mantiene la hoja sigue trabajando en ella y aquí se ve tal cual. Es información de otra operación, así que no se mezcla con el registro de asistencias ni con el parque automotor.'
+      }
+    ]
+  },
+  {
     version: '2.21.0',
     titulo: 'Los documentos dicen qué son, y aparecen los acuerdos',
     puntos: [

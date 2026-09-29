@@ -4737,6 +4737,16 @@ body[data-rol="admin"] .bn-crear { display: flex; }
   gap: 10px;
 }
 
+/* ===== Consulta de APL (hoja en línea) ===== */
+.apl-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+#aplInfo { font-size: 12.5px; white-space: nowrap; }
+
 .detalle-doc:hover { background: var(--card); border-color: var(--primary-2); }
 
 /* El archivo ya no está en el bucket: se muestra pero no se puede abrir. */

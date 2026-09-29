@@ -21,6 +21,7 @@ const state = {
   parqueRows: [],
   asistenciasBDRows: [],
   tercerosBDRows: [],
+  aplRows: [],            // hoja de APL: se lee en línea, no se guarda
   asistenciaKeyCol: '',
   tercerosKeyCol: '',
   perfil: null,

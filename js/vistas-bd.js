@@ -156,9 +156,12 @@ function mostrarVistaBD(view) {
   const info = {
     parque: ['btnVerParque', 'Parque automotor'],
     asistenciasBD: ['btnVerAsistenciasBD', 'Registro de Asistencias'],
-    tercerosBD: ['btnVerTercerosBD', 'Terceros']
+    tercerosBD: ['btnVerTercerosBD', 'Terceros'],
+    apl: ['btnVerAPL', 'Registros de APL']
   }[view];
   if (info) marcarUbicacion(info[0], info[1]);
+  // El botón de releer la hoja solo tiene sentido en la consulta de APL.
+  if (els.aplBox) els.aplBox.classList.toggle('hidden', view !== 'apl');
   state.currentView = view;
   state.search = '';
   els.searchInput.value = '';

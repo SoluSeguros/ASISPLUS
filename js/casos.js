@@ -199,6 +199,9 @@ function aplicarRol() {
   els.btnVerCruce.classList.toggle('hidden', !veAnalisis);
   els.btnVerAsistenciasBD.classList.toggle('hidden', !veRegistros);
   els.btnVerTercerosBD.classList.toggle('hidden', !veRegistros);
+  // Los registros de APL son de otra operación (no cruzan con el parque ni con
+  // el registro de asistencias): por ahora, solo el administrador.
+  if (els.btnVerAPL) els.btnVerAPL.classList.toggle('hidden', rol !== 'admin');
   // El parque queda disponible para gestor/asistente/admin; las áreas se enfocan
   // y la empresa tiene su propio listado restringido en su portal.
   els.btnVerParque.classList.toggle('hidden', esArea || rol === 'empresa');
