@@ -23,6 +23,18 @@ const NOVEDADES_KEY = 'asisplus-novedades-vista';
 // De la más nueva a la más vieja.
 const NOVEDADES = [
   {
+    version: '2.22.1',
+    titulo: 'APL: filtros por año y por mes',
+    roles: ['admin'],
+    puntos: [
+      {
+        icono: '🗓️',
+        titulo: 'Año, mes y búsqueda sobre los 1.046 registros',
+        texto: 'La consulta de APL ya tiene selectores de <b>año</b> y de <b>mes</b>, y el buscador encuentra por placa, conductor, afiliado o ruta. Todo se aplica sobre la hoja completa —no sobre la página que estás viendo—, y el conteo de arriba te dice cuántos quedaron.'
+      }
+    ]
+  },
+  {
     version: '2.22.0',
     titulo: 'Consulta de los registros de APL',
     roles: ['admin'],

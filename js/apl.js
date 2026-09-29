@@ -96,6 +96,68 @@ function filasAObjetos(filas) {
   return out;
 }
 
+/* ------------------------------------------------------------------ *
+ *  Filtros por año y por mes
+ *
+ *  La hoja escribe la fecha como d/m/aaaa, y a veces con un solo dígito
+ *  ("1/10/2025"): 48 de los 1.046 registros son así. Por eso no sirve la
+ *  lectura de fechas del resto de la aplicación, que además espera el orden
+ *  contrario (la base guarda m/d/aaaa): con ella esos 48 registros se caerían
+ *  del filtro sin que nadie lo notara, y octubre se leería como enero.
+ * ------------------------------------------------------------------ */
+
+const MESES_APL = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+/** Año y mes de un registro, como ['2025','10']. Vacío si no hay fecha legible. */
+function anioMesAPL(row) {
+  const m = String((row && row['FECHA DEL SINIESTRO']) || '').trim()
+    .match(/^(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})/);
+  if (!m) return ['', ''];
+  return [m[3], String(m[2]).padStart(2, '0')];
+}
+
+/** Aplica los filtros de año y mes de la consulta de APL. */
+function filtrarAPL(rows) {
+  if (!state.filtroAnio && !state.filtroMes) return rows;
+  return rows.filter(r => {
+    const [a, m] = anioMesAPL(r);
+    if (state.filtroAnio && a !== state.filtroAnio) return false;
+    if (state.filtroMes && m !== state.filtroMes) return false;
+    return true;
+  });
+}
+
+/** Llena los selectores con los años y meses que de verdad hay en la hoja. */
+function llenarFiltrosAPL() {
+  const filas = state.aplRows || [];
+  const opcion = (valor, texto) => {
+    const o = document.createElement('option');
+    o.value = valor; o.textContent = texto;
+    return o;
+  };
+
+  if (els.filtroAnio) {
+    const anios = [...new Set(filas.map(r => anioMesAPL(r)[0]).filter(Boolean))]
+      .sort((a, b) => Number(b) - Number(a));
+    els.filtroAnio.innerHTML = '';
+    els.filtroAnio.appendChild(opcion('', 'Todos los años'));
+    anios.forEach(a => els.filtroAnio.appendChild(opcion(a, 'Año ' + a)));
+    // Arranca sin filtrar: la consulta es para verlo todo.
+    state.filtroAnio = '';
+    els.filtroAnio.value = '';
+  }
+
+  if (els.filtroMes) {
+    const meses = [...new Set(filas.map(r => anioMesAPL(r)[1]).filter(Boolean))].sort();
+    els.filtroMes.innerHTML = '';
+    els.filtroMes.appendChild(opcion('', 'Todos los meses'));
+    meses.forEach(m => els.filtroMes.appendChild(opcion(m, MESES_APL[Number(m) - 1] || m)));
+    state.filtroMes = '';
+    els.filtroMes.value = '';
+  }
+}
+
 /** Hora de la última consulta, para saber a qué momento corresponde lo que se ve. */
 let _aplActualizado = null;
 
@@ -133,6 +195,7 @@ async function cargarAPL(forzar) {
     if (forzar || !state.aplRows || !state.aplRows.length) {
       state.aplRows = await traerAPL();
     }
+    llenarFiltrosAPL();
     mostrarVistaBD('apl');
     pintarInfoAPL();
     showStatus(`APL: ${formatNumber(state.aplRows.length)} registros.`, 'ok');

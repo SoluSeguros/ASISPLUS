@@ -245,6 +245,12 @@ els.filtroAnio.addEventListener('change', event => {
   renderTable();
 });
 
+if (els.filtroMes) els.filtroMes.addEventListener('change', event => {
+  state.filtroMes = event.target.value;
+  state.page = 1;
+  renderTable();
+});
+
 els.filtroEmpresa.addEventListener('change', event => {
   state.filtroEmpresa = event.target.value;
   state.page = 1;

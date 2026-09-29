@@ -82,8 +82,16 @@ function getResumenBaseRows() {
     }
   }
 
+  // Los filtros de APL viven en apl.js: el formato de fecha de esa hoja es
+  // suyo (d/m/aaaa) y no tiene por qué conocerlo la capa de presentación.
+  if (state.currentView === 'apl' && typeof filtrarAPL === 'function') {
+    rows = filtrarAPL(rows);
+  }
+
   if (!state.search) return rows;
 
+  // La búsqueda recorre TODOS los registros cargados, no la página visible:
+  // se filtra aquí y la paginación se calcula después, sobre el resultado.
   return rows.filter(row =>
     Object.values(row).some(value => String(value || '').toLowerCase().includes(state.search))
   );

@@ -22,6 +22,7 @@ const state = {
   asistenciasBDRows: [],
   tercerosBDRows: [],
   aplRows: [],            // hoja de APL: se lee en línea, no se guarda
+  filtroMes: '',          // mes elegido en la consulta de APL ('01'…'12')
   asistenciaKeyCol: '',
   tercerosKeyCol: '',
   perfil: null,

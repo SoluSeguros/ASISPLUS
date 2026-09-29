@@ -145,7 +145,9 @@ function mostrarVistaBD(view) {
   ocultarPantallas();
   els.controlsBox.classList.remove('hidden');
   els.tableCard.classList.remove('hidden');
-  els.filtroAnio.classList.toggle('hidden', view !== 'asistenciasBD');
+  // El año sirve en las dos tablas grandes; el mes, por ahora, solo en APL.
+  els.filtroAnio.classList.toggle('hidden', view !== 'asistenciasBD' && view !== 'apl');
+  if (els.filtroMes) els.filtroMes.classList.toggle('hidden', view !== 'apl');
   els.filtroEmpresa.classList.toggle('hidden', view !== 'asistenciasBD');
   if (els.filtroFechasBox) els.filtroFechasBox.classList.toggle('hidden', view !== 'asistenciasBD');
   // El rango de fechas arranca vacío (sin filtrar) cada vez que se entra.
@@ -162,6 +164,11 @@ function mostrarVistaBD(view) {
   if (info) marcarUbicacion(info[0], info[1]);
   // El botón de releer la hoja solo tiene sentido en la consulta de APL.
   if (els.aplBox) els.aplBox.classList.toggle('hidden', view !== 'apl');
+  if (els.searchInput) {
+    els.searchInput.placeholder = view === 'apl'
+      ? 'Buscar por placa, conductor, afiliado, ruta…'
+      : 'Buscar por placa, conductor, observaciones...';
+  }
   state.currentView = view;
   state.search = '';
   els.searchInput.value = '';

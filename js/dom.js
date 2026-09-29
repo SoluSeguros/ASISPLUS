@@ -43,6 +43,7 @@ const els = {
   searchInput: document.getElementById('searchInput'),
   pageSizeSelect: document.getElementById('pageSizeSelect'),
   filtroAnio: document.getElementById('filtroAnio'),
+  filtroMes: document.getElementById('filtroMes'),
   filtroEmpresa: document.getElementById('filtroEmpresa'),
   filtroFechasBox: document.getElementById('filtroFechasBox'),
   filtroDesde: document.getElementById('filtroDesde'),
