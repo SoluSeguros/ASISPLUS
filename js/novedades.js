@@ -23,6 +23,18 @@ const NOVEDADES_KEY = 'asisplus-novedades-vista';
 // De la más nueva a la más vieja.
 const NOVEDADES = [
   {
+    version: '2.23.0',
+    titulo: 'Varias empresas al crear el usuario',
+    roles: ['admin'],
+    puntos: [
+      {
+        icono: '🏢',
+        titulo: 'Marca las empresas desde el formulario',
+        texto: 'Al crear un usuario de empresa, junto al selector hay un botón <b>+ Otras empresas</b> que abre la lista con casillas. Antes había que crear el usuario, buscarlo en la tabla y recién ahí marcárselas; ahora queda listo de una. Desde la tabla se siguen pudiendo cambiar cuando quieras.'
+      }
+    ]
+  },
+  {
     version: '2.22.1',
     titulo: 'APL: filtros por año y por mes',
     roles: ['admin'],

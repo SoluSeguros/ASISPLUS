@@ -4688,6 +4688,18 @@ body[data-rol="admin"] .bn-crear { display: flex; }
 .usu-emp-item:hover { background: var(--bg-2); }
 .usu-emp-item input { width: auto; margin: 0; cursor: pointer; }
 
+/* Marcar otras empresas desde el propio formulario de creación. */
+.usu-emp-extra {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.usu-emp-extra button { width: auto; }
+.usu-emp-extra .muted { font-size: 12.5px; }
+
 /* La principal no se puede soltar aquí: se cambia desde la columna Rol. */
 .usu-emp-item.principal { background: rgba(20, 85, 217, 0.05); cursor: default; }
 .usu-emp-item.principal span { color: var(--primary); font-weight: 600; }

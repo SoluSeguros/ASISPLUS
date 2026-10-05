@@ -131,6 +131,8 @@ const els = {
   usuRol: document.getElementById('usuRol'),
   usuEmpresaWrap: document.getElementById('usuEmpresaWrap'),
   usuEmpresa: document.getElementById('usuEmpresa'),
+  btnUsuEmpresasNuevo: document.getElementById('btnUsuEmpresasNuevo'),
+  usuEmpresasNuevoResumen: document.getElementById('usuEmpresasNuevoResumen'),
   btnUsuVolver: document.getElementById('btnUsuVolver'),
   btnRefrescarUsuarios: document.getElementById('btnRefrescarUsuarios'),
   usuariosBody: document.getElementById('usuariosBody'),

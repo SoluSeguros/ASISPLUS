@@ -179,6 +179,9 @@ els.btnUsuVolver.addEventListener('click', ocultarPantallas);
 if (els.usuRol) els.usuRol.addEventListener('change', actualizarVisibilidadEmpresa);
 
 // Modal de empresas del usuario (un usuario de empresa puede tener varias).
+// Marcar varias empresas ya en el formulario, sin tener que crear el usuario
+// primero y buscarlo después en la tabla.
+if (els.btnUsuEmpresasNuevo) els.btnUsuEmpresasNuevo.addEventListener('click', abrirEmpresasNuevoUsuario);
 if (els.btnUsuEmpresasCerrar) els.btnUsuEmpresasCerrar.addEventListener('click', cerrarEmpresasUsuario);
 if (els.btnUsuEmpresasGuardar) els.btnUsuEmpresasGuardar.addEventListener('click', guardarEmpresasUsuario);
 cablearBuscador(els.buscarUsuEmpresas, renderEmpresasUsuario);

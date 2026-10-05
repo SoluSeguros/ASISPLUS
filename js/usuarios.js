@@ -40,6 +40,7 @@ async function abrirUsuarios() {
   els.usuariosCard.classList.remove('hidden');
   marcarUbicacion('btnMenuUsuarios', 'Gestión de usuarios');
   els.formUsuario.reset();
+  limpiarEmpresasNuevo();
   if (els.usuEmpresaWrap) els.usuEmpresaWrap.classList.add('hidden');
   await Promise.all([cargarUsuarios(), cargarListaEmpresas()]);
 }
@@ -268,7 +269,7 @@ async function crearUsuario(event) {
   }
   try {
     showLoader(true);
-    await llamarAdminUsuarios({
+    const creado = await llamarAdminUsuarios({
       action: 'create',
       email,
       password,
@@ -276,8 +277,29 @@ async function crearUsuario(event) {
       nombre: els.usuNombre.value.trim(),
       empresa: rol === 'empresa' ? empresa : undefined
     });
-    showStatus(`Usuario ${email} creado correctamente.`, 'ok');
+
+    // Las empresas adicionales marcadas en el formulario, ahora que el perfil
+    // ya existe. La principal no va aquí: vive en `perfiles.empresa`.
+    const extras = rol === 'empresa'
+      ? [..._usuEmpresasNuevo].filter(e => e && e !== empresa)
+      : [];
+    let avisoEmpresas = '';
+    if (extras.length && creado && creado.id) {
+      const { error } = await db.from('perfil_empresas')
+        .insert(extras.map(emp => ({ perfil_id: creado.id, empresa: emp })));
+      // El usuario YA quedó creado: si esto falla no se puede decir que falló
+      // todo, porque volver a enviar el formulario daría "correo ya existe".
+      if (error) {
+        avisoEmpresas = ' Las empresas adicionales no se guardaron ('
+          + (error.message || error) + '); márcalas desde la tabla.';
+      }
+    }
+
+    const cuantas = extras.length && !avisoEmpresas ? ` con ${formatNumber(extras.length + 1)} empresas` : '';
+    showStatus(`Usuario ${email} creado correctamente${cuantas}.${avisoEmpresas}`,
+      avisoEmpresas ? 'error' : 'ok');
     els.formUsuario.reset();
+    limpiarEmpresasNuevo();
     if (els.usuEmpresaWrap) els.usuEmpresaWrap.classList.add('hidden');
     await cargarUsuarios();
   } catch (error) {
@@ -292,6 +314,8 @@ function actualizarVisibilidadEmpresa() {
   if (!els.usuEmpresaWrap || !els.usuRol) return;
   const esEmpresa = els.usuRol.value === 'empresa';
   els.usuEmpresaWrap.classList.toggle('hidden', !esEmpresa);
+  // Con otro rol no hay empresas que vincular: lo marcado deja de aplicar.
+  if (!esEmpresa) limpiarEmpresasNuevo();
   if (els.usuEmpresa) {
     if (esEmpresa) els.usuEmpresa.setAttribute('required', 'required');
     else els.usuEmpresa.removeAttribute('required');
@@ -375,6 +399,55 @@ async function eliminarUsuario(u) {
 
 let _usuEmpresasActual = null;          // usuario que se está editando
 let _usuEmpresasSel = new Set();        // lo marcado, se conserva al filtrar
+// Empresas adicionales elegidas en el FORMULARIO, antes de que el usuario
+// exista. Se guardan al crearlo, cuando ya hay a qué perfil colgarlas.
+let _usuEmpresasNuevo = new Set();
+
+/** Texto bajo el selector del formulario: cuántas empresas llevará el usuario. */
+function pintarResumenEmpresasNuevo() {
+  if (!els.usuEmpresasNuevoResumen) return;
+  const n = _usuEmpresasNuevo.size;
+  els.usuEmpresasNuevoResumen.textContent = n
+    ? (n === 1 ? 'La principal y 1 empresa más' : `La principal y ${formatNumber(n)} empresas más`)
+    : 'Solo la principal';
+}
+
+/** Olvida las empresas adicionales del formulario (al crear, o al cambiar de rol). */
+function limpiarEmpresasNuevo() {
+  _usuEmpresasNuevo = new Set();
+  pintarResumenEmpresasNuevo();
+}
+
+/**
+ * Abre el mismo modal de casillas, pero para un usuario que todavía no existe.
+ *
+ * Antes había que crear el usuario, buscarlo en la tabla y recién ahí marcarle
+ * las demás empresas. Lo marcado aquí se queda en memoria y se guarda cuando el
+ * perfil ya tiene id.
+ */
+function abrirEmpresasNuevoUsuario() {
+  const principal = String((els.usuEmpresa && els.usuEmpresa.value) || '').trim();
+  if (!principal) {
+    showStatus('Elige primero la empresa principal; las demás se marcan sobre ella.', 'error');
+    return;
+  }
+  _usuEmpresasActual = {
+    nuevo: true,
+    empresa: principal,
+    email: String((els.usuEmail && els.usuEmail.value) || '').trim(),
+    nombre: String((els.usuNombre && els.usuNombre.value) || '').trim()
+  };
+  // Si cambió la principal, la de antes sigue valiendo como adicional.
+  _usuEmpresasSel = new Set([principal, ..._usuEmpresasNuevo]);
+  if (els.usuEmpresasSub) {
+    els.usuEmpresasSub.textContent = _usuEmpresasActual.email
+      ? `Usuario nuevo · ${_usuEmpresasActual.email}`
+      : 'Usuario nuevo';
+  }
+  if (els.buscarUsuEmpresas) els.buscarUsuEmpresas.value = '';
+  renderEmpresasUsuario();
+  if (els.usuEmpresasModal) els.usuEmpresasModal.classList.add('show');
+}
 
 function abrirEmpresasUsuario(u) {
   _usuEmpresasActual = u;
@@ -446,6 +519,15 @@ async function guardarEmpresasUsuario() {
   if (!u) return;
   const principal = String(u.empresa || '').trim();
   const extras = [..._usuEmpresasSel].filter(e => e && e !== principal);
+
+  // El usuario todavía no existe: no hay perfil al que colgarlas. Se recuerdan
+  // y se guardan en cuanto se cree.
+  if (u.nuevo) {
+    _usuEmpresasNuevo = new Set(extras);
+    cerrarEmpresasUsuario();
+    pintarResumenEmpresasNuevo();
+    return;
+  }
 
   try {
     showLoader(true);
