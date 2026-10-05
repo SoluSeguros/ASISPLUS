@@ -122,10 +122,16 @@ function renderFichaEmpresaPropia() {
  * la principal del usuario, con un «+ N más» cuando está vinculado a varias.
  */
 function _nombreEmpresaActual() {
-  if (state.empresaVistaAdmin) return state.empresaVistaAdmin;
+  if (state.empresaVistaAdmin) return _rotuloEmpresas(state.empresaVistaAdmin);
   const mias = (state.perfil && state.perfil.empresas) || [];
-  const principal = mias[0] || (state.perfil && state.perfil.empresa) || '';
-  return mias.length > 1 ? `${principal} + ${mias.length - 1} más` : principal;
+  return _rotuloEmpresas(mias.length ? mias : [(state.perfil && state.perfil.empresa) || '']);
+}
+
+/** "COOMETROPOL + 3 más" cuando hay varias; el nombre a secas cuando hay una. */
+function _rotuloEmpresas(lista) {
+  const l = (lista || []).filter(Boolean);
+  if (!l.length) return '';
+  return l.length > 1 ? `${l[0]} + ${l.length - 1} más` : l[0];
 }
 
 /**
@@ -134,14 +140,23 @@ function _nombreEmpresaActual() {
  * Sin argumento lo abre el rol "empresa" y ve lo suyo: la RLS de Supabase ya
  * filtra parque_automotor y registro_asistencias por la empresa del perfil.
  *
- * Con `empresaNombre` lo abre un gestor o un admin para ver el portal de esa
- * empresa tal cual lo ve ella. Ahí la RLS NO filtra (esos roles ven todo), así
- * que el filtro se aplica en la consulta. Es la misma pantalla, no una copia:
- * si mañana cambia el portal, cambia para los dos a la vez.
+ * Con `empresas` lo abre un gestor o un admin para ver el portal tal cual lo ve
+ * ella. Ahí la RLS NO filtra (esos roles ven todo), así que el filtro se aplica
+ * en la consulta. Es la misma pantalla, no una copia: si mañana cambia el
+ * portal, cambia para los dos a la vez.
+ *
+ * Acepta un nombre suelto (desde la ficha de siniestralidad) o la lista
+ * completa de un usuario (desde el panel de usuarios). La lista importa: un
+ * usuario vinculado a varias empresas ve los casos de TODAS, y con una sola se
+ * estaría mirando menos de lo que él ve de verdad.
  */
-async function abrirEmpresaPortal(empresaNombre) {
-  const comoAdmin = !!empresaNombre && (state.perfil && state.perfil.rol !== 'empresa');
-  state.empresaVistaAdmin = comoAdmin ? empresaNombre : null;
+async function abrirEmpresaPortal(empresas, opciones) {
+  const op = opciones || {};
+  const lista = (Array.isArray(empresas) ? empresas : (empresas ? [empresas] : []))
+    .map(e => String(e || '').trim()).filter(Boolean);
+  const comoAdmin = lista.length > 0 && state.perfil && state.perfil.rol !== 'empresa';
+  state.empresaVistaAdmin = comoAdmin ? lista : null;
+  state.empresaVistaVolver = comoAdmin ? (op.volverA || 'dashboard') : null;
 
   ocultarPantallas();
   els.empresaCard.classList.remove('hidden');
@@ -150,20 +165,27 @@ async function abrirEmpresaPortal(empresaNombre) {
   // el parque figuran a nombre de otra). El título lleva la principal y, si hay
   // más, cuántas; el detalle va en el tooltip para no alargar el encabezado.
   const mias = (state.perfil && state.perfil.empresas) || [];
-  const titulo = comoAdmin
-    ? empresaNombre
-    : (mias[0] || (state.perfil && state.perfil.empresa) || 'Mi empresa');
+  const verLista = comoAdmin ? lista : (mias.length ? mias : [(state.perfil && state.perfil.empresa) || '']);
+  const titulo = _rotuloEmpresas(verLista) || 'Mi empresa';
   if (els.empresaNombreTitulo) {
-    els.empresaNombreTitulo.textContent =
-      (!comoAdmin && mias.length > 1) ? `${titulo} + ${mias.length - 1} más` : titulo;
-    els.empresaNombreTitulo.title = (!comoAdmin && mias.length > 1) ? mias.join(' · ') : '';
+    els.empresaNombreTitulo.textContent = titulo;
+    els.empresaNombreTitulo.title = verLista.length > 1 ? verLista.join(' · ') : '';
   }
 
   // El aviso y el botón de volver solo existen en el modo admin: la empresa no
   // tiene menú al que regresar ni necesita que le digan de quién es el portal.
   if (els.empresaAdminBtns) els.empresaAdminBtns.classList.toggle('hidden', !comoAdmin);
   if (els.empresaAvisoAdmin) els.empresaAvisoAdmin.classList.toggle('hidden', !comoAdmin);
-  if (els.empresaAvisoNombre) els.empresaAvisoNombre.textContent = titulo;
+  if (els.empresaAvisoNombre) {
+    // Con el usuario a la vista se entiende de quién es el portal; si no, basta
+    // con las empresas.
+    els.empresaAvisoNombre.textContent = op.usuario ? `${op.usuario} · ${titulo}` : titulo;
+    els.empresaAvisoNombre.title = lista.length > 1 ? lista.join(' · ') : '';
+  }
+  if (els.btnEmpresaVolver) {
+    els.btnEmpresaVolver.textContent =
+      state.empresaVistaVolver === 'usuarios' ? '← Usuarios' : '← Dashboard';
+  }
 
   marcarUbicacion('empresaCard', titulo);
   cambiarVistaEmpresa('dashboard');
@@ -182,7 +204,7 @@ async function cargarMisVehiculos() {
       .select('placa, numero_interno, tipo')
       .order('placa', { ascending: true });
     // La empresa no necesita filtro (lo hace la RLS); el admin sí.
-    if (state.empresaVistaAdmin) consulta = consulta.eq('empresa', state.empresaVistaAdmin);
+    if (state.empresaVistaAdmin) consulta = consulta.in('empresa', state.empresaVistaAdmin);
     const { data, error } = await consulta;
     if (error) throw error;
     state.empresaVehiculosTotal = (data || []).length;
@@ -248,7 +270,7 @@ async function cargarMisCasos() {
         ? _dashRows
         : await traerAsistenciasPaginado();
       data = base.filter(c =>
-        String((c.datos || {})['EMPRESA'] || '').trim() === state.empresaVistaAdmin);
+        state.empresaVistaAdmin.includes(String((c.datos || {})['EMPRESA'] || '').trim()));
     } else {
       data = await traerAsistenciasPaginado();
     }
@@ -494,7 +516,11 @@ function verDetalleCasoEmpresa(caso) {
     // Los acuerdos firmados: hoy la política de firma_cases no alcanza al rol
     // empresa, así que no llega ninguna fila y la sección no se dibuja. Queda
     // enganchado para que el día que se abra aparezca sin tocar nada.
-    agregarAcuerdosDetalle(cont, caso.numero_caso);
+    //
+    // Al admin que está mirando esta pantalla SÍ le llegarían, y entonces vería
+    // algo que la empresa no ve: la vista previa dejaría de ser fiel. Por eso
+    // ahí se omiten a propósito.
+    if (!state.empresaVistaAdmin) agregarAcuerdosDetalle(cont, caso.numero_caso);
     // El cruce con terceros va por KEY. Normalmente viene en la columna; en los
     // importados también está dentro de `datos`, así que se usa como respaldo.
     const clave = caso.key || (typeof getKey === 'function' ? getKey(d, 'KEY') : '');

@@ -23,6 +23,23 @@ const NOVEDADES_KEY = 'asisplus-novedades-vista';
 // De la más nueva a la más vieja.
 const NOVEDADES = [
   {
+    version: '2.24.0',
+    titulo: 'Ver el portal como lo ve cada usuario',
+    roles: ['admin'],
+    puntos: [
+      {
+        icono: '👁️',
+        titulo: 'Un botón junto a cada usuario de empresa',
+        texto: 'En la tabla de usuarios, al lado de sus empresas, está <b>👁 Ver su portal</b>: abre el portal con <b>todas</b> las empresas de ese usuario, igual que las ve él. Sirve para comprobar qué alcanza a ver antes de entregarle la clave, sin tener que entrar con su cuenta.'
+      },
+      {
+        icono: '↩️',
+        titulo: 'Se vuelve por donde entraste',
+        texto: 'El botón de arriba dice «← Usuarios» si entraste desde el panel de usuarios, y «← Dashboard» si entraste desde la ficha de siniestralidad.'
+      }
+    ]
+  },
+  {
     version: '2.23.0',
     titulo: 'Varias empresas al crear el usuario',
     roles: ['admin'],

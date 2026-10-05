@@ -51,8 +51,12 @@ if (els.btnVerPortalEmpresa) {
 // Volver al dashboard desde el portal visto como admin.
 if (els.btnEmpresaVolver) {
   els.btnEmpresaVolver.addEventListener('click', () => {
+    const volverA = state.empresaVistaVolver;
     state.empresaVistaAdmin = null;
-    volverAlDashboard();
+    state.empresaVistaVolver = null;
+    // Se regresa por donde se entró: desde el panel de usuarios, a usuarios.
+    if (volverA === 'usuarios') abrirUsuarios();
+    else volverAlDashboard();
   });
 }
 if (els.btnDashEmpLimpiar) els.btnDashEmpLimpiar.addEventListener('click', () => {

@@ -47,6 +47,7 @@ const state = {
   empresaCasosVisibles: [],    // los de arriba tras el buscador: lo que se ve
   empresaVehiculosTotal: 0,    // tamaño del parque: base de la tasa por 100 vehículos
   fichaEmpresaSel: '',         // empresa elegida en el dashboard de SoluAsistencia
-  empresaVistaAdmin: null,     // si un admin está viendo el portal de una empresa, su nombre
+  empresaVistaAdmin: null,     // admin viendo un portal ajeno: lista de empresas que ve
+  empresaVistaVolver: null,    // por dónde entró a esa vista ('dashboard' | 'usuarios')
   empresaCasosPagina: 1        // página actual del historial de la empresa
 };

@@ -214,6 +214,21 @@ function renderUsuarios(usuarios) {
       btn.textContent = lista.length > 1 ? `Editar (${lista.length})` : 'Agregar';
       btn.addEventListener('click', () => abrirEmpresasUsuario(u));
       chips.appendChild(btn);
+
+      // Ver el portal con las empresas de ESTE usuario, para comprobar qué
+      // alcanza a ver de verdad sin tener que entrar con su clave.
+      if (lista.length) {
+        const btnVer = document.createElement('button');
+        btnVer.type = 'button';
+        btnVer.className = 'secondary usu-emp-editar';
+        btnVer.textContent = '👁 Ver su portal';
+        btnVer.title = 'Abre el portal tal como lo ve este usuario';
+        btnVer.addEventListener('click', () => abrirEmpresaPortal(lista, {
+          usuario: u.nombre && u.nombre !== u.email ? u.nombre : u.email,
+          volverA: 'usuarios'
+        }));
+        chips.appendChild(btnVer);
+      }
       tdEmpresa.appendChild(chips);
     } else {
       tdEmpresa.textContent = u.empresa || '—';
