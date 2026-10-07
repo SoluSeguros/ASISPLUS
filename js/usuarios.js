@@ -45,14 +45,35 @@ async function abrirUsuarios() {
   await Promise.all([cargarUsuarios(), cargarListaEmpresas()]);
 }
 
-/** Carga las empresas del parque automotor para el selector de "empresa vinculada". */
+/**
+ * Carga las empresas del parque automotor para el selector de "empresa
+ * vinculada" y para las casillas de empresas del usuario.
+ *
+ * Se pagina a propósito: sin `.range()` Supabase devuelve como mucho 1.000
+ * filas, y el parque pasa de 1.700. Las empresas que solo aparecían en el tramo
+ * cortado NO salían en la lista, y además sin avisar: la lista se veía normal,
+ * solo que más corta, así que no se podía vincular a esas empresas.
+ */
 async function cargarListaEmpresas() {
   if (!els.usuEmpresa) return;
   try {
-    const { data, error } = await db.from('parque_automotor').select('empresa');
-    if (error) throw error;
-    const empresas = [...new Set((data || []).map(v => String(v.empresa || '').trim()).filter(Boolean))]
-      .sort((a, b) => a.localeCompare(b));
+    const nombres = new Set();
+    const PAGE = 1000;
+    let desde = 0;
+    while (true) {
+      const { data, error } = await db
+        .from('parque_automotor')
+        .select('empresa')
+        .range(desde, desde + PAGE - 1);
+      if (error) throw error;
+      (data || []).forEach(v => {
+        const e = String(v.empresa || '').trim();
+        if (e) nombres.add(e);
+      });
+      if (!data || data.length < PAGE) break;
+      desde += PAGE;
+    }
+    const empresas = [...nombres].sort((a, b) => a.localeCompare(b));
     state.empresasDisponibles = empresas;
     const actual = els.usuEmpresa.value;
     els.usuEmpresa.innerHTML = '<option value="">— Selecciona —</option>' +
