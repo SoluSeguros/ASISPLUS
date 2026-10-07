@@ -38,15 +38,26 @@ function anioDeFila(row) {
 
 /**
  * Fecha del siniestro como clave comparable 'YYYY-MM-DD' ('' si no se reconoce).
- * Acepta 'YYYY-MM-DD' y 'DD/MM/YYYY'. La comparación es lexicográfica, sin
- * zonas horarias.
+ * La comparación es lexicográfica, sin zonas horarias.
+ *
+ * Los dos formatos que hay en la base, y por qué importa el orden:
+ *
+ *   - 'YYYY-MM-DD' en los casos creados en la app.
+ *   - 'M/D/YYYY' en los 2.707 importados del AppSheet viejo: MES primero, y
+ *     casi siempre de un solo dígito ("9/12/2026" es el 12 de septiembre).
+ *
+ * Esto se leía como día/mes y exigiendo dos dígitos, así que el filtro de
+ * fechas hacía dos cosas mal a la vez: invertía las que entendía y descartaba
+ * en silencio las 2.108 que llevan el mes en un dígito. Que el primer número
+ * sea el mes está comprobado contra los datos: nunca pasa de 12, mientras que
+ * el segundo pasa de 12 en 1.650 registros.
  */
 function fechaKeyDeFila(row) {
-  const s = String(row['FECHA DEL SINIESTRO'] || '');
-  let m = s.match(/(\d{4})-(\d{2})-(\d{2})/);
+  const s = String(row['FECHA DEL SINIESTRO'] || '').trim();
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (m) return `${m[1]}-${m[2]}-${m[3]}`;
-  m = s.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+  m = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+  if (m) return `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`;
   return '';
 }
 
