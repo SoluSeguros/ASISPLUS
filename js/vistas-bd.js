@@ -164,6 +164,8 @@ function mostrarVistaBD(view) {
   if (info) marcarUbicacion(info[0], info[1]);
   // El botón de releer la hoja solo tiene sentido en la consulta de APL.
   if (els.aplBox) els.aplBox.classList.toggle('hidden', view !== 'apl');
+  // El alta de vehículos, solo en el parque (y solo para la administración).
+  if (typeof actualizarAccionesParque === 'function') actualizarAccionesParque(view === 'parque');
   if (els.searchInput) {
     els.searchInput.placeholder = view === 'apl'
       ? 'Buscar por placa, conductor, afiliado, ruta…'

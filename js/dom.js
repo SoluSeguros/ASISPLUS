@@ -175,7 +175,15 @@ const els = {
 
   // Alta de vehículos por la propia empresa (portal)
   empresaVehAlta: document.getElementById('empresaVehAlta'),
+  empresaVehNota: document.getElementById('empresaVehNota'),
+  empresaVehNotaPreview: document.getElementById('empresaVehNotaPreview'),
   empresaVehResultado: document.getElementById('empresaVehResultado'),
+  parqueBox: document.getElementById('parqueBox'),
+  parqueResultado: document.getElementById('parqueResultado'),
+  btnParqueNuevo: document.getElementById('btnParqueNuevo'),
+  btnParquePlantilla: document.getElementById('btnParquePlantilla'),
+  btnParqueImportar: document.getElementById('btnParqueImportar'),
+  inputParqueExcel: document.getElementById('inputParqueExcel'),
   btnVehNuevo: document.getElementById('btnVehNuevo'),
   btnVehPlantilla: document.getElementById('btnVehPlantilla'),
   btnVehImportar: document.getElementById('btnVehImportar'),

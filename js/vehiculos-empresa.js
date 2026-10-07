@@ -110,6 +110,54 @@ const VEH_MAX_IMPORTAR = 1000;
 const VEH_HOJAS_IGNORADAS = ['EJEMPLO', 'INSTRUCCIONES'];
 
 /* ------------------------------------------------------------------ *
+ *  Desde dónde se está dando de alta
+ * ------------------------------------------------------------------ *
+ *  'portal' — la transportadora en su portal: sus empresas, su flota.
+ *  'parque' — la administración en "Parque automotor": las 22 empresas y
+ *             los 1.785 vehículos.
+ *
+ *  Es la MISMA maquinaria (el mismo formulario, la misma plantilla, el
+ *  mismo importador); lo único que cambia es de dónde salen las empresas
+ *  que se pueden elegir y contra qué flota se compara una placa repetida.
+ *  Se fija en cada clic, que es cuando se sabe en qué pantalla está la
+ *  persona.
+ */
+let _vehContexto = 'portal';
+
+/** Las empresas del portal que se está viendo (la propia o la de la vista previa). */
+function vehEmpresasDelPortal() {
+  // En la vista previa del admin, las empresas son las del usuario que se
+  // está mirando: la plantilla que se descargue desde ahí tiene que ser la
+  // misma que recibiría él.
+  if (state.empresaVistaAdmin) return state.empresaVistaAdmin.slice();
+  const p = state.perfil || {};
+  const lista = (p.empresas && p.empresas.length) ? p.empresas : (p.empresa ? [p.empresa] : []);
+  return lista.map(e => String(e || '').trim()).filter(Boolean);
+}
+
+/** Todas las empresas que hoy tienen vehículos en el parque. */
+function vehEmpresasDelParque() {
+  const vistas = new Set();
+  (state.parqueRows || []).forEach(v => {
+    const e = String(v.empresa || '').trim();
+    if (e) vistas.add(e);
+  });
+  return [...vistas].sort((a, b) => a.localeCompare(b, 'es'));
+}
+
+/** La flota contra la que se comprueba si una placa ya está registrada. */
+function vehFlotaActual() {
+  return _vehContexto === 'parque'
+    ? (state.parqueRows || [])
+    : (state.empresaVehiculosLista || []);
+}
+
+/** Dónde se escribe el resultado de un cargue. */
+function _vehCajaResultado() {
+  return _vehContexto === 'parque' ? els.parqueResultado : els.empresaVehResultado;
+}
+
+/* ------------------------------------------------------------------ *
  *  Normalización
  * ------------------------------------------------------------------ */
 
@@ -139,31 +187,65 @@ function placaBienFormada(placa) {
  *  Permisos y estado de la pantalla
  * ------------------------------------------------------------------ */
 
-/** Las empresas en las que este usuario puede dar de alta. */
+/** Las empresas en las que se puede dar de alta desde donde se está. */
 function vehEmpresasPermitidas() {
-  const p = state.perfil || {};
-  const lista = (p.empresas && p.empresas.length) ? p.empresas : (p.empresa ? [p.empresa] : []);
-  return lista.map(e => String(e || '').trim()).filter(Boolean);
+  return _vehContexto === 'parque' ? vehEmpresasDelParque() : vehEmpresasDelPortal();
 }
 
 /**
- * ¿Se muestran los botones de alta?
+ * ¿Se puede escribir desde donde se está?
  *
- * Sólo al rol empresa y sólo cuando está en SU portal. El admin que entra por
- * "👁 Ver su portal" está mirando una vista previa de solo lectura: si pudiera
- * agregar desde ahí vería una pantalla distinta de la que ve la empresa, que
- * es justo lo que esa vista promete no hacer.
+ * En el parque, el administrador. En el portal, la transportadora y sólo en
+ * EL SUYO: el admin que entra por "👁 Ver su portal" está mirando una vista
+ * previa. Si pudiera agregar desde ahí vería una pantalla distinta de la que
+ * ve la empresa, que es justo lo que esa vista promete no hacer. Para eso
+ * tiene los mismos botones en "Parque automotor", donde además alcanza a las
+ * 22 empresas y no sólo a las de un usuario.
  */
 function puedeAgregarVehiculos() {
+  if (_vehContexto === 'parque') return !!(state.perfil && state.perfil.rol === 'admin');
   return !!(state.perfil && state.perfil.rol === 'empresa' &&
-    !state.empresaVistaAdmin && vehEmpresasPermitidas().length);
+    !state.empresaVistaAdmin && vehEmpresasDelPortal().length);
 }
 
-/** Muestra u oculta la barra de alta según quién esté mirando. */
+/**
+ * Pone la barra de alta del portal como corresponda a quién mira.
+ *
+ * En la vista previa del admin la barra SE VE, con los botones de escribir
+ * apagados. Esconderla sería mentir sobre lo que la empresa tiene delante, y
+ * esa pantalla existe precisamente para saberlo. La plantilla sí se puede
+ * bajar: leer no es escribir, y es la forma de revisar qué le va a llegar.
+ */
 function actualizarAccionesVehiculos() {
-  const puede = puedeAgregarVehiculos();
-  if (els.empresaVehAlta) els.empresaVehAlta.classList.toggle('hidden', !puede);
-  if (!puede && els.empresaVehResultado) els.empresaVehResultado.classList.add('hidden');
+  _vehContexto = 'portal';
+  const esPreview = !!state.empresaVistaAdmin;
+  const hayEmpresas = vehEmpresasDelPortal().length > 0;
+  const mostrar = hayEmpresas && (esPreview || puedeAgregarVehiculos());
+
+  if (els.empresaVehAlta) els.empresaVehAlta.classList.toggle('hidden', !mostrar);
+  [els.btnVehNuevo, els.btnVehImportar].forEach(b => {
+    if (!b) return;
+    b.disabled = esPreview;
+    b.title = esPreview ? 'Así lo ve la empresa. Desde la vista previa no se escribe: usa "Parque automotor".' : '';
+  });
+  if (els.empresaVehNota) {
+    els.empresaVehNota.classList.toggle('hidden', esPreview);
+  }
+  if (els.empresaVehNotaPreview) {
+    els.empresaVehNotaPreview.classList.toggle('hidden', !esPreview);
+  }
+  if (els.empresaVehResultado) els.empresaVehResultado.classList.add('hidden');
+}
+
+/**
+ * Pone la barra de alta de "Parque automotor" (administración). Se llama al
+ * entrar a esa vista y al salir de ella.
+ */
+function actualizarAccionesParque(visible) {
+  _vehContexto = 'parque';
+  const mostrar = visible && puedeAgregarVehiculos();
+  if (els.parqueBox) els.parqueBox.classList.toggle('hidden', !mostrar);
+  if (!mostrar && els.parqueResultado) els.parqueResultado.classList.add('hidden');
 }
 
 /* ------------------------------------------------------------------ *
@@ -200,11 +282,15 @@ function abrirVehiculoNuevo() {
       .map(e => `<option value="${escBandeja(e)}">${escBandeja(e)}</option>`).join('');
     els.vehEmpresa.value = empresas[0] || '';
   }
-  if (els.vehEmpresaWrap) els.vehEmpresaWrap.classList.toggle('hidden', empresas.length < 2);
+  // En el parque se elige siempre: la administración no tiene "su" empresa.
+  const elegir = _vehContexto === 'parque' || empresas.length > 1;
+  if (els.vehEmpresaWrap) els.vehEmpresaWrap.classList.toggle('hidden', !elegir);
   if (els.vehNuevoSub) {
-    els.vehNuevoSub.textContent = empresas.length < 2
+    els.vehNuevoSub.textContent = !elegir
       ? (empresas[0] || '')
-      : 'Elige en cuál de tus empresas queda registrado.';
+      : (_vehContexto === 'parque'
+          ? 'Elige la empresa a la que pertenece.'
+          : 'Elige en cuál de tus empresas queda registrado.');
   }
 
   if (els.vehiculoNuevoModal) els.vehiculoNuevoModal.classList.add('show');
@@ -215,10 +301,10 @@ function cerrarVehiculoNuevo() {
   if (els.vehiculoNuevoModal) els.vehiculoNuevoModal.classList.remove('show');
 }
 
-/** ¿Esa placa ya está en la flota que el usuario tiene a la vista? */
+/** ¿Esa placa ya está en la flota que se tiene a la vista? */
 function _vehYaRegistrado(placa, empresa) {
   const p = normalizarPlacaVeh(placa);
-  return (state.empresaVehiculosLista || []).find(v =>
+  return vehFlotaActual().find(v =>
     normalizarPlacaVeh(v.placa) === p &&
     (!empresa || String(v.empresa || '').trim() === String(empresa).trim()));
 }
@@ -229,9 +315,9 @@ async function guardarVehiculoNuevo(evento) {
   if (!puedeAgregarVehiculos()) return;
 
   const empresas = vehEmpresasPermitidas();
-  const empresa = empresas.length < 2
-    ? (empresas[0] || '')
-    : String((els.vehEmpresa && els.vehEmpresa.value) || '').trim();
+  const empresa = (_vehContexto === 'parque' || empresas.length > 1)
+    ? String((els.vehEmpresa && els.vehEmpresa.value) || '').trim()
+    : (empresas[0] || '');
   if (!empresa) { showStatus('Elige la empresa del vehículo.', 'error'); return; }
 
   const placa = normalizarPlacaVeh(els.vehPlaca ? els.vehPlaca.value : '');
@@ -276,8 +362,7 @@ async function guardarVehiculoNuevo(evento) {
     const { error } = await db.from('parque_automotor').insert([fila]);
     if (error) throw error;
     cerrarVehiculoNuevo();
-    await cargarMisVehiculos();
-    renderFichaEmpresaPropia();
+    await _vehRecargarListado();
     pintarResultadoVeh(
       `<b>${escBandeja(placa)}</b> quedó registrado en ${escBandeja(empresa)}. ` +
       'Desde ahora sus siniestros van a traer el tipo, el modelo y el propietario.',
@@ -288,6 +373,24 @@ async function guardarVehiculoNuevo(evento) {
   } finally {
     showLoader(false);
   }
+}
+
+/**
+ * Vuelve a bajar la lista que se está viendo para que el vehículo recién
+ * registrado aparezca. En el parque se recarga el maestro completo (también
+ * refresca la copia que usa el formulario de casos sin internet); en el portal,
+ * la flota y la ficha de siniestralidad, que cuenta sobre el total de vehículos.
+ */
+async function _vehRecargarListado() {
+  if (_vehContexto === 'parque') {
+    if (typeof cargarParqueYMostrar === 'function') await cargarParqueYMostrar();
+    // cargarParqueYMostrar vuelve a dibujar la vista y por eso repinta la barra.
+    actualizarAccionesParque(true);
+    return;
+  }
+  await cargarMisVehiculos();
+  renderFichaEmpresaPropia();
+  _vehContexto = 'portal';
 }
 
 /** Traduce los errores de la base a algo que se pueda leer. */
@@ -347,7 +450,10 @@ function descargarPlantillaVehiculos() {
     ['5.', 'Si una placa ya está registrada, el sistema la salta y te lo dice. No se duplica nada.'],
     ['6.', 'Cuando termines, guarda el archivo y súbelo con el botón "Importar desde Excel".'],
     [''],
-    ['Empresas en las que puedes registrar:', empresas.join('  ·  ') || '(ninguna)'],
+    ['Empresas en las que puedes registrar:',
+      empresas.length > 8
+        ? `Las ${empresas.length} del parque. Escribe el nombre EXACTO, igual que aparece en la columna EMPRESA de la tabla.`
+        : (empresas.join('  ·  ') || '(ninguna)')],
     [''],
     ['COLUMNA', '¿OBLIGATORIA?', 'QUÉ SE ESCRIBE', 'EJEMPLO']
   ];
@@ -358,7 +464,8 @@ function descargarPlantillaVehiculos() {
   hojaIns['!cols'] = [{ wch: 24 }, { wch: 14 }, { wch: 78 }, { wch: 20 }];
   XLSX.utils.book_append_sheet(wb, hojaIns, 'INSTRUCCIONES');
 
-  const nombre = (empresas.length === 1 ? empresas[0] : 'MI_EMPRESA')
+  const nombre = (_vehContexto === 'parque' ? 'PARQUE'
+    : (empresas.length === 1 ? empresas[0] : 'MI_EMPRESA'))
     .replace(/[^a-zA-Z0-9]+/g, '_').toUpperCase();
   XLSX.writeFile(wb, `PLANTILLA_VEHICULOS_${nombre}.xlsx`);
   showStatus('Plantilla descargada. Llena la hoja VEHICULOS y vuelve a subirla.', 'ok');
@@ -495,10 +602,7 @@ async function importarVehiculosDesdeArchivo(archivo) {
       }
     }
 
-    if (insertados) {
-      await cargarMisVehiculos();
-      renderFichaEmpresaPropia();
-    }
+    if (insertados) await _vehRecargarListado();
     pintarResumenImportacion({
       hoja: nombreHoja,
       leidas: filas.length,
@@ -519,7 +623,7 @@ async function importarVehiculosDesdeArchivo(archivo) {
 
 /** Un mensaje suelto en el panel de resultado. */
 function pintarResultadoVeh(html, tipo) {
-  const caja = els.empresaVehResultado;
+  const caja = _vehCajaResultado();
   if (!caja) return;
   caja.className = `veh-resultado ${tipo === 'error' ? 'es-error' : 'es-ok'}`;
   caja.innerHTML = html;
@@ -561,8 +665,35 @@ function pintarResumenImportacion(r) {
  *  Cableado
  * ------------------------------------------------------------------ */
 
+/**
+ * Engancha un trío de botones (agregar · plantilla · importar) a un contexto.
+ * El contexto se fija en el clic, no al cablear: es ahí cuando se sabe desde
+ * qué pantalla está actuando la persona.
+ */
+function _vehCablearTrio(contexto, btnNuevo, btnPlantilla, btnImportar, input) {
+  if (btnNuevo) {
+    btnNuevo.addEventListener('click', () => { _vehContexto = contexto; abrirVehiculoNuevo(); });
+  }
+  if (btnPlantilla) {
+    btnPlantilla.addEventListener('click', () => { _vehContexto = contexto; descargarPlantillaVehiculos(); });
+  }
+  if (btnImportar && input) {
+    btnImportar.addEventListener('click', () => { _vehContexto = contexto; input.click(); });
+    input.addEventListener('change', async event => {
+      const archivo = event.target.files && event.target.files[0];
+      event.target.value = '';   // permite volver a subir el mismo archivo corregido
+      _vehContexto = contexto;
+      await importarVehiculosDesdeArchivo(archivo);
+    });
+  }
+}
+
 function initVehiculosEmpresa() {
-  if (els.btnVehNuevo) els.btnVehNuevo.addEventListener('click', abrirVehiculoNuevo);
+  // Portal de la empresa.
+  _vehCablearTrio('portal', els.btnVehNuevo, els.btnVehPlantilla, els.btnVehImportar, els.inputVehExcel);
+  // Parque automotor (administración): la misma maquinaria, todas las empresas.
+  _vehCablearTrio('parque', els.btnParqueNuevo, els.btnParquePlantilla, els.btnParqueImportar, els.inputParqueExcel);
+
   if (els.btnVehNuevoCerrar) els.btnVehNuevoCerrar.addEventListener('click', cerrarVehiculoNuevo);
   if (els.formVehiculoNuevo) els.formVehiculoNuevo.addEventListener('submit', guardarVehiculoNuevo);
   if (els.vehiculoNuevoModal) {
@@ -578,13 +709,4 @@ function initVehiculosEmpresa() {
     });
   }
 
-  if (els.btnVehPlantilla) els.btnVehPlantilla.addEventListener('click', descargarPlantillaVehiculos);
-  if (els.btnVehImportar && els.inputVehExcel) {
-    els.btnVehImportar.addEventListener('click', () => els.inputVehExcel.click());
-    els.inputVehExcel.addEventListener('change', async event => {
-      const archivo = event.target.files && event.target.files[0];
-      event.target.value = '';   // permite volver a subir el mismo archivo corregido
-      await importarVehiculosDesdeArchivo(archivo);
-    });
-  }
 }

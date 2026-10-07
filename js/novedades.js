@@ -23,9 +23,26 @@ const NOVEDADES_KEY = 'asisplus-novedades-vista';
 // De la más nueva a la más vieja.
 const NOVEDADES = [
   {
+    version: '2.26.0',
+    titulo: 'Agregar vehículos desde Parque automotor',
+    roles: ['admin'],
+    puntos: [
+      {
+        icono: '🚌',
+        titulo: 'Los mismos tres botones, para las 22 empresas',
+        texto: 'En <b>Parque automotor</b>, arriba a la derecha: <b>➕ Agregar vehículo</b>, <b>⬇️ Plantilla</b> y <b>⬆️ Importar</b>. Eliges la empresa de una lista con las que ya existen en el parque, así un dedazo no crea una empresa fantasma. Es la misma maquinaria que usa la transportadora en su portal.'
+      },
+      {
+        icono: '👁️',
+        titulo: 'En "Ver su portal" los verás apagados',
+        texto: 'Esa pantalla sigue siendo de solo lectura: muestra los botones para que sepas que la empresa los tiene, pero no escribe. La <b>plantilla</b> sí se puede bajar desde ahí, y es exactamente la que recibiría esa empresa.'
+      }
+    ]
+  },
+  {
     version: '2.25.0',
     titulo: 'Registra tus propios vehículos',
-    roles: ['empresa', 'admin'],
+    roles: ['empresa'],
     puntos: [
       {
         icono: '🚌',
