@@ -52,3 +52,8 @@ supabase/herramientas/subida.log
 
 # Caché de Python (la generan las herramientas de supabase/herramientas)
 __pycache__/
+
+# Listados de parque automotor con datos personales (nombres, cédulas y
+# teléfonos de propietarios). Este repositorio es PÚBLICO: no pueden subirse.
+PARQUE AUTOMOTOR*
+*parque*4*empresas*.sql
