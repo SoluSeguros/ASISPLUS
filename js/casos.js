@@ -920,7 +920,12 @@ function actualizarAvisoParque() {
 
 /** Activa el modo manual: la placa escrita se usa y los datos se llenan a mano. */
 function usarVehiculoManual() {
-  const texto = els.casoVehiculoBuscar.value.trim().toUpperCase();
+  // El buscador NO siempre contiene solo la placa: al elegir un vehículo de la
+  // lista queda con su etiqueta ("TSG076 · COOINVETRANS"), y al volver a pulsar
+  // manual se le pega además "(registro manual)". Esa cadena entera acababa
+  // guardada como PLACA VEHICULO, y entonces el caso no cruzaba con ningún
+  // vehículo del parque. La placa es lo que va antes del primer separador.
+  const texto = els.casoVehiculoBuscar.value.split('·')[0].trim().toUpperCase();
   els.casoVehiculo.value = '';
   els.casoVehiculoLista.classList.add('hidden');
   limpiarAutocompletado();
