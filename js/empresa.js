@@ -108,10 +108,11 @@ function initEmpresaPortal() {
 const EMPRESA_VISTAS = {
   dashboard: 'empresaVistaDashboard',
   historico: 'empresaVistaHistorico',
+  mapa: 'empresaVistaMapa',
   vehiculos: 'empresaVistaVehiculos'
 };
 
-/** Cambia entre Dashboard / Históricos / Vehículos dentro del portal de empresa. */
+/** Cambia entre Dashboard / Históricos / Mapa / Vehículos dentro del portal. */
 function cambiarVistaEmpresa(vista) {
   if (!EMPRESA_VISTAS[vista]) return;
   if (els.empresaTabs) {
@@ -121,6 +122,10 @@ function cambiarVistaEmpresa(vista) {
     const el = els[EMPRESA_VISTAS[v]];
     if (el) el.classList.toggle('hidden', v !== vista);
   });
+  // El mapa se arma al abrirlo, no antes: Leaflet son ~180 KB que no tiene por
+  // qué bajar quien nunca entra aquí, y además hay que medir el contenedor
+  // cuando ya está visible.
+  if (vista === 'mapa' && typeof abrirMapaEmpresa === 'function') abrirMapaEmpresa();
 }
 
 /** Lee el rango Desde/Hasta del filtro de "Mis siniestros por mes". */
@@ -227,6 +232,10 @@ async function abrirEmpresaPortal(empresas, opciones) {
   }
 
   marcarUbicacion('empresaCard', titulo);
+  // El mapa se suelta al entrar: si el admin pasa del portal de una empresa al
+  // de otra, se rearma con los casos y los filtros de la nueva en vez de
+  // arrastrar los años y las gravedades de la anterior.
+  if (typeof soltarMapaEmpresa === 'function') soltarMapaEmpresa();
   cambiarVistaEmpresa('dashboard');
   await Promise.all([cargarMisVehiculos(), cargarMisCasos()]);
   renderFichaEmpresaPropia();

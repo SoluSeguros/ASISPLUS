@@ -36,6 +36,7 @@ const ASSETS = [
   './js/usuarios.js?v=' + APP_VERSION,
   './js/empresa.js?v=' + APP_VERSION,
   './js/vehiculos-empresa.js?v=' + APP_VERSION,
+  './js/mapa-empresa.js?v=' + APP_VERSION,
   './js/detalle.js?v=' + APP_VERSION,
   './js/terceros.js?v=' + APP_VERSION,
   './js/cierre.js?v=' + APP_VERSION,

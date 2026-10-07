@@ -148,6 +148,9 @@ initEmpresaPortal();
 // Alta de vehículos por la propia empresa (manual y por plantilla de Excel).
 initVehiculosEmpresa();
 
+// Mapa de siniestros del portal de empresa (Leaflet se baja al abrir la pestaña).
+initMapaEmpresa();
+
 // El admin puede reasignar al instante cambiando el desplegable (aunque el
 // caso esté bloqueado por check-in). El asistente lo guarda con el botón.
 els.detalleAsignar.addEventListener('change', () => {

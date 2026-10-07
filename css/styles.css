@@ -4931,3 +4931,62 @@ body[data-rol="admin"] .bn-crear { display: flex; }
    justamente lo que hay que completar. */
 .detalle-item.es-vacio { background: #fbfbfc; border-style: dashed; }
 .detalle-item.es-vacio .detalle-val i { color: #94a3b8; }
+
+/* ============ Mapa de siniestros del portal de empresa ============ */
+/* Las coordenadas ya estaban, pero sólo se veían de a una dentro del detalle
+   de cada caso. Aquí se ve el conjunto: qué cruce se repite, qué corredor
+   concentra los atropellos. Los colores son los MISMOS de la gravedad en el
+   historial, para no tener que aprender una leyenda nueva. */
+.mapa-canvas {
+  height: 62vh;
+  min-height: 340px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;      /* las teselas de Leaflet se salen de las esquinas */
+  background: #eef2f7;   /* mientras bajan las teselas, no un hueco blanco */
+  z-index: 0;            /* Leaflet apila sus capas; sin esto tapa los modales */
+}
+
+.mapa-leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.mapa-leyenda > span { display: inline-flex; align-items: center; gap: 6px; }
+
+.mapa-pin {
+  width: 12px; height: 12px; border-radius: 50%;
+  border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(15, 23, 42, .15);
+  display: inline-block;
+}
+.mapa-pin.grav-danos     { background: #16a34a; }
+.mapa-pin.grav-heridos   { background: #f59e0b; }
+.mapa-pin.grav-homicidio { background: #dc2626; }
+.mapa-pin.grav-otro      { background: #94a3b8; }
+
+.mapa-info { margin-left: auto; color: var(--text); }
+/* Los casos sin coordenadas se nombran, no se esconden: un mapa con 384 puntos
+   que en realidad son 403 casos miente por omisión. */
+.mapa-sinubi { color: #92400e; }
+
+/* El globo de cada punto */
+.mapa-pop { font-size: 13px; line-height: 1.45; }
+.mapa-pop-placa {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 15px; font-weight: 800; color: #0b2a55; letter-spacing: .04em;
+}
+.mapa-pop-meta { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+.mapa-pop-cond, .mapa-pop-dir { margin-top: 5px; color: #475569; }
+.mapa-pop-dir { font-size: 12px; color: var(--muted); }
+.mapa-pop-btn { margin-top: 10px; width: 100%; padding: 7px 10px; font-size: 12.5px; }
+.mapa-pop .ct-grav { display: inline-block; margin-top: 2px; }
+
+@media (max-width: 680px) {
+  .mapa-canvas { height: 56vh; }
+  .mapa-info { margin-left: 0; width: 100%; }
+}

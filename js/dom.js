@@ -149,6 +149,16 @@ const els = {
   empresaVistaDashboard: document.getElementById('empresaVistaDashboard'),
   empresaVistaHistorico: document.getElementById('empresaVistaHistorico'),
   empresaVistaVehiculos: document.getElementById('empresaVistaVehiculos'),
+
+  // Mapa de siniestros (portal de empresa)
+  empresaVistaMapa: document.getElementById('empresaVistaMapa'),
+  empresaMapaCanvas: document.getElementById('empresaMapaCanvas'),
+  empresaMapaInfo: document.getElementById('empresaMapaInfo'),
+  filtroMapaAnio: document.getElementById('filtroMapaAnio'),
+  filtroMapaGravedad: document.getElementById('filtroMapaGravedad'),
+  filtroMapaEmpresa: document.getElementById('filtroMapaEmpresa'),
+  btnMapaFiltrosLimpiar: document.getElementById('btnMapaFiltrosLimpiar'),
+
   empresaVehiculosBody: document.getElementById('empresaVehiculosBody'),
   empresaVehiculosCount: document.getElementById('empresaVehiculosCount'),
   buscarEmpresaVehiculos: document.getElementById('buscarEmpresaVehiculos'),

@@ -23,6 +23,28 @@ const NOVEDADES_KEY = 'asisplus-novedades-vista';
 // De la más nueva a la más vieja.
 const NOVEDADES = [
   {
+    version: '2.28.0',
+    titulo: 'Mapa: dónde ocurrieron los siniestros',
+    roles: ['empresa', 'admin'],
+    puntos: [
+      {
+        icono: '🗺️',
+        titulo: 'Una pestaña nueva en tu portal',
+        texto: 'Junto a Históricos está <b>🗺️ Mapa de siniestros</b>. Cada punto es un caso, con el color de su gravedad: verde daños, ámbar heridos, rojo homicidio. Acerca el mapa para separar los grupos y toca un punto para abrir el caso completo.'
+      },
+      {
+        icono: '📍',
+        titulo: 'Para ver dónde se repiten',
+        texto: 'Las ubicaciones ya se venían guardando en cada caso, pero sólo se podían ver de a una. En el conjunto se nota lo que antes no: qué cruce aparece una y otra vez, qué tramo de una ruta concentra los casos. Puedes filtrar por año, por gravedad y, si administras varias, por empresa.'
+      },
+      {
+        icono: '🔢',
+        titulo: 'Te dice cuántos no puede ubicar',
+        texto: 'Debajo de la leyenda verás cuántos siniestros está mostrando y cuántos quedaron <b>sin ubicación registrada</b>. Un mapa con menos puntos que casos, sin avisarlo, no serviría para tomar decisiones.'
+      }
+    ]
+  },
+  {
     version: '2.27.0',
     titulo: 'Encontrar un vehículo en la lista',
     roles: ['empresa', 'admin'],
