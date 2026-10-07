@@ -42,6 +42,45 @@ function initEmpresaPortal() {
       refiltrar();
     });
   }
+  // Listado de vehículos: mismo patrón que el historial (clic o Enter en la
+  // fila abre la ficha, el buscador vuelve a la primera página).
+  if (els.empresaVehiculosBody) {
+    const abrirVehiculo = event => {
+      const fila = event.target.closest('[data-idx]');
+      if (!fila) return;
+      if (event.type === 'keydown' && event.key !== 'Enter' && event.key !== ' ') return;
+      if (event.type === 'keydown') event.preventDefault();
+      const veh = (state.empresaVehiculosVisibles || [])[Number(fila.dataset.idx)];
+      if (veh) verDetalleVehiculoEmpresa(veh);
+    };
+    els.empresaVehiculosBody.addEventListener('click', abrirVehiculo);
+    els.empresaVehiculosBody.addEventListener('keydown', abrirVehiculo);
+  }
+  const refiltrarVeh = () => {
+    state.empresaVehiculosPagina = 1;
+    renderVehiculosEmpresa();
+  };
+  cablearBuscador(els.buscarEmpresaVehiculos, refiltrarVeh);
+  ['filtroVehEmpresa', 'filtroVehTipo', 'filtroVehDatos'].forEach(id => {
+    if (els[id]) els[id].addEventListener('change', refiltrarVeh);
+  });
+  if (els.btnVehFiltrosLimpiar) {
+    els.btnVehFiltrosLimpiar.addEventListener('click', () => {
+      if (els.buscarEmpresaVehiculos) els.buscarEmpresaVehiculos.value = '';
+      ['filtroVehEmpresa', 'filtroVehTipo', 'filtroVehDatos']
+        .forEach(id => { if (els[id]) els[id].value = ''; });
+      refiltrarVeh();
+    });
+  }
+  if (els.btnEmpresaVehPrev) els.btnEmpresaVehPrev.addEventListener('click', () => moverPaginaVehiculosEmpresa(-1));
+  if (els.btnEmpresaVehNext) els.btnEmpresaVehNext.addEventListener('click', () => moverPaginaVehiculosEmpresa(1));
+  if (els.btnVehiculoFichaCerrar) els.btnVehiculoFichaCerrar.addEventListener('click', cerrarDetalleVehiculoEmpresa);
+  if (els.vehiculoFichaModal) {
+    els.vehiculoFichaModal.addEventListener('click', event => {
+      if (event.target === els.vehiculoFichaModal) cerrarDetalleVehiculoEmpresa();
+    });
+  }
+
   if (els.btnEmpresaCasoCerrar) els.btnEmpresaCasoCerrar.addEventListener('click', cerrarDetalleCasoEmpresa);
   if (els.empresaCasoModal) {
     els.empresaCasoModal.addEventListener('click', event => {
@@ -193,22 +232,42 @@ async function abrirEmpresaPortal(empresas, opciones) {
   renderFichaEmpresaPropia();
 }
 
+/* ------------------------------------------------------------------ *
+ *  Mis vehículos
+ * ------------------------------------------------------------------ *
+ *  Era una tabla de cuatro columnas con 105 filas y un scroll: para
+ *  encontrar una placa había que leerlas todas, y con cuatro empresas
+ *  vinculadas ni siquiera se veía de cuál era cada vehículo. Ahora es la
+ *  misma fila-tarjeta del historial de casos, con buscador y filtros, y
+ *  el resto de los datos —propietario, conductor, aseguradora— se abre
+ *  al tocar el vehículo en vez de ensanchar la lista.
+ */
+
+/** Columnas del parque que ve la empresa (nunca la contraseña del conductor). */
+const EMPRESA_VEH_COLUMNAS =
+  'empresa, placa, numero_interno, tipo, modelo, aseguradora, ' +
+  'propietario, cedula_propietario, telefono_propietario, ' +
+  'nombre_conductor, cedula_conductor, telefono_conductor';
+
+/** Cuántos vehículos por página (el mismo número que el historial). */
+const EMPRESA_VEH_POR_PAGINA = 50;
+
 /**
  * Carga el listado de vehículos de la empresa (RLS ya filtra por empresa).
  *
- * Se trae también `empresa`, aunque no se muestre: es lo que permite detectar
- * una placa repetida antes de intentar darla de alta cuando el usuario
- * administra varias empresas (ver vehiculos-empresa.js).
+ * Se trae también `empresa`, aunque solo se muestre cuando hay varias: es lo
+ * que permite detectar una placa repetida antes de intentar darla de alta
+ * (ver vehiculos-empresa.js).
  */
 async function cargarMisVehiculos() {
-  const tbody = els.empresaVehiculosBody;
-  if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="4">Cargando...</td></tr>';
+  const cont = els.empresaVehiculosBody;
+  if (!cont) return;
+  cont.innerHTML = '<div class="ehl-estado">Cargando…</div>';
   if (typeof actualizarAccionesVehiculos === 'function') actualizarAccionesVehiculos();
   try {
     let consulta = db
       .from('parque_automotor')
-      .select('empresa, placa, numero_interno, tipo, modelo')
+      .select(EMPRESA_VEH_COLUMNAS)
       .order('placa', { ascending: true });
     // La empresa no necesita filtro (lo hace la RLS); el admin sí.
     if (state.empresaVistaAdmin) consulta = consulta.in('empresa', state.empresaVistaAdmin);
@@ -216,22 +275,237 @@ async function cargarMisVehiculos() {
     if (error) throw error;
     state.empresaVehiculosLista = data || [];
     state.empresaVehiculosTotal = (data || []).length;
-    if (els.empresaVehiculosCount) els.empresaVehiculosCount.textContent = `(${formatNumber((data || []).length)})`;
-    if (!data || data.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4">Sin vehículos registrados.</td></tr>';
-      return;
-    }
-    tbody.innerHTML = data.map(v => `
-      <tr>
-        <td>${escBandeja(v.placa || '—')}</td>
-        <td>${escBandeja(v.numero_interno || '—')}</td>
-        <td>${escBandeja(v.tipo || '—')}</td>
-        <td>${escBandeja(v.modelo || '—')}</td>
-      </tr>`).join('');
+    state.empresaVehiculosPagina = 1;
+    llenarFiltrosVehiculos();
+    renderVehiculosEmpresa();
   } catch (error) {
     state.empresaVehiculosLista = [];
-    tbody.innerHTML = `<tr><td colspan="4">Error: ${escBandeja(error.message || String(error))}</td></tr>`;
+    state.empresaVehiculosTotal = 0;
+    cont.innerHTML = `<div class="ehl-estado">Error: ${escBandeja(error.message || String(error))}</div>`;
   }
+}
+
+/** Las empresas distintas que hay en el listado (para saber si vale filtrar). */
+function _empresasDelListadoVeh() {
+  const vistas = new Set();
+  (state.empresaVehiculosLista || []).forEach(v => {
+    const e = String(v.empresa || '').trim();
+    if (e) vistas.add(e);
+  });
+  return [...vistas].sort((a, b) => a.localeCompare(b, 'es'));
+}
+
+/** Tipo en Título ("MICROBUS" y "Microbus" son el mismo y se muestran igual). */
+function _tipoVeh(v) {
+  return String((v && v.tipo) || '').trim().toUpperCase();
+}
+
+/** ¿Le falta algo de lo que sirve cuando este vehículo tiene un siniestro? */
+function _vehIncompleto(v) {
+  return !String(v.tipo || '').trim() ||
+         !String(v.modelo || '').trim() ||
+         !String(v.propietario || '').trim() ||
+         !String(v.telefono_propietario || '').trim();
+}
+
+function _valorFiltroVeh(id) {
+  return (els[id] && els[id].value) || '';
+}
+
+function _hayFiltroVeh() {
+  return !!(((els.buscarEmpresaVehiculos && els.buscarEmpresaVehiculos.value) || '').trim() ||
+    _valorFiltroVeh('filtroVehEmpresa') ||
+    _valorFiltroVeh('filtroVehTipo') ||
+    _valorFiltroVeh('filtroVehDatos'));
+}
+
+/** Los vehículos que se ven: los selectores y, encima, el buscador. */
+function _vehiculosEmpresaFiltrados() {
+  let filas = state.empresaVehiculosLista || [];
+  const emp = _valorFiltroVeh('filtroVehEmpresa');
+  const tipo = _valorFiltroVeh('filtroVehTipo');
+  const datos = _valorFiltroVeh('filtroVehDatos');
+  if (emp) filas = filas.filter(v => String(v.empresa || '').trim() === emp);
+  if (tipo) filas = filas.filter(v => _tipoVeh(v) === tipo);
+  if (datos === 'faltan') filas = filas.filter(_vehIncompleto);
+
+  const q = normalizarBusqueda((els.buscarEmpresaVehiculos && els.buscarEmpresaVehiculos.value) || '').trim();
+  if (!q) return filas;
+  // La placa se busca también sin guiones ni espacios: quien escribe "eqs043"
+  // está buscando "EQS-043", y al revés.
+  const qPlaca = q.replace(/[^a-z0-9]/g, '');
+  return filas.filter(v => {
+    const placa = normalizarBusqueda(v.placa).replace(/[^a-z0-9]/g, '');
+    if (qPlaca && placa.includes(qPlaca)) return true;
+    return [v.numero_interno, v.tipo, v.modelo, v.empresa, v.propietario,
+            v.telefono_propietario, v.nombre_conductor, v.aseguradora]
+      .some(c => normalizarBusqueda(c).includes(q));
+  });
+}
+
+/**
+ * Llena los selectores con lo que REALMENTE hay en el listado. El de empresa
+ * solo aparece cuando el usuario está vinculado a más de una: con una sola, un
+ * desplegable de un elemento no filtra nada y solo estorba.
+ */
+function llenarFiltrosVehiculos() {
+  const empresas = _empresasDelListadoVeh();
+  if (els.filtroVehEmpresa) {
+    const previo = els.filtroVehEmpresa.value;
+    els.filtroVehEmpresa.innerHTML = '<option value="">Todas mis empresas</option>' +
+      empresas.map(e => `<option value="${escBandeja(e)}">${escBandeja(e)}</option>`).join('');
+    els.filtroVehEmpresa.value = empresas.includes(previo) ? previo : '';
+    els.filtroVehEmpresa.classList.toggle('hidden', empresas.length < 2);
+  }
+  if (els.filtroVehTipo) {
+    const tipos = [...new Set((state.empresaVehiculosLista || []).map(_tipoVeh).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, 'es'));
+    const previo = els.filtroVehTipo.value;
+    els.filtroVehTipo.innerHTML = '<option value="">Todos los tipos</option>' +
+      tipos.map(t => `<option value="${escBandeja(t)}">${escBandeja(tituloCaseFicha(t))}</option>`).join('');
+    els.filtroVehTipo.value = tipos.includes(previo) ? previo : '';
+  }
+}
+
+/** Familia del tipo, para la franja de color que deja barrer la lista. */
+function claseTipoVehiculo(tipo) {
+  const s = String(tipo || '').toUpperCase();
+  if (/BUS|BUSETA|BUSETON|MICRO|ESCALERA/.test(s)) return 'tv-bus';
+  if (/AUTOMOVIL|TAXI|CAMIONETA|CAMPERO/.test(s)) return 'tv-auto';
+  if (/CAMION|VOLQUETA|TRACTO/.test(s)) return 'tv-carga';
+  if (/MOTO/.test(s)) return 'tv-moto';
+  return 'tv-otro';
+}
+
+/** Dibuja una página del listado de vehículos. */
+function renderVehiculosEmpresa() {
+  const cont = els.empresaVehiculosBody;
+  if (!cont) return;
+
+  const todos = _vehiculosEmpresaFiltrados();
+  const acotado = _hayFiltroVeh();
+  const total = (state.empresaVehiculosLista || []).length;
+  state.empresaVehiculosVisibles = todos;
+  // Con varias empresas, el nombre va en cada fila: si no, no hay forma de
+  // saber de cuál es el vehículo que se está mirando.
+  const variasEmpresas = _empresasDelListadoVeh().length > 1;
+
+  if (els.btnVehFiltrosLimpiar) els.btnVehFiltrosLimpiar.classList.toggle('hidden', !acotado);
+  if (els.empresaVehiculosCount) {
+    els.empresaVehiculosCount.textContent = acotado
+      ? `(${formatNumber(todos.length)} de ${formatNumber(total)})`
+      : `(${formatNumber(total)})`;
+  }
+
+  if (!todos.length) {
+    cont.innerHTML = acotado
+      ? '<div class="ehl-estado">🔍 Ningún vehículo coincide con lo que estás filtrando.</div>'
+      : '<div class="ehl-estado">Sin vehículos registrados. Usa «➕ Agregar vehículo» para registrar el primero.</div>';
+    if (els.empresaVehiculosPager) els.empresaVehiculosPager.classList.add('hidden');
+    return;
+  }
+
+  const paginas = Math.max(1, Math.ceil(todos.length / EMPRESA_VEH_POR_PAGINA));
+  let pag = state.empresaVehiculosPagina || 1;
+  if (pag < 1) pag = 1;
+  if (pag > paginas) pag = paginas;
+  state.empresaVehiculosPagina = pag;
+
+  const inicio = (pag - 1) * EMPRESA_VEH_POR_PAGINA;
+  const trozo = todos.slice(inicio, inicio + EMPRESA_VEH_POR_PAGINA);
+
+  cont.innerHTML = trozo.map((v, i) => {
+    const interno = String(v.numero_interno || '').trim();
+    const tipo = _tipoVeh(v);
+    const modelo = String(v.modelo || '').trim();
+    const sub = [tipo ? tituloCaseFicha(tipo) : '', modelo ? `Modelo ${modelo}` : '']
+      .filter(Boolean).join(' · ');
+    const prop = String(v.propietario || '').trim();
+
+    return `
+      <button type="button" class="ehl-row evl-row" data-idx="${inicio + i}"
+              data-tipo="${escBandeja(claseTipoVehiculo(tipo))}">
+        <span class="ehl-fecha evl-interno">
+          ${interno ? `<b>${escBandeja(interno)}</b><small>interno</small>`
+                    : '<b class="evl-sininterno">—</b><small>interno</small>'}
+        </span>
+        <span class="ehl-main">
+          <span class="ehl-veh evl-placa">${escBandeja(v.placa || '—')}</span>
+          <span class="ehl-cond">${sub ? escBandeja(sub) : '<i>Sin tipo ni modelo registrados</i>'}</span>
+          ${prop ? `<span class="evl-prop">${escBandeja(tituloCaseFicha(prop))}</span>` : ''}
+        </span>
+        <span class="ehl-side">
+          ${variasEmpresas ? `<span class="evl-empresa">${escBandeja(v.empresa || '')}</span>` : ''}
+          ${_vehIncompleto(v) ? '<span class="evl-faltan">Faltan datos</span>' : ''}
+        </span>
+      </button>`;
+  }).join('');
+
+  if (els.empresaVehiculosPager) els.empresaVehiculosPager.classList.toggle('hidden', paginas <= 1);
+  if (els.empresaVehiculosPageInfo) {
+    els.empresaVehiculosPageInfo.textContent =
+      `Página ${pag} de ${paginas} · ${formatNumber(todos.length)} vehículos`;
+  }
+  if (els.btnEmpresaVehPrev) els.btnEmpresaVehPrev.disabled = pag <= 1;
+  if (els.btnEmpresaVehNext) els.btnEmpresaVehNext.disabled = pag >= paginas;
+}
+
+/** Mueve el listado una página adelante o atrás. */
+function moverPaginaVehiculosEmpresa(paso) {
+  state.empresaVehiculosPagina = (state.empresaVehiculosPagina || 1) + paso;
+  renderVehiculosEmpresa();
+  if (els.empresaVistaVehiculos) els.empresaVistaVehiculos.scrollIntoView({ block: 'start', behavior: 'smooth' });
+}
+
+/** Los campos de la ficha, en el orden en que se leen. */
+const VEH_FICHA_CAMPOS = [
+  ['Empresa', 'empresa'],
+  ['Número interno', 'numero_interno'],
+  ['Tipo', 'tipo'],
+  ['Modelo', 'modelo'],
+  ['Aseguradora', 'aseguradora'],
+  ['Propietario', 'propietario'],
+  ['Cédula del propietario', 'cedula_propietario'],
+  ['Teléfono del propietario', 'telefono_propietario'],
+  ['Conductor', 'nombre_conductor'],
+  ['Cédula del conductor', 'cedula_conductor'],
+  ['Teléfono del conductor', 'telefono_conductor']
+];
+
+/** Abre la ficha completa de un vehículo. */
+function verDetalleVehiculoEmpresa(v) {
+  if (els.vehiculoFichaTitulo) els.vehiculoFichaTitulo.textContent = v.placa || 'Vehículo';
+  if (els.vehiculoFichaSub) {
+    els.vehiculoFichaSub.textContent = [
+      v.empresa, _tipoVeh(v) ? tituloCaseFicha(_tipoVeh(v)) : '',
+      v.numero_interno ? `Interno ${v.numero_interno}` : ''
+    ].filter(Boolean).join('  ·  ');
+  }
+  const cont = els.vehiculoFichaBody;
+  if (cont) {
+    // Los vacíos se muestran igual, marcados: sirve para saber qué pedirle a la
+    // administración (o qué mandar en el próximo cargue).
+    const filas = VEH_FICHA_CAMPOS.map(([label, campo]) => {
+      const valor = String(v[campo] || '').trim();
+      const esNombre = /propietario|conductor/.test(campo) && !/cedula|telefono/.test(campo);
+      return `
+        <div class="detalle-item${valor ? '' : ' es-vacio'}">
+          <div class="detalle-lab">${escBandeja(label)}</div>
+          <div class="detalle-val">${valor
+            ? escBandeja(esNombre ? tituloCaseFicha(valor) : valor)
+            : '<i>Sin registrar</i>'}</div>
+        </div>`;
+    }).join('');
+    cont.innerHTML = `<div class="detalle-grid">${filas}</div>` +
+      (_vehIncompleto(v)
+        ? '<p class="audio-nota">A este vehículo le faltan datos. Cuando tenga un siniestro, ese campo va a salir vacío en el informe. Pásaselos a la administración para completarlos.</p>'
+        : '');
+  }
+  if (els.vehiculoFichaModal) els.vehiculoFichaModal.classList.add('show');
+}
+
+function cerrarDetalleVehiculoEmpresa() {
+  if (els.vehiculoFichaModal) els.vehiculoFichaModal.classList.remove('show');
 }
 
 /**

@@ -23,6 +23,28 @@ const NOVEDADES_KEY = 'asisplus-novedades-vista';
 // De la más nueva a la más vieja.
 const NOVEDADES = [
   {
+    version: '2.27.0',
+    titulo: 'Encontrar un vehículo en la lista',
+    roles: ['empresa', 'admin'],
+    puntos: [
+      {
+        icono: '🔎',
+        titulo: 'Buscador y filtros en "Vehículos registrados"',
+        texto: 'Escribe la placa, el número interno, el propietario o su teléfono y la lista se acota sola. La placa la encuentra como la escribas: <b>tpz433</b>, <b>TPZ-433</b> o <b>TPZ 433</b> llevan al mismo bus. Además puedes filtrar por <b>tipo</b> y, si administras varias, por <b>empresa</b>.'
+      },
+      {
+        icono: '🚌',
+        titulo: 'Cada vehículo en su propia fila',
+        texto: 'En vez de una tabla, ahora cada vehículo es una ficha con el número interno grande a la izquierda y una franja de color según sea bus, automóvil, carga o moto. Si estás vinculado a varias empresas, cada fila dice de cuál es.'
+      },
+      {
+        icono: '📄',
+        titulo: 'Tócalo y ves todo',
+        texto: 'Al tocar un vehículo se abre su ficha completa: propietario, cédula, teléfono, conductor y aseguradora. Lo que esté sin registrar aparece marcado, para saber qué hay que completar. Los que tienen huecos llevan la etiqueta <b>Faltan datos</b> en la lista, y hay un filtro para verlos todos juntos.'
+      }
+    ]
+  },
+  {
     version: '2.26.0',
     titulo: 'Agregar vehículos desde Parque automotor',
     roles: ['admin'],

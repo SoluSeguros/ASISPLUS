@@ -4887,3 +4887,47 @@ body[data-rol="admin"] .bn-crear { display: flex; }
 }
 
 .veh-aviso:empty { display: none; }
+
+/* ============ Listado de vehículos del portal de empresa ============ */
+/* Era una tabla de cuatro columnas con 105 filas: para encontrar una placa
+   había que leerlas todas, y con varias empresas vinculadas ni siquiera se
+   veía de cuál era cada vehículo. Es la misma fila-tarjeta del historial
+   (.ehl-row), con la franja de color por familia de vehículo en vez de por
+   gravedad, para poder barrer la lista sin leerla. */
+.evl-row[data-tipo="tv-bus"]::before   { background: #1d4ed8; }
+.evl-row[data-tipo="tv-auto"]::before  { background: #0d9488; }
+.evl-row[data-tipo="tv-carga"]::before { background: #b45309; }
+.evl-row[data-tipo="tv-moto"]::before  { background: #7c3aed; }
+.evl-row[data-tipo="tv-otro"]::before  { background: #94a3b8; }
+
+/* El número interno es con lo que la empresa llama a sus vehículos por radio,
+   así que ocupa el mismo lugar de anclaje que la fecha en el historial. */
+.evl-interno b { font-size: 17px; }
+.evl-interno .evl-sininterno { color: #cbd5e1; font-weight: 700; }
+
+.evl-placa {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: .04em;
+}
+
+.evl-prop {
+  font-size: 12.5px; color: #64748b;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.evl-empresa {
+  font-size: 11.5px; font-weight: 700; color: #1d4ed8;
+  background: #eef4ff; border-radius: 6px; padding: 2px 8px; white-space: nowrap;
+}
+
+/* Sin alarmar: es un recordatorio de qué pedirle a la administración, no un
+   error. Por eso es ámbar y no rojo. */
+.evl-faltan {
+  font-size: 11.5px; font-weight: 700; color: #92400e;
+  background: #fef3c7; border-radius: 6px; padding: 2px 8px; white-space: nowrap;
+}
+
+/* En la ficha del vehículo, lo que está sin registrar se ve distinto: es
+   justamente lo que hay que completar. */
+.detalle-item.es-vacio { background: #fbfbfc; border-style: dashed; }
+.detalle-item.es-vacio .detalle-val i { color: #94a3b8; }

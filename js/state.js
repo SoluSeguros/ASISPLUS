@@ -48,6 +48,8 @@ const state = {
   empresaVehiculosTotal: 0,    // tamaño del parque: base de la tasa por 100 vehículos
   fichaEmpresaSel: '',         // empresa elegida en el dashboard de SoluAsistencia
   empresaVehiculosLista: [],   // flota a la vista (para detectar placas repetidas al dar de alta)
+  empresaVehiculosVisibles: [],// la misma, ya filtrada: es sobre la que indexa el clic
+  empresaVehiculosPagina: 1,
   empresaVistaAdmin: null,     // admin viendo un portal ajeno: lista de empresas que ve
   empresaVistaVolver: null,    // por dónde entró a esa vista ('dashboard' | 'usuarios')
   empresaCasosPagina: 1        // página actual del historial de la empresa
