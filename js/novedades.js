@@ -23,6 +23,28 @@ const NOVEDADES_KEY = 'asisplus-novedades-vista';
 // De la más nueva a la más vieja.
 const NOVEDADES = [
   {
+    version: '2.25.0',
+    titulo: 'Registra tus propios vehículos',
+    roles: ['empresa', 'admin'],
+    puntos: [
+      {
+        icono: '🚌',
+        titulo: 'Agregar un vehículo desde tu portal',
+        texto: 'En <b>Vehículos registrados</b> está el botón <b>➕ Agregar vehículo</b>. Lo único obligatorio es la <b>placa</b>; el número interno, el tipo, el modelo, el propietario y su teléfono los puedes poner ahí mismo o dejarlos para después. Desde que el vehículo queda registrado, sus siniestros salen con esos datos en vez de aparecer en blanco.'
+      },
+      {
+        icono: '📋',
+        titulo: '¿Son muchos? La plantilla de Excel',
+        texto: 'El botón <b>⬇️ Descargar plantilla</b> te baja un Excel con tres hojas: <b>VEHICULOS</b> (donde escribes), <b>EJEMPLO</b> (dos vehículos ya diligenciados, para ver cómo va cada dato) e <b>INSTRUCCIONES</b> (qué se escribe en cada columna). La llenas y la subes con <b>⬆️ Importar desde Excel</b>.'
+      },
+      {
+        icono: '✅',
+        titulo: 'No se duplica nada y te dice qué quedó afuera',
+        texto: 'Las placas que ya estaban registradas se saltan solas. Al terminar el cargue verás cuántas entraron, cuántas ya estaban y —fila por fila— cuáles hay que revisar y por qué. La placa se guarda siempre limpia, así la escribas con guion, con espacio o en minúscula.'
+      }
+    ]
+  },
+  {
     version: '2.24.0',
     titulo: 'Ver el portal como lo ve cada usuario',
     roles: ['admin'],

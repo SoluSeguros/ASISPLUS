@@ -193,24 +193,32 @@ async function abrirEmpresaPortal(empresas, opciones) {
   renderFichaEmpresaPropia();
 }
 
-/** Carga el listado de vehículos de la empresa (RLS ya filtra por empresa). */
+/**
+ * Carga el listado de vehículos de la empresa (RLS ya filtra por empresa).
+ *
+ * Se trae también `empresa`, aunque no se muestre: es lo que permite detectar
+ * una placa repetida antes de intentar darla de alta cuando el usuario
+ * administra varias empresas (ver vehiculos-empresa.js).
+ */
 async function cargarMisVehiculos() {
   const tbody = els.empresaVehiculosBody;
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="3">Cargando...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="4">Cargando...</td></tr>';
+  if (typeof actualizarAccionesVehiculos === 'function') actualizarAccionesVehiculos();
   try {
     let consulta = db
       .from('parque_automotor')
-      .select('placa, numero_interno, tipo')
+      .select('empresa, placa, numero_interno, tipo, modelo')
       .order('placa', { ascending: true });
     // La empresa no necesita filtro (lo hace la RLS); el admin sí.
     if (state.empresaVistaAdmin) consulta = consulta.in('empresa', state.empresaVistaAdmin);
     const { data, error } = await consulta;
     if (error) throw error;
+    state.empresaVehiculosLista = data || [];
     state.empresaVehiculosTotal = (data || []).length;
     if (els.empresaVehiculosCount) els.empresaVehiculosCount.textContent = `(${formatNumber((data || []).length)})`;
     if (!data || data.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="3">Sin vehículos registrados.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4">Sin vehículos registrados.</td></tr>';
       return;
     }
     tbody.innerHTML = data.map(v => `
@@ -218,9 +226,11 @@ async function cargarMisVehiculos() {
         <td>${escBandeja(v.placa || '—')}</td>
         <td>${escBandeja(v.numero_interno || '—')}</td>
         <td>${escBandeja(v.tipo || '—')}</td>
+        <td>${escBandeja(v.modelo || '—')}</td>
       </tr>`).join('');
   } catch (error) {
-    tbody.innerHTML = `<tr><td colspan="3">Error: ${escBandeja(error.message || String(error))}</td></tr>`;
+    state.empresaVehiculosLista = [];
+    tbody.innerHTML = `<tr><td colspan="4">Error: ${escBandeja(error.message || String(error))}</td></tr>`;
   }
 }
 

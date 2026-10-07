@@ -4830,3 +4830,60 @@ body[data-rol="admin"] .bn-crear { display: flex; }
 }
 
 .detalle-version-aviso.no-disponible { color: var(--danger); }
+
+/* ============ Alta de vehículos desde el portal de empresa ============ */
+/* Tres acciones en una barra: agregar uno, bajar la plantilla, subirla llena.
+   Van arriba de la tabla porque es lo que la empresa viene a hacer cuando
+   entra aquí; la lista es la consecuencia, no el objetivo. */
+.veh-acciones {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 0 0 10px;
+}
+
+.veh-acciones button { padding: 9px 16px; font-size: 13.5px; }
+
+/* El resultado de un cargue. Importa tanto lo que entró como lo que quedó
+   afuera, así que la caja crece con el detalle en vez de resumirlo en una
+   línea que nadie puede auditar. */
+.veh-resultado {
+  border-radius: 12px;
+  padding: 12px 15px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  margin: 0 0 12px;
+  border: 1px solid var(--border);
+  background: var(--card);
+}
+
+.veh-resultado.hidden { display: none; }
+.veh-resultado.es-ok { background: #eef9f1; border-color: #bfe3cb; color: #15603a; }
+.veh-resultado.es-error { background: #fdf0ee; border-color: #f3c6bd; color: #9a3412; }
+
+.veh-res-tot { margin: 8px 0 0; padding-left: 20px; }
+.veh-res-tot li { margin: 2px 0; }
+
+.veh-resultado details { margin-top: 10px; }
+.veh-resultado summary { cursor: pointer; font-weight: 600; }
+
+.veh-res-det {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  max-height: 220px;
+  overflow-y: auto;
+  font-size: 13px;
+}
+
+.veh-res-det li { margin: 2px 0; }
+
+/* El aviso bajo el campo de la placa: ya existe, placa rara, está vacía. */
+.veh-aviso {
+  display: block;
+  margin-top: 5px;
+  font-size: 12.5px;
+  color: #9a3412;
+}
+
+.veh-aviso:empty { display: none; }
