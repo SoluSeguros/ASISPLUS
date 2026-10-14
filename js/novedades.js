@@ -23,6 +23,33 @@ const NOVEDADES_KEY = 'asisplus-novedades-vista';
 // De la más nueva a la más vieja.
 const NOVEDADES = [
   {
+    version: '2.31.0',
+    titulo: 'Bitácora de reclamaciones',
+    roles: ['admin', 'reclamaciones', 'gestor', 'seguridad_vial'],
+    puntos: [
+      {
+        icono: '📄',
+        titulo: 'El Excel de 35 hojas, adentro',
+        texto: 'Nuevo módulo <b>Reclamaciones</b> en el menú, con las 555 reclamaciones de todas las empresas en una sola lista. Se busca por placa, propietario, aseguradora o radicado, y se filtra por estado, empresa, aseguradora y encargado.'
+      },
+      {
+        icono: '🚦',
+        titulo: 'Diez estados y nada más',
+        texto: 'Recolección de información, asignación de taller, radicada, en trámite, ofrecimiento, objetada, pagada, no procede, desistida y terminada. La franja de color de cada fila dice en cuál va. Antes había 229 formas distintas de escribir el estado, así que no se podía contar cuántas estaban radicadas.'
+      },
+      {
+        icono: '🗒️',
+        titulo: 'La bitácora ya no se pisa',
+        texto: 'Cada movimiento es una nota con su fecha y quién la escribió, una debajo de otra. Ya no hay que borrar lo anterior para escribir lo nuevo en la misma celda.'
+      },
+      {
+        icono: '⚠️',
+        titulo: 'Lo que no se pudo leer está señalado',
+        texto: 'El valor venía escrito a mano y en 273 casos no se pudo convertir en número; la fecha del siniestro tampoco en 277. Donde pasó, la ficha muestra en amarillo lo que decía el Excel para completarlo a mano, en vez de dejar la casilla vacía como si no hubiera nada.'
+      }
+    ]
+  },
+  {
     version: '2.30.0',
     titulo: 'Estadística de las infracciones',
     roles: ['empresa', 'admin'],

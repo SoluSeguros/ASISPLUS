@@ -68,3 +68,10 @@ PARQUE AUTOMOTOR*
 HISTORICO INFRACCIONES*
 carga_infracciones*.sql
 infracciones*.json
+
+# Bitácora de reclamaciones: nombres de propietarios, teléfonos, radicados y
+# montos de cada reclamación. Este repositorio es PÚBLICO: no puede subirse.
+BITACORA DE RECLAMACIONES*
+REGISTRO DE RECLAMACIONES*
+carga_reclamaciones*.sql
+reclamaciones*.json

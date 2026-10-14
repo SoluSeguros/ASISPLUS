@@ -204,6 +204,10 @@ function aplicarRol() {
   // Servicios de programación adicionales (qué módulos a pedido existen y quién
   // los tiene): solo el administrador, que es quien los asigna.
   if (els.btnMenuServicios) els.btnMenuServicios.classList.toggle('hidden', rol !== 'admin');
+  // Bitácora de reclamaciones: proceso interno. La ven todos los roles internos
+  // (consultar los antecedentes de una placa sirve en la vía y en la bandeja);
+  // escribirla es de "reclamaciones" y admin, y eso lo decide la RLS.
+  if (els.btnMenuReclamaciones) els.btnMenuReclamaciones.classList.toggle('hidden', rol === 'empresa');
   els.btnVerCruce.classList.toggle('hidden', !veAnalisis);
   els.btnVerAsistenciasBD.classList.toggle('hidden', !veRegistros);
   els.btnVerTercerosBD.classList.toggle('hidden', !veRegistros);
@@ -472,7 +476,8 @@ function carpetaCaso(caso) {
 function ocultarPantallas() {
   ['statsBox', 'tabsBox', 'controlsBox', 'tableCard', 'btnDownloadInforme',
    'casoCrearCard', 'casoListaCard', 'casoDetalleCard', 'usuariosCard', 'conectadosCard',
-   'segvialCard', 'dashboardCard', 'empresaCard', 'serviciosCard'].forEach(id => {
+   'segvialCard', 'dashboardCard', 'empresaCard', 'serviciosCard',
+   'reclamacionesCard'].forEach(id => {
     if (els[id]) els[id].classList.add('hidden');
   });
   // Al salir del panel de conectados, detiene su auto-refresco.

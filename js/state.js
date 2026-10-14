@@ -50,6 +50,12 @@ const state = {
   empresaVehiculosLista: [],   // flota a la vista (para detectar placas repetidas al dar de alta)
   empresaVehiculosVisibles: [],// la misma, ya filtrada: es sobre la que indexa el clic
   empresaVehiculosPagina: 1,
+  // Bitácora de reclamaciones (proceso interno)
+  recLista: [],
+  recVisibles: [],
+  recPagina: 1,
+  recEditando: null,
+
   // Servicio adicional "infracciones" (solo quien lo tiene contratado)
   infraLista: [],
   infraVisibles: [],

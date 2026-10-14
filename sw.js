@@ -39,6 +39,7 @@ const ASSETS = [
   './js/mapa-empresa.js?v=' + APP_VERSION,
   './js/servicios.js?v=' + APP_VERSION,
   './js/infracciones.js?v=' + APP_VERSION,
+  './js/reclamaciones.js?v=' + APP_VERSION,
   './js/detalle.js?v=' + APP_VERSION,
   './js/terceros.js?v=' + APP_VERSION,
   './js/cierre.js?v=' + APP_VERSION,

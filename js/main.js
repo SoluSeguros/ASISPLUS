@@ -155,6 +155,9 @@ initMapaEmpresa();
 initServicios();
 initInfracciones();
 
+// Bitácora de reclamaciones (proceso interno ante aseguradoras).
+initReclamaciones();
+
 // El admin puede reasignar al instante cambiando el desplegable (aunque el
 // caso esté bloqueado por check-in). El asistente lo guarda con el botón.
 els.detalleAsignar.addEventListener('change', () => {
