@@ -109,7 +109,8 @@ const EMPRESA_VISTAS = {
   dashboard: 'empresaVistaDashboard',
   historico: 'empresaVistaHistorico',
   mapa: 'empresaVistaMapa',
-  vehiculos: 'empresaVistaVehiculos'
+  vehiculos: 'empresaVistaVehiculos',
+  infracciones: 'empresaVistaInfracciones'
 };
 
 /** Cambia entre Dashboard / Históricos / Mapa / Vehículos dentro del portal. */
@@ -126,6 +127,10 @@ function cambiarVistaEmpresa(vista) {
   // qué bajar quien nunca entra aquí, y además hay que medir el contenedor
   // cuando ya está visible.
   if (vista === 'mapa' && typeof abrirMapaEmpresa === 'function') abrirMapaEmpresa();
+  // Las infracciones también se piden al abrir: son de un servicio aparte y la
+  // mayoría de las empresas no lo tiene, así que no hay por qué consultarlas
+  // cada vez que alguien entra a su portal.
+  if (vista === 'infracciones' && typeof cargarInfracciones === 'function') cargarInfracciones();
 }
 
 /** Lee el rango Desde/Hasta del filtro de "Mis siniestros por mes". */
@@ -201,6 +206,11 @@ async function abrirEmpresaPortal(empresas, opciones) {
   const comoAdmin = lista.length > 0 && state.perfil && state.perfil.rol !== 'empresa';
   state.empresaVistaAdmin = comoAdmin ? lista : null;
   state.empresaVistaVolver = comoAdmin ? (op.volverA || 'dashboard') : null;
+  // Los módulos contratados aparte son de CADA usuario: en la vista previa hay
+  // que preguntar por los de él, no por los del admin, o la pantalla mostraría
+  // una pestaña que ese usuario no tiene.
+  state.empresaVistaServicios = (comoAdmin && typeof serviciosDeOtroPerfil === 'function')
+    ? await serviciosDeOtroPerfil(op.perfilId) : null;
 
   ocultarPantallas();
   els.empresaCard.classList.remove('hidden');
@@ -229,6 +239,16 @@ async function abrirEmpresaPortal(empresas, opciones) {
   if (els.btnEmpresaVolver) {
     els.btnEmpresaVolver.textContent =
       state.empresaVistaVolver === 'usuarios' ? '← Usuarios' : '← Dashboard';
+  }
+
+  // La pestaña de un servicio adicional sólo existe para quien lo tiene.
+  if (els.tabEmpresaInfracciones) {
+    const ve = (typeof portalTieneServicio === 'function') && portalTieneServicio('infracciones');
+    els.tabEmpresaInfracciones.classList.toggle('hidden', !ve);
+  }
+  if (els.infraAcciones) {
+    els.infraAcciones.classList.toggle('hidden',
+      !(typeof puedeEditarInfracciones === 'function' && puedeEditarInfracciones()));
   }
 
   marcarUbicacion('empresaCard', titulo);

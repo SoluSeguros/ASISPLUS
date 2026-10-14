@@ -246,6 +246,9 @@ function renderUsuarios(usuarios) {
         btnVer.title = 'Abre el portal tal como lo ve este usuario';
         btnVer.addEventListener('click', () => abrirEmpresaPortal(lista, {
           usuario: u.nombre && u.nombre !== u.email ? u.nombre : u.email,
+          // Con el id se averiguan sus servicios adicionales, para que la vista
+          // previa muestre las mismas pestañas que ve él.
+          perfilId: u.id,
           volverA: 'usuarios'
         }));
         chips.appendChild(btnVer);

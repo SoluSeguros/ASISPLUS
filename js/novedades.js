@@ -23,6 +23,28 @@ const NOVEDADES_KEY = 'asisplus-novedades-vista';
 // De la más nueva a la más vieja.
 const NOVEDADES = [
   {
+    version: '2.29.0',
+    titulo: 'Histórico de infracciones',
+    roles: ['empresa', 'admin'],
+    puntos: [
+      {
+        icono: '🚦',
+        titulo: 'Los comparendos, dentro de la aplicación',
+        texto: 'Si tu empresa tiene contratado este módulo, en tu portal aparece la pestaña <b>🚦 Infracciones</b> con todo el histórico: fecha, placa, código, el conductor infractor y si está <b>cancelada</b> o <b>sin cancelar</b>. Arriba verás cuántas son y cuántas faltan por pagar, y esos números cambian con el filtro que pongas.'
+      },
+      {
+        icono: '✏️',
+        titulo: 'Se registra y se corrige desde ahí',
+        texto: 'Con <b>➕ Registrar infracción</b> agregas un comparendo nuevo; tocando cualquiera de la lista la editas —por ejemplo para marcarla como cancelada cuando se pague— o la borras. También puedes descargar a Excel lo que estés viendo, con el filtro aplicado.'
+      },
+      {
+        icono: '🔎',
+        titulo: 'Buscar por lo que tengas a mano',
+        texto: 'El buscador encuentra por placa, conductor, cédula, número de comparendo o código, y puedes filtrar por año, estado y empresa.'
+      }
+    ]
+  },
+  {
     version: '2.28.0',
     titulo: 'Mapa: dónde ocurrieron los siniestros',
     roles: ['empresa', 'admin'],

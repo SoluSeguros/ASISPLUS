@@ -151,6 +151,10 @@ initVehiculosEmpresa();
 // Mapa de siniestros del portal de empresa (Leaflet se baja al abrir la pestaña).
 initMapaEmpresa();
 
+// Servicios de programación adicionales y el primero de ellos (infracciones).
+initServicios();
+initInfracciones();
+
 // El admin puede reasignar al instante cambiando el desplegable (aunque el
 // caso esté bloqueado por check-in). El asistente lo guarda con el botón.
 els.detalleAsignar.addEventListener('change', () => {

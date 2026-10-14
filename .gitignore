@@ -57,3 +57,14 @@ __pycache__/
 # teléfonos de propietarios). Este repositorio es PÚBLICO: no pueden subirse.
 PARQUE AUTOMOTOR*
 *parque*4*empresas*.sql
+
+# Histórico de infracciones (comparendos): lleva cédula y nombre del conductor
+# infractor. Este repositorio es PÚBLICO: no puede subirse.
+#
+# Se ignora el ARCHIVO y el SQL de cargue (que son los datos). El SQL de
+# migración sí se versiona: define tablas y políticas, no contiene una sola
+# cédula. Por eso los patrones apuntan al cargue y no a cualquier .sql que
+# lleve la palabra "infracciones" en el nombre.
+HISTORICO INFRACCIONES*
+carga_infracciones*.sql
+infracciones*.json

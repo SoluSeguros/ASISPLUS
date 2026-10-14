@@ -68,6 +68,11 @@ async function cargarPerfil(user) {
   // de perfil_empresas. La RLS ya trabaja con todas (empresas_actual()); esto
   // es para poder decírselo en pantalla.
   state.perfil.empresas = await empresasDelPerfil(state.perfil);
+  // Módulos contratados aparte (ver servicios.js). Sólo sirve para no dibujar
+  // una pestaña que el servidor va a devolver vacía: quién ve qué lo decide la
+  // RLS con tiene_servicio().
+  state.perfil.servicios = (typeof serviciosDelPerfil === 'function')
+    ? await serviciosDelPerfil(state.perfil) : [];
   aplicarRol();
   // El portal de empresa es de solo lectura y autocontenido: no abre el editor
   // de casos ni precachea el parque completo aunque llegue un deep-link ?caso=.
@@ -196,6 +201,9 @@ function aplicarRol() {
   els.btnMenuUsuarios.classList.toggle('hidden', rol !== 'admin');
   // Ver quién está conectado: solo el administrador.
   if (els.btnMenuConectados) els.btnMenuConectados.classList.toggle('hidden', rol !== 'admin');
+  // Servicios de programación adicionales (qué módulos a pedido existen y quién
+  // los tiene): solo el administrador, que es quien los asigna.
+  if (els.btnMenuServicios) els.btnMenuServicios.classList.toggle('hidden', rol !== 'admin');
   els.btnVerCruce.classList.toggle('hidden', !veAnalisis);
   els.btnVerAsistenciasBD.classList.toggle('hidden', !veRegistros);
   els.btnVerTercerosBD.classList.toggle('hidden', !veRegistros);
@@ -464,7 +472,7 @@ function carpetaCaso(caso) {
 function ocultarPantallas() {
   ['statsBox', 'tabsBox', 'controlsBox', 'tableCard', 'btnDownloadInforme',
    'casoCrearCard', 'casoListaCard', 'casoDetalleCard', 'usuariosCard', 'conectadosCard',
-   'segvialCard', 'dashboardCard', 'empresaCard'].forEach(id => {
+   'segvialCard', 'dashboardCard', 'empresaCard', 'serviciosCard'].forEach(id => {
     if (els[id]) els[id].classList.add('hidden');
   });
   // Al salir del panel de conectados, detiene su auto-refresco.
