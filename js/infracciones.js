@@ -63,7 +63,7 @@ async function cargarInfracciones() {
     state.infraLista = await traerInfracciones();
     state.infraPagina = 1;
     llenarFiltrosInfra();
-    renderInfracciones();
+    refrescarInfra();
   } catch (error) {
     state.infraLista = [];
     cont.innerHTML = `<div class="ehl-estado">Error: ${escBandeja(error.message || String(error))}</div>`;
@@ -230,10 +230,193 @@ function renderInfracciones() {
   if (els.btnInfraNext) els.btnInfraNext.disabled = pag >= paginas;
 }
 
+/**
+ * Repinta lo que esté a la vista. El listado siempre (sus contadores de arriba
+ * se usan en las dos pestañas) y la estadística sólo si está abierta: calcular
+ * seis tops en cada tecla del buscador no lo ve nadie.
+ */
+function refrescarInfra() {
+  renderInfracciones();
+  if (state.infraSubvista === 'estadistica') renderEstadisticaInfra();
+}
+
 function moverPaginaInfra(paso) {
   state.infraPagina = (state.infraPagina || 1) + paso;
   renderInfracciones();
   if (els.empresaVistaInfracciones) els.empresaVistaInfracciones.scrollIntoView({ block: 'start', behavior: 'smooth' });
+}
+
+/* ------------------------------------------------------------------ *
+ *  Estadística
+ * ------------------------------------------------------------------ *
+ *  Se calcula sobre lo FILTRADO, igual que los tres números de arriba:
+ *  mirar 2025 en la lista y un gráfico de todos los años al lado haría
+ *  imposible cuadrar nada.
+ *
+ *  Las piezas (tarjetas, barras, columnas) son las de la ficha de
+ *  siniestralidad: quien aprendió a leer una, lee la otra. Lo que son dos
+ *  valores —pagadas/sin pagar, con o sin solidaridad— va como cifra, no
+ *  como gráfico: un gráfico de dos barras es una cifra disfrazada.
+ */
+
+/** Cambia entre el listado y la estadística dentro del módulo. */
+function cambiarVistaInfra(sub) {
+  if (sub !== 'listado' && sub !== 'estadistica') return;
+  if (els.infraSubtabs) {
+    els.infraSubtabs.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.sub === sub));
+  }
+  if (els.infraVistaListado) els.infraVistaListado.classList.toggle('hidden', sub !== 'listado');
+  if (els.infraVistaEstadistica) els.infraVistaEstadistica.classList.toggle('hidden', sub !== 'estadistica');
+  state.infraSubvista = sub;
+  if (sub === 'estadistica') renderEstadisticaInfra();
+}
+
+/**
+ * Agrupa por periodo. Con un año elegido, los doce meses de ese año; sin
+ * filtro, un año por columna. Treinta y nueve columnas de mes no se leen, y
+ * cuatro de año dicen la tendencia de un vistazo.
+ */
+function _periodosInfra(filas) {
+  const anioFiltro = _valorFiltroInfra('filtroInfraAnio');
+  if (anioFiltro) {
+    const meses = MESES_INFRA.map((etiqueta, i) => ({
+      clave: `${anioFiltro}-${String(i + 1).padStart(2, '0')}`,
+      etiqueta, anio: anioFiltro.slice(2), n: 0
+    }));
+    const idx = {};
+    meses.forEach((m, i) => { idx[m.clave] = i; });
+    filas.forEach(r => {
+      const k = String(r.fecha || '').slice(0, 7);
+      if (idx[k] != null) meses[idx[k]].n++;
+    });
+    return meses;
+  }
+  const anios = [...new Set(filas.map(_anioInfra).filter(Boolean))].sort();
+  return anios.map(a => ({
+    clave: a, etiqueta: a, anio: '',
+    n: filas.filter(r => _anioInfra(r) === a).length
+  }));
+}
+
+/** Los números y los tops de la estadística. */
+function calcularEstadisticaInfra(filas) {
+  const total = filas.length;
+  const sinPagar = filas.filter(r => r.estado === 'SIN CANCELAR').length;
+  const solidarias = filas.filter(r => r.solidaridad).length;
+  const fotomultas = filas.filter(r => r.foto_multa).length;
+
+  const porConductor = _contar(filas, r => String(r.conductor || '').trim());
+  const reincidentes = porConductor.filter(x => x.n > 1).length;
+
+  return {
+    total, sinPagar, solidarias, fotomultas, reincidentes,
+    conductores: porConductor.length,
+    periodos: _periodosInfra(filas),
+    topCodigos: _contar(filas, r => {
+      const c = String(r.codigo || '').trim();
+      return c ? c + '|' + String(r.infraccion || '').trim() : '';
+    }, 10),
+    topConductores: porConductor.slice(0, 10),
+    topVehiculos: _contar(filas, r => {
+      const p = String(r.placa || '').trim();
+      return p ? p + (r.numero_interno ? '|' + r.numero_interno : '') : '';
+    }, 10),
+    rutas: _contar(filas, r => String(r.ruta || '').trim(), 10),
+    empresas: _contar(filas, r => String(r.empresa || '').trim())
+  };
+}
+
+/** Un panel con título, subtítulo y contenido. */
+function _panelInfra(titulo, sub, cuerpo) {
+  return `<div class="dash-panel">
+    <div class="dash-panel-head">
+      <h3>${escBandeja(titulo)}</h3>
+      ${sub ? `<span class="dash-panel-sub">${escBandeja(sub)}</span>` : ''}
+    </div>
+    ${cuerpo}
+  </div>`;
+}
+
+/** Dibuja la estadística de lo que se está viendo. */
+function renderEstadisticaInfra() {
+  const cont = els.infraEstadistica;
+  if (!cont) return;
+
+  const filas = _infraccionesFiltradas();
+  if (!filas.length) {
+    cont.innerHTML = `<div class="dash-panel"><div class="tercero-estado">${
+      _hayFiltroInfra()
+        ? 'Ningún comparendo coincide con lo que estás filtrando.'
+        : 'Todavía no hay infracciones registradas.'
+    }</div></div>`;
+    return;
+  }
+
+  const m = calcularEstadisticaInfra(filas);
+  const pct = n => m.total ? Math.round((n / m.total) * 100) + '%' : '—';
+
+  // Lo que son dos valores va aquí, en cifras, y no como gráfico.
+  const kpis = `<div class="dash-kpis">
+    ${_kpiFicha(formatNumber(m.total), 'Infracciones', 'En lo que estás viendo')}
+    ${_kpiFicha(formatNumber(m.sinPagar), 'Sin cancelar', `${pct(m.sinPagar)} del total`,
+      m.sinPagar ? 'warn' : 'ok')}
+    ${_kpiFicha(formatNumber(m.solidarias), 'Responde la empresa',
+      `${pct(m.solidarias)} con responsabilidad solidaria`, m.solidarias ? 'warn' : 'ok')}
+    ${_kpiFicha(formatNumber(m.reincidentes), 'Conductores reincidentes',
+      `De ${formatNumber(m.conductores)} conductores con comparendo`, 'info')}
+  </div>`;
+
+  const porPeriodo = _panelInfra(
+    '📅 Cuándo se cometieron',
+    _valorFiltroInfra('filtroInfraAnio')
+      ? `Mes a mes de ${_valorFiltroInfra('filtroInfraAnio')}`
+      : 'Un año por columna · elige un año arriba para verlo mes a mes',
+    _mesesFicha(m.periodos, 'infracción'));
+
+  // El top de códigos es el panel accionable: dice en qué capacitar.
+  const codigos = _panelInfra(
+    '🚦 Qué se está infringiendo',
+    `${formatNumber(m.topCodigos.length)} de ${formatNumber(_contar(filas, r => String(r.codigo || '').trim()).length)} códigos distintos`,
+    _barrasFicha(m.topCodigos.map(x => {
+      const [cod, desc] = x.nombre.split('|');
+      return { nombre: cod, n: x.n, _desc: desc || '' };
+    }), {
+      porcentaje: true, total: m.total,
+      etiqueta: x => `<b>${escBandeja(x.nombre)}</b>${x._desc
+        ? ` <small class="inf-barra-desc">${escBandeja(x._desc)}</small>` : ''}`
+    }));
+
+  const conductores = _panelInfra(
+    '👤 Conductores con más comparendos',
+    m.reincidentes ? `${formatNumber(m.reincidentes)} tienen más de uno` : 'Ninguno repite',
+    _barrasFicha(m.topConductores.map(x => ({ nombre: tituloCaseFicha(x.nombre), n: x.n })),
+      { porcentaje: true, total: m.total, destacarPrimero: true }));
+
+  const vehiculos = _panelInfra(
+    '🚌 Vehículos con más comparendos', '',
+    _barrasFicha(m.topVehiculos.map(x => {
+      const [placa, interno] = x.nombre.split('|');
+      return { nombre: placa, n: x.n, _int: interno || '' };
+    }), {
+      porcentaje: true, total: m.total, destacarPrimero: true,
+      etiqueta: x => `<b>${escBandeja(x.nombre)}</b>${x._int
+        ? ` <small class="inf-barra-desc">Interno ${escBandeja(x._int)}</small>` : ''}`
+    }));
+
+  const rutas = m.rutas.length > 1
+    ? _panelInfra('🛣️ Por ruta', '', _barrasFicha(m.rutas, { rank: false, porcentaje: true, total: m.total }))
+    : '';
+
+  // Sólo con varias empresas: una barra sola es el número que ya está arriba.
+  const empresas = m.empresas.length > 1
+    ? _panelInfra('🏢 Por empresa', '', _barrasFicha(m.empresas, { rank: false, porcentaje: true, total: m.total }))
+    : '';
+
+  const nota = m.fotomultas
+    ? `<p class="audio-nota">📸 ${formatNumber(m.fotomultas)} (${pct(m.fotomultas)}) se detectaron por fotomulta.</p>`
+    : '';
+
+  cont.innerHTML = kpis + porPeriodo + codigos + conductores + vehiculos + rutas + empresas + nota;
 }
 
 /* ------------------------------------------------------------------ *
@@ -428,7 +611,13 @@ function initInfracciones() {
     els.infraBody.addEventListener('click', abrir);
     els.infraBody.addEventListener('keydown', abrir);
   }
-  const refiltrar = () => { state.infraPagina = 1; renderInfracciones(); };
+  if (els.infraSubtabs) {
+    els.infraSubtabs.addEventListener('click', event => {
+      const b = event.target.closest('.tab');
+      if (b) cambiarVistaInfra(b.dataset.sub);
+    });
+  }
+  const refiltrar = () => { state.infraPagina = 1; refrescarInfra(); };
   cablearBuscador(els.buscarInfra, refiltrar);
   ['filtroInfraAnio', 'filtroInfraEstado', 'filtroInfraEmpresa'].forEach(id => {
     if (els[id]) els[id].addEventListener('change', refiltrar);

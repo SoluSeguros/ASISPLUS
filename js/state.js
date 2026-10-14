@@ -54,6 +54,7 @@ const state = {
   infraLista: [],
   infraVisibles: [],
   infraPagina: 1,
+  infraSubvista: 'listado',    // 'listado' | 'estadistica' dentro del módulo
   infraEditando: null,
   empresaVistaServicios: null, // servicios del usuario cuyo portal se está previsualizando
   empresaVistaAdmin: null,     // admin viendo un portal ajeno: lista de empresas que ve

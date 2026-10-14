@@ -276,14 +276,20 @@ function _barrasFicha(lista, opciones) {
   return `<div class="dash-bars${o.rank === false ? ' dash-bars-estado' : ''}">${html}</div>`;
 }
 
-/** Columnas de casos por mes. */
-function _mesesFicha(meses) {
+/**
+ * Columnas por periodo. El sustantivo es parámetro porque la misma pieza la usa
+ * la ficha de siniestralidad ("3 casos") y la estadística de infracciones
+ * ("3 infracciones"): un tooltip que diga "casos" sobre comparendos confunde.
+ */
+function _mesesFicha(meses, sustantivo) {
+  const uno = sustantivo || 'caso';
+  const varios = uno === 'caso' ? 'casos' : uno + 'es';
   const max = Math.max(1, ...meses.map(m => m.n));
   const ALTO = 140;
   let html = '';
   meses.forEach(m => {
     const h = m.n ? Math.max(4, Math.round((m.n / max) * ALTO)) : 2;
-    html += `<div class="dash-col" title="${escFicha(m.etiqueta)} ${escFicha(m.anio)}: ${m.n} caso${m.n === 1 ? '' : 's'}">
+    html += `<div class="dash-col" title="${escFicha(m.etiqueta)} ${escFicha(m.anio)}: ${m.n} ${m.n === 1 ? uno : varios}">
       <span class="dash-col-val">${m.n || ''}</span>
       <span class="dash-col-bar" style="height:${h}px"></span>
       <span class="dash-col-lab">${escFicha(m.etiqueta)}<small>${escFicha(m.anio)}</small></span>

@@ -23,6 +23,33 @@ const NOVEDADES_KEY = 'asisplus-novedades-vista';
 // De la más nueva a la más vieja.
 const NOVEDADES = [
   {
+    version: '2.30.0',
+    titulo: 'Estadística de las infracciones',
+    roles: ['empresa', 'admin'],
+    puntos: [
+      {
+        icono: '📊',
+        titulo: 'Una pestaña "Estadística" dentro de Infracciones',
+        texto: 'Arriba del listado hay dos pestañas: <b>🗂️ Listado</b> y <b>📊 Estadística</b>. Comparten el mismo buscador y los mismos filtros, así que lo que ves en la lista y lo que ves en los gráficos es siempre lo mismo.'
+      },
+      {
+        icono: '🚦',
+        titulo: 'En qué se está fallando',
+        texto: 'El panel <b>Qué se está infringiendo</b> ordena los comparendos por código: ahí se ve de una si lo que pesa es mal estacionamiento, exceso de velocidad o pasarse el rojo. Es el panel que dice en qué capacitar.'
+      },
+      {
+        icono: '👤',
+        titulo: 'Quién y con qué vehículo',
+        texto: 'Los conductores con más comparendos, los vehículos que más acumulan, y el reparto por ruta y por empresa. Arriba, cuatro cifras: cuántas son, cuántas siguen <b>sin cancelar</b>, por cuántas responde la empresa de forma <b>solidaria</b> y cuántos conductores son reincidentes.'
+      },
+      {
+        icono: '📅',
+        titulo: 'La tendencia',
+        texto: 'Sin filtro de año verás una columna por año; si eliges un año, los doce meses de ese año.'
+      }
+    ]
+  },
+  {
     version: '2.29.0',
     titulo: 'Histórico de infracciones',
     roles: ['empresa', 'admin'],
