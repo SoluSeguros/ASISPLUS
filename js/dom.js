@@ -278,6 +278,7 @@ const els = {
   filtroEmpresaGravedad: document.getElementById('filtroEmpresaGravedad'),
   filtroEmpresaEstado: document.getElementById('filtroEmpresaEstado'),
   btnEmpresaFiltrosLimpiar: document.getElementById('btnEmpresaFiltrosLimpiar'),
+  empresaResumenEmpresas: document.getElementById('empresaResumenEmpresas'),
   empresaCasosCount: document.getElementById('empresaCasosCount'),
   empresaCasosPager: document.getElementById('empresaCasosPager'),
   empresaCasosPageInfo: document.getElementById('empresaCasosPageInfo'),

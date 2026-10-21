@@ -119,7 +119,7 @@ function _casosDelMapa() {
   const emp = _valorFiltroMapa('filtroMapaEmpresa');
   if (anio) filas = filas.filter(c => _anioCasoEmpresa(c) === anio);
   if (grav) filas = filas.filter(c => String((c.datos || {})['GRAVEDAD DEL SINIESTRO'] || '').trim() === grav);
-  if (emp) filas = filas.filter(c => String((c.datos || {})['EMPRESA'] || '').trim() === emp);
+  if (emp) filas = filas.filter(c => _empresaCaso(c) === emp);
   return filas;
 }
 
@@ -144,7 +144,7 @@ function llenarFiltrosMapa() {
 
   // El de empresa sólo si el usuario está vinculado a varias: con una sola, un
   // desplegable de un elemento no filtra nada.
-  const empresas = unicos(c => String((c.datos || {})['EMPRESA'] || '').trim()).sort();
+  const empresas = unicos(_empresaCaso).sort();
   llenar(els.filtroMapaEmpresa, empresas, 'Todas mis empresas');
   if (els.filtroMapaEmpresa) els.filtroMapaEmpresa.classList.toggle('hidden', empresas.length < 2);
 }

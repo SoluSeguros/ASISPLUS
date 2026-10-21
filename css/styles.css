@@ -4493,6 +4493,15 @@ body[data-rol="admin"] .bn-crear { display: flex; }
 .ehl-num.es-hist { color: #64748b; background: #f1f5f9; }
 .ehl-hora { font-size: 11.5px; color: var(--muted); font-weight: 600; white-space: nowrap; }
 
+/* De qué empresa es el caso. Solo aparece cuando el usuario ve varias y no ha
+   elegido una con los chips de arriba. El nombre puede ser largo ("AUTOBUSES
+   EL POBLADO"), así que se recorta antes de empujar la columna del vehículo. */
+.ehl-empresa {
+  font-size: 11.5px; font-weight: 700; color: #1d4ed8;
+  background: #eef4ff; border-radius: 6px; padding: 2px 8px;
+  max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
 /* En pantallas angostas la columna de la derecha se va bajo el vehículo */
 @media (max-width: 680px) {
   .ehl-row { grid-template-columns: 46px minmax(0, 1fr); gap: 12px; padding: 10px 12px 10px 16px; }

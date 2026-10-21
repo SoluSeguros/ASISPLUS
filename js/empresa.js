@@ -34,11 +34,22 @@ function initEmpresaPortal() {
   ['filtroEmpresaAnio', 'filtroEmpresaGravedad', 'filtroEmpresaEstado'].forEach(id => {
     if (els[id]) els[id].addEventListener('change', refiltrar);
   });
+  // Los chips de empresa: el listener vive en el contenedor, así sobrevive al
+  // reemplazo de innerHTML en cada redibujado (igual que la barra de la bandeja).
+  if (els.empresaResumenEmpresas) {
+    els.empresaResumenEmpresas.addEventListener('click', event => {
+      const chip = event.target.closest('.br-chip');
+      if (!chip) return;
+      state.empresaFiltroEmpresa = chip.dataset.emp || '';
+      refiltrar();
+    });
+  }
   if (els.btnEmpresaFiltrosLimpiar) {
     els.btnEmpresaFiltrosLimpiar.addEventListener('click', () => {
       if (els.buscarEmpresaCasos) els.buscarEmpresaCasos.value = '';
       ['filtroEmpresaAnio', 'filtroEmpresaGravedad', 'filtroEmpresaEstado']
         .forEach(id => { if (els[id]) els[id].value = ''; });
+      state.empresaFiltroEmpresa = '';
       refiltrar();
     });
   }
@@ -161,9 +172,27 @@ function renderFichaEmpresaPropia() {
   const metricas = calcularFichaEmpresa(
     state.empresaCasosLista || [],
     state.empresaVehiculosTotal || 0,
-    { desde, hasta }
+    { desde, hasta, parquePorEmpresa: _parquePorEmpresa() }
   );
   renderFichaEmpresa(cont, metricas, { nombreEmpresa: _nombreEmpresaActual() });
+}
+
+/**
+ * Cuántos vehículos tiene cada empresa del parque a la vista.
+ *
+ * Es lo que hace comparable el reparto de casos: 60 siniestros en una flota de
+ * 20 buses y 180 en una de 400 no son el mismo problema, y sin el parque el
+ * panel por empresa solo diría quién es más grande. Las claves van normalizadas
+ * igual que en la ficha (mayúsculas, sin espacios dobles) porque el nombre de
+ * la empresa no siempre viene escrito igual en el parque y en el caso.
+ */
+function _parquePorEmpresa() {
+  const mapa = {};
+  (state.empresaVehiculosLista || []).forEach(v => {
+    const e = String((v && v.empresa) || '').trim().replace(/\s+/g, ' ').toUpperCase();
+    if (e) mapa[e] = (mapa[e] || 0) + 1;
+  });
+  return mapa;
 }
 
 /**
@@ -599,6 +628,10 @@ async function cargarMisCasos() {
       return fb - fa;
     });
     state.empresaCasosPagina = 1;
+    // El chip pertenece a la lista que se acaba de cargar: si el admin pasa del
+    // portal de una empresa al de otra, arrastrarlo dejaría la lista vacía sin
+    // explicar por qué.
+    state.empresaFiltroEmpresa = '';
     llenarFiltrosEmpresa();
     // El contador lo pone renderHistorialEmpresa, que es quien sabe si hay un
     // filtro activo y cuántos casos está mostrando de verdad.
@@ -636,12 +669,13 @@ function _valorFiltroEmpresa(id) {
   return (els[id] && els[id].value) || '';
 }
 
-/** ¿Hay algo acotando la lista (buscador o alguno de los selectores)? */
+/** ¿Hay algo acotando la lista (buscador, selectores o chip de empresa)? */
 function _hayFiltroEmpresa() {
   return !!(((els.buscarEmpresaCasos && els.buscarEmpresaCasos.value) || '').trim() ||
     _valorFiltroEmpresa('filtroEmpresaAnio') ||
     _valorFiltroEmpresa('filtroEmpresaGravedad') ||
-    _valorFiltroEmpresa('filtroEmpresaEstado'));
+    _valorFiltroEmpresa('filtroEmpresaEstado') ||
+    state.empresaFiltroEmpresa);
 }
 
 /** Año del caso por la fecha REAL del siniestro, no por la de importación. */
@@ -650,8 +684,30 @@ function _anioCasoEmpresa(caso) {
   return dt ? String(dt.getFullYear()) : '';
 }
 
-/** Los casos que se ven: los selectores y, encima, el buscador. */
-function _casosEmpresaFiltrados() {
+/** La empresa dueña del caso (el historial de un grupo mezcla varias). */
+function _empresaCaso(caso) {
+  return String(((caso && caso.datos) || {})['EMPRESA'] || '').trim();
+}
+
+/** Las empresas que de verdad aparecen en el historial cargado. */
+function _empresasDelHistorial() {
+  const vistas = new Set();
+  (state.empresaCasosLista || []).forEach(c => {
+    const e = _empresaCaso(c);
+    if (e) vistas.add(e);
+  });
+  return [...vistas].sort((a, b) => a.localeCompare(b, 'es'));
+}
+
+/**
+ * Los casos que se ven: los selectores, el chip de empresa y el buscador.
+ *
+ * Con `sinEmpresa` se salta el chip. Lo necesita el resumen de arriba: el
+ * conteo de cada empresa tiene que sumar el total que se está viendo, no
+ * quedarse encerrado en la empresa que ya está elegida.
+ */
+function _casosEmpresaFiltrados(opciones) {
+  const o = opciones || {};
   let filas = state.empresaCasosLista || [];
   const anio = _valorFiltroEmpresa('filtroEmpresaAnio');
   const grav = _valorFiltroEmpresa('filtroEmpresaGravedad');
@@ -659,7 +715,42 @@ function _casosEmpresaFiltrados() {
   if (anio) filas = filas.filter(c => _anioCasoEmpresa(c) === anio);
   if (grav) filas = filas.filter(c => String((c.datos || {})['GRAVEDAD DEL SINIESTRO'] || '').trim() === grav);
   if (est) filas = filas.filter(c => String(c.estado || '').trim() === est);
+  if (!o.sinEmpresa && state.empresaFiltroEmpresa) {
+    filas = filas.filter(c => _empresaCaso(c) === state.empresaFiltroEmpresa);
+  }
   return filtrarCasosPorTexto(filas, (els.buscarEmpresaCasos && els.buscarEmpresaCasos.value) || '');
+}
+
+/**
+ * Dibuja los totales separados por empresa, arriba del historial.
+ *
+ * Un usuario puede estar vinculado a varias compañías del mismo grupo (ERMIS
+ * ve las de COOMETROPOL): un único total de 411 casos no dice de quién es el
+ * problema. Cada chip trae su propio conteo y además filtra la lista, igual
+ * que la barra de resumen de la bandeja.
+ *
+ * Los conteos salen con TODOS los demás filtros aplicados pero sin el de
+ * empresa, así que la suma de los chips es siempre el total a la vista.
+ */
+function renderResumenEmpresas() {
+  const cont = els.empresaResumenEmpresas;
+  if (!cont) return;
+  const empresas = _empresasDelHistorial();
+  // Con una sola empresa no hay nada que separar.
+  if (empresas.length < 2) {
+    cont.innerHTML = '';
+    cont.classList.add('hidden');
+    return;
+  }
+  const base = _casosEmpresaFiltrados({ sinEmpresa: true });
+  const sel = state.empresaFiltroEmpresa || '';
+  const chip = (valor, etiqueta, n, clase) =>
+    `<button type="button" class="br-chip${clase ? ' ' + clase : ''}${sel === valor ? ' activo' : ''}"` +
+    ` data-emp="${escBandeja(valor)}">${escBandeja(etiqueta)}` +
+    ` <span class="br-count">${formatNumber(n)}</span></button>`;
+  cont.innerHTML = chip('', 'Todas', base.length, 'br-todos') +
+    empresas.map(e => chip(e, e, base.filter(c => _empresaCaso(c) === e).length, '')).join('');
+  cont.classList.remove('hidden');
 }
 
 /**
@@ -703,6 +794,12 @@ function renderHistorialEmpresa() {
   const todos = _casosEmpresaFiltrados();
   const acotado = _hayFiltroEmpresa();
   state.empresaCasosVisibles = todos;
+  // Los totales por empresa se recalculan en cada redibujado: dependen del
+  // resto de los filtros, así que no se pueden dejar quietos.
+  renderResumenEmpresas();
+  // Con varias empresas a la vista, cada fila dice de cuál es. Cuando ya se
+  // eligió una, el dato se repetiría en las 180 filas: ahí se omite.
+  const variasEmpresas = _empresasDelHistorial().length > 1 && !state.empresaFiltroEmpresa;
 
   if (els.btnEmpresaFiltrosLimpiar) {
     els.btnEmpresaFiltrosLimpiar.classList.toggle('hidden', !acotado);
@@ -757,6 +854,7 @@ function renderHistorialEmpresa() {
     const conductor = String(d['NOMBRE CONDUCTOR'] || '').trim();
     const gravedad = String(d['GRAVEDAD DEL SINIESTRO'] || '').trim();
     const gravCls = gravedad ? claseGravedad(gravedad) : 'grav-otro';
+    const empresa = _empresaCaso(c);
 
     return `
       <button type="button" class="ehl-row" data-idx="${inicio + i}" data-grav="${escBandeja(gravCls)}">
@@ -766,6 +864,7 @@ function renderHistorialEmpresa() {
           <span class="ehl-cond">${conductor ? escBandeja(tituloCaseFicha(conductor)) : '<i>Conductor sin registrar</i>'}</span>
         </span>
         <span class="ehl-side">
+          ${variasEmpresas && empresa ? `<span class="ehl-empresa">${escBandeja(empresa)}</span>` : ''}
           ${gravedad
             ? `<span class="ct-grav ${escBandeja(gravCls)}">${escBandeja(tituloCaseFicha(gravedad))}</span>`
             : '<span class="ehl-sin">Gravedad sin registrar</span>'}

@@ -162,6 +162,21 @@ function calcularFichaEmpresa(rows, vehiculos, opciones) {
   const casosMes = v.meses > 0 ? total / v.meses : 0;
   const tasaPor100 = vehiculos > 0 ? (casosMes / vehiculos) * 100 : null;
 
+  // --- Reparto por empresa ---
+  // Un usuario puede estar vinculado a varias compañías del mismo grupo (ERMIS
+  // ve las de COOMETROPOL), y entonces TODO lo demás de la ficha sale sumado.
+  // Esto lo separa. El parque de cada una llega como opción porque sin él la
+  // comparación engaña: la empresa con más vehículos siempre tiene más casos.
+  const parquePorEmpresa = (opciones && opciones.parquePorEmpresa) || null;
+  const porEmpresa = _contar(dentro, f => _normFicha(f.datos && f.datos['EMPRESA'])).map(x => {
+    const veh = parquePorEmpresa ? (parquePorEmpresa[x.nombre] || 0) : 0;
+    const porMes = v.meses > 0 ? x.n / v.meses : 0;
+    return {
+      nombre: x.nombre, n: x.n, vehiculos: veh,
+      tasaPor100: veh > 0 ? (porMes / veh) * 100 : null
+    };
+  });
+
   // --- Gravedad y responsabilidad ---
   const gravedad = _contar(dentro, f => _normFicha(f.datos && f.datos['GRAVEDAD DEL SINIESTRO']));
   const responsabilidad = _contar(dentro, f => _normFicha(f.datos && f.datos['RESPONSABILIDAD DEL CONDUCTOR']));
@@ -229,6 +244,7 @@ function calcularFichaEmpresa(rows, vehiculos, opciones) {
     meses,
     vehiculos: vehiculos || 0,
     casosMes, tasaPor100,
+    porEmpresa,
     gravedad, responsabilidad,
     porcResponsable: conResp > 0 ? Math.round((respSi / conResp) * 100) : null,
     conLesionados,
@@ -362,6 +378,22 @@ function renderFichaEmpresa(cont, m, opciones) {
     ${_mesesFicha(m.meses)}
   </div>`;
 
+  // --- Reparto por empresa ---
+  // Solo con más de una a la vista: para una sola repetiría el total de arriba.
+  // La tasa va al lado del nombre para que no se lea como un ranking de tamaño.
+  const empBlock = (m.porEmpresa && m.porEmpresa.length > 1) ? `<div class="dash-panel">
+    <div class="dash-panel-head">
+      <h3>🏢 Siniestros por empresa</h3>
+      <span class="dash-panel-sub">${m.porEmpresa.length} empresas · ${_numFicha(m.total)} casos en el periodo</span>
+    </div>
+    ${_barrasFicha(m.porEmpresa, {
+      destacarPrimero: true, porcentaje: true, total: m.total,
+      etiqueta: x => escFicha(tituloCaseFicha(x.nombre)) + (x.tasaPor100 != null
+        ? ` <small class="fe-sub">${x.tasaPor100.toFixed(1)} por 100 veh./mes · ${_numFicha(x.vehiculos)} vehículos</small>`
+        : ' <small class="fe-sub">sin parque registrado</small>')
+    })}
+  </div>` : '';
+
   // --- Reincidencia (lo que la empresa puede accionar mañana) ---
   const vehLista = m.topVehiculos.map(x => ({
     nombre: x.placa,
@@ -470,6 +502,7 @@ function renderFichaEmpresa(cont, m, opciones) {
     <div class="fe-periodo">📅 Periodo: <b>${escFicha(periodo)}</b>${o.nombreEmpresa ? ` · <b>${escFicha(o.nombreEmpresa)}</b>` : ''}</div>
     ${kpis}
     ${mesesBlock}
+    ${empBlock}
     <div class="dash-2col">${vehBlock}${condBlock}</div>
     <div class="dash-2col">${gravBlock}${respBlock}</div>
     <div class="dash-2col">${franjaBlock}${diaBlock}</div>

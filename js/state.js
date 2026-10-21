@@ -45,6 +45,7 @@ const state = {
   // Portal de empresa
   empresaCasosLista: [],       // casos propios (la RLS ya filtra por empresa)
   empresaCasosVisibles: [],    // los de arriba tras el buscador: lo que se ve
+  empresaFiltroEmpresa: '',    // chip de empresa elegido en el historial ('' = todas)
   empresaVehiculosTotal: 0,    // tamaño del parque: base de la tasa por 100 vehículos
   fichaEmpresaSel: '',         // empresa elegida en el dashboard de SoluAsistencia
   empresaVehiculosLista: [],   // flota a la vista (para detectar placas repetidas al dar de alta)

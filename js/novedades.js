@@ -23,6 +23,28 @@ const NOVEDADES_KEY = 'asisplus-novedades-vista';
 // De la más nueva a la más vieja.
 const NOVEDADES = [
   {
+    version: '2.32.0',
+    titulo: 'Los siniestros, separados por empresa',
+    roles: ['empresa', 'admin'],
+    puntos: [
+      {
+        icono: '🏢',
+        titulo: 'Arriba del historial, el total de cada empresa',
+        texto: 'Si tu usuario ve varias compañías, el historial ya no las mezcla en una sola bolsa: hay un botón por empresa con <b>su</b> número de casos, y al tocarlo la lista queda solo con los de ella. Los totales siempre suman lo que estás viendo, así que si además filtras por año o gravedad, cada número se ajusta.'
+      },
+      {
+        icono: '🏷️',
+        titulo: 'Cada caso dice de quién es',
+        texto: 'Viendo «Todas», cada fila lleva el nombre de la empresa a la derecha. Cuando ya elegiste una, el nombre desaparece: sería repetirlo en las 50 filas de la página.'
+      },
+      {
+        icono: '📊',
+        titulo: 'Y en el dashboard, un panel aparte',
+        texto: 'Debajo de «Siniestros por mes» hay un panel <b>🏢 Siniestros por empresa</b> con el reparto del periodo. Al lado de cada una va su tasa <b>por 100 vehículos al mes</b> calculada con su propio parque, que es lo único que las hace comparables: la empresa con más buses siempre tiene más casos.'
+      }
+    ]
+  },
+  {
     version: '2.31.0',
     titulo: 'Bitácora de reclamaciones',
     roles: ['admin', 'reclamaciones', 'gestor', 'seguridad_vial'],
