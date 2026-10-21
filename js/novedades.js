@@ -23,6 +23,38 @@ const NOVEDADES_KEY = 'asisplus-novedades-vista';
 // De la más nueva a la más vieja.
 const NOVEDADES = [
   {
+    version: '2.34.0',
+    titulo: 'La estadística de infracciones, al detalle',
+    roles: ['empresa', 'admin'],
+    puntos: [
+      {
+        icono: '📌',
+        titulo: 'La conclusión, en una frase',
+        texto: 'Arriba de los gráficos hay una línea que dice directamente lo que hay que saber: el mes que más repite, el día de la semana, la franja horaria, el código y el vehículo. Con las 230 cargadas dice que el peor mes es <b>febrero</b> (36) y el peor día el <b>miércoles</b> (49).'
+      },
+      {
+        icono: '🗓️',
+        titulo: 'En qué mes y qué día',
+        texto: 'Dos paneles nuevos: <b>En qué mes del año</b> —los cuatro años juntos, para ver la temporada— y <b>Qué día de la semana</b>. El día sale de la fecha, igual que lo traía el Excel (se comprobó: 230 de 230 coinciden).'
+      },
+      {
+        icono: '👆',
+        titulo: 'Todo gráfico filtra al tocarlo',
+        texto: 'Tocá una columna de febrero y la lista de abajo queda con esas 36. Tocá un año y entra a sus doce meses. Tocá un código, una placa o un conductor y va al buscador. Se pueden sumar (junio + viernes), lo que está filtrando se ve marcado y arriba aparece un botón con una <b>✕</b> para quitarlo. Volver a tocar lo mismo también lo quita.'
+      },
+      {
+        icono: '🕐',
+        titulo: 'Y la hora, de aquí en adelante',
+        texto: 'El formulario tiene ahora un campo <b>Hora</b> (opcional). El Excel que se importó no traía hora —17 columnas y ninguna de hora—, así que las 230 viejas están sin ella y el panel lo dice en vez de inventar una franja. Lo que registres o corrijas con hora empieza a llenar el panel de franjas y el de hora exacta.'
+      },
+      {
+        icono: '📈',
+        titulo: 'Comparado con el año anterior',
+        texto: 'Al elegir un año, la tarjeta del total muestra si subió o bajó frente al año anterior. Si ese año no está en los datos lo dice, en vez de mostrar un porcentaje sin base.'
+      }
+    ]
+  },
+  {
     version: '2.33.0',
     titulo: 'Por mes en el historial, y los gráficos por empresa',
     roles: ['empresa', 'admin'],

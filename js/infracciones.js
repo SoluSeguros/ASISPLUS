@@ -21,7 +21,7 @@ const INFRA_ESTADOS = ['SIN CANCELAR', 'CANCELADA'];
 
 /** Columnas que se leen (todas: es el dueño de los datos quien mira). */
 const INFRA_COLUMNAS =
-  'id, empresa, placa, numero_interno, fecha, ruta, comparendo, codigo, infraccion, ' +
+  'id, empresa, placa, numero_interno, fecha, hora, ruta, comparendo, codigo, infraccion, ' +
   'cedula_conductor, conductor, estado, solidaridad, foto_multa, observaciones, origen, actualizado_en';
 
 /* ------------------------------------------------------------------ *
@@ -62,6 +62,10 @@ async function cargarInfracciones() {
   try {
     state.infraLista = await traerInfracciones();
     state.infraPagina = 1;
+    // Los filtros de gráfico pertenecen a la lista que se acaba de cargar.
+    state.infraFiltroMes = '';
+    state.infraFiltroDia = '';
+    state.infraFiltroFranja = '';
     llenarFiltrosInfra();
     refrescarInfra();
   } catch (error) {
@@ -81,7 +85,8 @@ function _valorFiltroInfra(id) {
 function _hayFiltroInfra() {
   return !!(((els.buscarInfra && els.buscarInfra.value) || '').trim() ||
     _valorFiltroInfra('filtroInfraAnio') || _valorFiltroInfra('filtroInfraEstado') ||
-    _valorFiltroInfra('filtroInfraEmpresa'));
+    _valorFiltroInfra('filtroInfraEmpresa') ||
+    state.infraFiltroMes || state.infraFiltroDia || state.infraFiltroFranja);
 }
 
 /** El año de la infracción (la fecha llega como 'AAAA-MM-DD'). */
@@ -89,15 +94,33 @@ function _anioInfra(r) {
   return String(r.fecha || '').slice(0, 4);
 }
 
-/** Las infracciones que se ven: los selectores y, encima, el buscador. */
-function _infraccionesFiltradas() {
+/**
+ * Las infracciones que se ven: los selectores, los filtros que salen de tocar
+ * un gráfico (mes, día, franja) y, encima, el buscador.
+ *
+ * `opciones` permite calcular un subconjunto distinto del que se está viendo:
+ * `anio` reemplaza el año (para comparar con el anterior) y `sinMes`/`sinDia`/
+ * `sinFranja` saltan ese filtro, que es lo que necesitan los paneles que a su
+ * vez SON ese filtro para no quedarse con una sola columna en pie.
+ */
+function _infraccionesFiltradas(opciones) {
+  const o = opciones || {};
   let filas = state.infraLista || [];
-  const anio = _valorFiltroInfra('filtroInfraAnio');
+  const anio = o.anio != null ? o.anio : _valorFiltroInfra('filtroInfraAnio');
   const estado = _valorFiltroInfra('filtroInfraEstado');
   const emp = _valorFiltroInfra('filtroInfraEmpresa');
   if (anio) filas = filas.filter(r => _anioInfra(r) === anio);
   if (estado) filas = filas.filter(r => String(r.estado || '') === estado);
   if (emp) filas = filas.filter(r => String(r.empresa || '').trim() === emp);
+  if (!o.sinMes && state.infraFiltroMes) {
+    filas = filas.filter(r => _mesInfra(r) === state.infraFiltroMes);
+  }
+  if (!o.sinDia && state.infraFiltroDia) {
+    filas = filas.filter(r => _diaInfra(r) === state.infraFiltroDia);
+  }
+  if (!o.sinFranja && state.infraFiltroFranja) {
+    filas = filas.filter(r => _franjaInfra(r) === state.infraFiltroFranja);
+  }
 
   const q = normalizarBusqueda((els.buscarInfra && els.buscarInfra.value) || '').trim();
   if (!q) return filas;
@@ -214,6 +237,7 @@ function renderInfracciones() {
         <span class="ehl-side">
           <span class="inf-estado ${pendiente ? 'es-pendiente' : 'es-ok'}">${escBandeja(r.estado)}</span>
           <span class="ehl-meta">
+            ${r.hora ? `<span class="ehl-hora">${escBandeja(horaBonitaInfra(r.hora))}</span>` : ''}
             ${variasEmpresas ? `<span class="evl-empresa">${escBandeja(r.empresa)}</span>` : ''}
             ${r.solidaridad ? '<span class="inf-flag" title="La empresa responde solidariamente">Solidaria</span>' : ''}
             ${r.foto_multa ? '<span class="inf-flag">Fotomulta</span>' : ''}
@@ -236,6 +260,7 @@ function renderInfracciones() {
  * seis tops en cada tecla del buscador no lo ve nadie.
  */
 function refrescarInfra() {
+  renderActivosInfra();
   renderInfracciones();
   if (state.infraSubvista === 'estadistica') renderEstadisticaInfra();
 }
@@ -244,6 +269,66 @@ function moverPaginaInfra(paso) {
   state.infraPagina = (state.infraPagina || 1) + paso;
   renderInfracciones();
   if (els.empresaVistaInfracciones) els.empresaVistaInfracciones.scrollIntoView({ block: 'start', behavior: 'smooth' });
+}
+
+/* ------------------------------------------------------------------ *
+ *  Dimensiones que se calculan de la fecha
+ * ------------------------------------------------------------------ *
+ *  El Excel traía columnas Año, Mes y Día de la semana al lado de la
+ *  fecha. No se importaron: son la misma fecha escrita tres veces, y un
+ *  dato duplicado se desincroniza en cuanto alguien corrige uno. Se
+ *  calculan aquí. (Se comprobó contra la columna "Día" del propio Excel:
+ *  230 de 230 iguales.)
+ *
+ *  La hora NO se puede calcular de nada, y el Excel no la traía: existe
+ *  la columna `hora` en la base para lo que se registre de ahora en
+ *  adelante, y las 230 importadas quedan sin ella a propósito.
+ */
+
+/**
+ * La fecha como Date LOCAL.
+ *
+ * OJO: new Date('2023-01-04') se interpreta en UTC, y en Colombia (UTC-5)
+ * eso devuelve el 3 de enero a las 7 p. m. El día de la semana saldría
+ * corrido uno hacia atrás en TODA la estadística.
+ */
+function _fechaLocalInfra(r) {
+  const m = String((r && r.fecha) || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null;
+}
+
+/** El mes de la infracción como '01'…'12' (de la cadena, sin pasar por Date). */
+function _mesInfra(r) {
+  const m = String((r && r.fecha) || '').match(/^\d{4}-(\d{2})/);
+  return m ? m[1] : '';
+}
+
+/** El día de la semana como '0'…'6', 0 = domingo (igual que Date.getDay()). */
+function _diaInfra(r) {
+  const dt = _fechaLocalInfra(r);
+  return dt ? String(dt.getDay()) : '';
+}
+
+/** La hora como número 0–23, o null cuando la infracción no la tiene. */
+function _horaInfra(r) {
+  const m = String((r && r.hora) || '').match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return null;
+  const h = Number(m[1]);
+  return (h >= 0 && h <= 23) ? h : null;
+}
+
+/** La franja horaria ('madrugada'…'noche'), o '' si no hay hora. */
+function _franjaInfra(r) {
+  const h = _horaInfra(r);
+  if (h == null) return '';
+  const f = FRANJAS.find(x => h >= x.desde && h <= x.hasta);
+  return f ? f.clave : '';
+}
+
+/** La hora en HH:MM para mostrar ('14:30:00' → '14:30'). */
+function horaBonitaInfra(hora) {
+  const m = String(hora || '').match(/^(\d{1,2}):(\d{2})/);
+  return m ? `${m[1].padStart(2, '0')}:${m[2]}` : '';
 }
 
 /* ------------------------------------------------------------------ *
@@ -257,6 +342,11 @@ function moverPaginaInfra(paso) {
  *  siniestralidad: quien aprendió a leer una, lee la otra. Lo que son dos
  *  valores —pagadas/sin pagar, con o sin solidaridad— va como cifra, no
  *  como gráfico: un gráfico de dos barras es una cifra disfrazada.
+ *
+ *  Todo gráfico filtra al tocarlo (data-drill). Y cada panel que ES un
+ *  filtro se cuenta SIN su propio filtro: si no, al elegir junio el panel
+ *  de meses quedaría con una sola columna y no habría forma de pasar a
+ *  julio sin limpiar todo. La columna elegida se marca.
  */
 
 /** Cambia entre el listado y la estadística dentro del módulo. */
@@ -281,6 +371,7 @@ function _periodosInfra(filas) {
   if (anioFiltro) {
     const meses = MESES_INFRA.map((etiqueta, i) => ({
       clave: `${anioFiltro}-${String(i + 1).padStart(2, '0')}`,
+      drill: 'mes', val: String(i + 1).padStart(2, '0'),
       etiqueta, anio: anioFiltro.slice(2), n: 0
     }));
     const idx = {};
@@ -293,13 +384,30 @@ function _periodosInfra(filas) {
   }
   const anios = [...new Set(filas.map(_anioInfra).filter(Boolean))].sort();
   return anios.map(a => ({
-    clave: a, etiqueta: a, anio: '',
+    clave: a, etiqueta: a, anio: '', drill: 'anio', val: a,
     n: filas.filter(r => _anioInfra(r) === a).length
   }));
 }
 
-/** Los números y los tops de la estadística. */
-function calcularEstadisticaInfra(filas) {
+/** Los nombres largos de los meses, para la frase y los tooltips. */
+const MESES_LARGOS_INFRA = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+/**
+ * Los números y los tops de la estadística.
+ *
+ * `bases` trae los subconjuntos cruzados que necesitan los paneles que a su
+ * vez son filtros (mes, día, franja): cada uno se cuenta sin su propio filtro.
+ * Si no se pasan, se usa `filas` para todo, que es lo correcto cuando se
+ * calcula sin pantalla (una prueba, una descarga).
+ */
+function calcularEstadisticaInfra(filas, bases) {
+  const b = bases || {};
+  const baseMes = b.sinMes || filas;
+  const baseDia = b.sinDia || filas;
+  const baseFranja = b.sinFranja || filas;
+  const basePeriodo = b.periodo || filas;
+
   const total = filas.length;
   const sinPagar = filas.filter(r => r.estado === 'SIN CANCELAR').length;
   const solidarias = filas.filter(r => r.solidaridad).length;
@@ -308,19 +416,65 @@ function calcularEstadisticaInfra(filas) {
   const porConductor = _contar(filas, r => String(r.conductor || '').trim());
   const reincidentes = porConductor.filter(x => x.n > 1).length;
 
+  // --- Mes del año: la temporada. Doce posiciones fijas, con ceros: en una
+  // serie de meses el hueco es justamente lo que se quiere ver.
+  const mesesAnio = MESES_INFRA.map((etiqueta, i) => {
+    const val = String(i + 1).padStart(2, '0');
+    return {
+      etiqueta, anio: '', clave: val, drill: 'mes', val,
+      n: baseMes.filter(r => _mesInfra(r) === val).length
+    };
+  });
+
+  // --- Día de la semana. El Excel ya lo traía como columna; aquí sale de la
+  // fecha, que es la única fuente que no se puede desincronizar.
+  const dias = _DIAS_CORTOS.map((etiqueta, i) => ({
+    etiqueta, anio: '', clave: String(i), drill: 'dia', val: String(i),
+    nombre: _DIAS_SEMANA[i],
+    n: baseDia.filter(r => _diaInfra(r) === String(i)).length
+  }));
+
+  // --- Hora. Las 230 del histórico vinieron sin ella, así que el panel tiene
+  // que decir cuántas no la tienen en vez de repartirlas en una franja.
+  const conHora = filas.filter(r => _horaInfra(r) != null).length;
+  const franjas = FRANJAS.map(f => ({
+    nombre: f.etiqueta, clave: f.clave, detalle: f.detalle,
+    drill: 'franja', val: f.clave,
+    n: baseFranja.filter(r => _franjaInfra(r) === f.clave).length
+  }));
+  const horas = [];
+  for (let h = 0; h < 24; h++) {
+    horas.push({
+      etiqueta: String(h).padStart(2, '0'), anio: '', clave: String(h),
+      n: filas.filter(r => _horaInfra(r) === h).length
+    });
+  }
+
+  const topCodigos = _contar(filas, r => {
+    const c = String(r.codigo || '').trim();
+    return c ? c + '|' + String(r.infraccion || '').trim() : '';
+  }, 10);
+  const topVehiculos = _contar(filas, r => {
+    const p = String(r.placa || '').trim();
+    return p ? p + (r.numero_interno ? '|' + r.numero_interno : '') : '';
+  }, 10);
+
+  // --- Lo que va en la frase de arriba: el pico de cada dimensión.
+  const pico = lista => {
+    const l = (lista || []).filter(x => x.n > 0).slice().sort((a, b) => b.n - a.n);
+    return l.length ? l[0] : null;
+  };
+
   return {
     total, sinPagar, solidarias, fotomultas, reincidentes,
     conductores: porConductor.length,
-    periodos: _periodosInfra(filas),
-    topCodigos: _contar(filas, r => {
-      const c = String(r.codigo || '').trim();
-      return c ? c + '|' + String(r.infraccion || '').trim() : '';
-    }, 10),
+    periodos: _periodosInfra(basePeriodo),
+    mesesAnio, dias, franjas, horas, conHora, sinHora: total - conHora,
+    picoMes: pico(mesesAnio), picoDia: pico(dias), picoFranja: pico(franjas),
+    topCodigos,
     topConductores: porConductor.slice(0, 10),
-    topVehiculos: _contar(filas, r => {
-      const p = String(r.placa || '').trim();
-      return p ? p + (r.numero_interno ? '|' + r.numero_interno : '') : '';
-    }, 10),
+    topVehiculos,
+    codigosDistintos: _contar(filas, r => String(r.codigo || '').trim()).length,
     rutas: _contar(filas, r => String(r.ruta || '').trim(), 10),
     empresas: _contar(filas, r => String(r.empresa || '').trim())
   };
@@ -335,6 +489,64 @@ function _panelInfra(titulo, sub, cuerpo) {
     </div>
     ${cuerpo}
   </div>`;
+}
+
+/**
+ * Columnas por periodo, clicables.
+ *
+ * Es la misma pieza de la ficha (_mesesFicha) más el drill y la marca de la
+ * columna elegida. No se reutiliza la de allá porque allá una columna no
+ * filtra nada: aquí es el gesto principal de la pantalla.
+ */
+function _columnasInfra(lista, sustantivo, seleccion) {
+  const uno = sustantivo || 'infracción';
+  const varios = uno === 'infracción' ? 'infracciones' : uno + 's';
+  const max = Math.max(1, ...lista.map(x => x.n));
+  const ALTO = 140;
+  return `<div class="dash-cols">${lista.map(x => {
+    const h = x.n ? Math.max(4, Math.round((x.n / max) * ALTO)) : 2;
+    const sel = seleccion && x.val && String(seleccion) === String(x.val);
+    const clic = x.drill
+      ? ` dash-clic${sel ? ' es-sel' : ''}" role="button" tabindex="0"` +
+        ` data-drill="${escBandeja(x.drill)}" data-val="${escBandeja(x.val)}`
+      : '';
+    const tip = x.tip || `${x.etiqueta} ${x.anio || ''}: ${x.n} ${x.n === 1 ? uno : varios}`;
+    return `<div class="dash-col${clic}" title="${escBandeja(tip.trim())}">
+      <span class="dash-col-val">${x.n || ''}</span>
+      <span class="dash-col-bar" style="height:${h}px"></span>
+      <span class="dash-col-lab">${escBandeja(x.etiqueta)}${
+        x.anio ? `<small>${escBandeja(x.anio)}</small>` : ''}</span>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+/** Barras horizontales clicables (las de la ficha más el drill). */
+function _barrasInfra(lista, opciones) {
+  const o = opciones || {};
+  if (!lista.length) {
+    return `<div class="tercero-estado">${escBandeja(o.vacio || 'Sin datos en lo que estás viendo.')}</div>`;
+  }
+  const max = lista[0].n || Math.max(1, ...lista.map(x => x.n));
+  const total = o.total || lista.reduce((s, x) => s + x.n, 0);
+  return `<div class="dash-bars${o.rank === false ? ' dash-bars-estado' : ''}">${lista.map((x, i) => {
+    const pct = Math.max(4, Math.round((x.n / (max || 1)) * 100));
+    const etiqueta = o.etiqueta ? o.etiqueta(x, i) : escBandeja(x.nombre);
+    const sufijo = o.porcentaje && total
+      ? ` <small class="fe-pct">${Math.round((x.n / total) * 100)}%</small>` : '';
+    const sel = o.seleccion && x.val && String(o.seleccion) === String(x.val);
+    const clic = (o.drill || x.drill)
+      ? ` dash-clic${sel ? ' es-sel' : ''}" role="button" tabindex="0"` +
+        ` data-drill="${escBandeja(x.drill || o.drill)}" data-val="${escBandeja(x.val != null ? x.val : x.nombre)}`
+      : '';
+    return `<div class="dash-bar-row${o.rank === false ? ' fe-sin-rank' : ''}` +
+      `${i === 0 && o.destacarPrimero ? ' es-lider' : ''}${clic}"` +
+      `${x.tip ? ` title="${escBandeja(x.tip)}"` : ''}>
+      ${o.rank === false ? '' : `<span class="dash-bar-rank">${i + 1}</span>`}
+      <span class="dash-bar-nom">${etiqueta}</span>
+      <span class="dash-bar-track"><span class="dash-bar-fill" style="width:${pct}%"></span></span>
+      <span class="dash-bar-val">${x.n}${sufijo}</span>
+    </div>`;
+  }).join('')}</div>`;
 }
 
 /** Dibuja la estadística de lo que se está viendo. */
@@ -352,12 +564,39 @@ function renderEstadisticaInfra() {
     return;
   }
 
-  const m = calcularEstadisticaInfra(filas);
+  const anio = _valorFiltroInfra('filtroInfraAnio');
+  const m = calcularEstadisticaInfra(filas, {
+    sinMes: _infraccionesFiltradas({ sinMes: true }),
+    sinDia: _infraccionesFiltradas({ sinDia: true }),
+    sinFranja: _infraccionesFiltradas({ sinFranja: true }),
+    // Con un año elegido el panel de periodo muestra sus doce meses: tiene que
+    // contarlos sin el filtro de mes o quedaría una sola columna en pie.
+    periodo: anio ? _infraccionesFiltradas({ sinMes: true }) : filas
+  });
   const pct = n => m.total ? Math.round((n / m.total) * 100) + '%' : '—';
 
-  // Lo que son dos valores va aquí, en cifras, y no como gráfico.
+  // --- Comparación con el año anterior, cuando hay un año elegido ---------
+  // Un número suelto no dice si se está mejorando. Sólo se compara si ese año
+  // anterior existe de verdad en los datos: si no, "bajó 100%" sería mentira.
+  let notaTotal = 'En lo que estás viendo';
+  if (anio) {
+    const previo = String(Number(anio) - 1);
+    const hayPrevio = (state.infraLista || []).some(r => _anioInfra(r) === previo);
+    if (hayPrevio) {
+      const nPrevio = _infraccionesFiltradas({ anio: previo }).length;
+      if (nPrevio > 0) {
+        const v = Math.round(((m.total - nPrevio) / nPrevio) * 100);
+        const cls = v === 0 ? 'fe-igual' : (v > 0 ? 'fe-sube' : 'fe-baja');
+        notaTotal = `<span class="fe-var ${cls}">${v === 0 ? '=' : (v > 0 ? '▲' : '▼')} ` +
+          `${Math.abs(v)}%</span> vs. ${previo} (${formatNumber(nPrevio)})`;
+      }
+    } else {
+      notaTotal = `En ${anio} · sin ${previo} para comparar`;
+    }
+  }
+
   const kpis = `<div class="dash-kpis">
-    ${_kpiFicha(formatNumber(m.total), 'Infracciones', 'En lo que estás viendo')}
+    ${_kpiFicha(formatNumber(m.total), 'Infracciones', notaTotal)}
     ${_kpiFicha(formatNumber(m.sinPagar), 'Sin cancelar', `${pct(m.sinPagar)} del total`,
       m.sinPagar ? 'warn' : 'ok')}
     ${_kpiFicha(formatNumber(m.solidarias), 'Responde la empresa',
@@ -366,20 +605,77 @@ function renderEstadisticaInfra() {
       `De ${formatNumber(m.conductores)} conductores con comparendo`, 'info')}
   </div>`;
 
+  // --- La conclusión en una frase ----------------------------------------
+  // Lo más directo que puede dar la pantalla: quien no va a leer ocho gráficos
+  // se lleva igual lo que tiene que hacer mañana.
+  const trozos = [];
+  if (m.picoMes) {
+    trozos.push(`el mes que más repite es <b>${escBandeja(MESES_LARGOS_INFRA[Number(m.picoMes.val) - 1])}</b>` +
+      ` (${formatNumber(m.picoMes.n)})`);
+  }
+  if (m.picoDia) {
+    trozos.push(`el día, el <b>${escBandeja(m.picoDia.nombre.toLowerCase())}</b> (${formatNumber(m.picoDia.n)})`);
+  }
+  if (m.picoFranja) {
+    trozos.push(`la franja, la <b>${escBandeja(m.picoFranja.nombre.toLowerCase())}</b> (${formatNumber(m.picoFranja.n)})`);
+  }
+  if (m.topCodigos.length) {
+    const p = m.topCodigos[0].nombre.split('|');
+    trozos.push(`el código <b>${escBandeja(p[0])}</b>${p[1] ? ' — ' + escBandeja(p[1]) : ''}` +
+      ` (${formatNumber(m.topCodigos[0].n)})`);
+  }
+  if (m.topVehiculos.length && m.topVehiculos[0].n > 1) {
+    trozos.push(`y el vehículo <b>${escBandeja(m.topVehiculos[0].nombre.split('|')[0])}</b>` +
+      ` (${formatNumber(m.topVehiculos[0].n)})`);
+  }
+  const frase = trozos.length
+    ? `<div class="dash-panel inf-frase"><p>📌 De las <b>${formatNumber(m.total)}</b> que estás viendo, ${
+        trozos.join(', ')}.</p></div>`
+    : '';
+
   const porPeriodo = _panelInfra(
     '📅 Cuándo se cometieron',
-    _valorFiltroInfra('filtroInfraAnio')
-      ? `Mes a mes de ${_valorFiltroInfra('filtroInfraAnio')}`
-      : 'Un año por columna · elige un año arriba para verlo mes a mes',
-    _mesesFicha(m.periodos, 'infracción'));
+    anio ? `Mes a mes de ${anio} · toca un mes para verlo solo` : 'Un año por columna · toca uno para entrar',
+    _columnasInfra(m.periodos, 'infracción', anio ? state.infraFiltroMes : anio));
+
+  // El mes del año sólo cuando NO hay un año elegido: con uno, el panel de
+  // arriba ya son sus doce meses y este diría lo mismo.
+  const porMes = !anio ? _panelInfra(
+    '📆 En qué mes del año',
+    'Los cuatro años juntos: es la temporada, no la tendencia',
+    _columnasInfra(m.mesesAnio, 'infracción', state.infraFiltroMes)) : '';
+
+  const porDia = _panelInfra(
+    '🗓️ Qué día de la semana',
+    m.picoDia ? `El peor es el ${m.picoDia.nombre.toLowerCase()}` : '',
+    _columnasInfra(m.dias, 'infracción', state.infraFiltroDia));
+
+  // --- Hora ---------------------------------------------------------------
+  // El histórico vino sin hora. Decirlo es más útil que esconder el panel: así
+  // se entiende por qué no hay nada y dónde se empieza a llenar.
+  const porHora = m.conHora
+    ? _panelInfra('🕐 A qué hora',
+        `${formatNumber(m.conHora)} de ${formatNumber(m.total)} tienen la hora registrada` +
+        (m.sinHora ? ` · ${formatNumber(m.sinHora)} sin hora` : ''),
+        _barrasInfra(m.franjas, {
+          rank: false, porcentaje: true, total: m.conHora, seleccion: state.infraFiltroFranja,
+          etiqueta: x => `${escBandeja(x.nombre)} <small class="fe-sub">${escBandeja(x.detalle)}</small>`
+        }) + (m.conHora > 3 ? _columnasInfra(m.horas, 'infracción', '') : ''))
+    : _panelInfra('🕐 A qué hora', 'Ninguna de las que estás viendo tiene la hora',
+        `<div class="tercero-estado">El histórico que se importó del Excel no traía la hora
+         (17 columnas y ninguna de hora), así que las ${formatNumber(m.total)} que estás
+         viendo están sin ella. El campo <b>Hora</b> ya está en el formulario: las que
+         registres o corrijas de ahora en adelante van a aparecer acá, por franja y por
+         hora exacta.</div>`);
 
   // El top de códigos es el panel accionable: dice en qué capacitar.
   const codigos = _panelInfra(
     '🚦 Qué se está infringiendo',
-    `${formatNumber(m.topCodigos.length)} de ${formatNumber(_contar(filas, r => String(r.codigo || '').trim()).length)} códigos distintos`,
-    _barrasFicha(m.topCodigos.map(x => {
+    `${formatNumber(m.topCodigos.length)} de ${formatNumber(m.codigosDistintos)} códigos distintos`,
+    _barrasInfra(m.topCodigos.map(x => {
       const [cod, desc] = x.nombre.split('|');
-      return { nombre: cod, n: x.n, _desc: desc || '' };
+      return { nombre: cod, n: x.n, _desc: desc || '', drill: 'texto', val: cod,
+               tip: `Ver las ${x.n} de ${cod}${desc ? ' — ' + desc : ''}` };
     }), {
       porcentaje: true, total: m.total,
       etiqueta: x => `<b>${escBandeja(x.nombre)}</b>${x._desc
@@ -389,14 +685,17 @@ function renderEstadisticaInfra() {
   const conductores = _panelInfra(
     '👤 Conductores con más comparendos',
     m.reincidentes ? `${formatNumber(m.reincidentes)} tienen más de uno` : 'Ninguno repite',
-    _barrasFicha(m.topConductores.map(x => ({ nombre: tituloCaseFicha(x.nombre), n: x.n })),
-      { porcentaje: true, total: m.total, destacarPrimero: true }));
+    _barrasInfra(m.topConductores.map(x => ({
+      nombre: tituloCaseFicha(x.nombre), n: x.n, drill: 'texto', val: x.nombre,
+      tip: `Ver los ${x.n} de ${tituloCaseFicha(x.nombre)}`
+    })), { porcentaje: true, total: m.total, destacarPrimero: true }));
 
   const vehiculos = _panelInfra(
     '🚌 Vehículos con más comparendos', '',
-    _barrasFicha(m.topVehiculos.map(x => {
+    _barrasInfra(m.topVehiculos.map(x => {
       const [placa, interno] = x.nombre.split('|');
-      return { nombre: placa, n: x.n, _int: interno || '' };
+      return { nombre: placa, n: x.n, _int: interno || '', drill: 'texto', val: placa,
+               tip: `Ver los ${x.n} de ${placa}` };
     }), {
       porcentaje: true, total: m.total, destacarPrimero: true,
       etiqueta: x => `<b>${escBandeja(x.nombre)}</b>${x._int
@@ -404,19 +703,92 @@ function renderEstadisticaInfra() {
     }));
 
   const rutas = m.rutas.length > 1
-    ? _panelInfra('🛣️ Por ruta', '', _barrasFicha(m.rutas, { rank: false, porcentaje: true, total: m.total }))
+    ? _panelInfra('🛣️ Por ruta', '', _barrasInfra(m.rutas.map(x => ({
+        nombre: x.nombre, n: x.n, drill: 'texto', val: x.nombre,
+        tip: `Ver las ${x.n} de ${x.nombre}`
+      })), { rank: false, porcentaje: true, total: m.total }))
     : '';
 
   // Sólo con varias empresas: una barra sola es el número que ya está arriba.
   const empresas = m.empresas.length > 1
-    ? _panelInfra('🏢 Por empresa', '', _barrasFicha(m.empresas, { rank: false, porcentaje: true, total: m.total }))
+    ? _panelInfra('🏢 Por empresa', '', _barrasInfra(m.empresas.map(x => ({
+        nombre: x.nombre, n: x.n, drill: 'empresa', val: x.nombre,
+        tip: `Ver las ${x.n} de ${x.nombre}`
+      })), { rank: false, porcentaje: true, total: m.total,
+             seleccion: _valorFiltroInfra('filtroInfraEmpresa') }))
     : '';
 
   const nota = m.fotomultas
     ? `<p class="audio-nota">📸 ${formatNumber(m.fotomultas)} (${pct(m.fotomultas)}) se detectaron por fotomulta.</p>`
     : '';
 
-  cont.innerHTML = kpis + porPeriodo + codigos + conductores + vehiculos + rutas + empresas + nota;
+  cont.innerHTML = kpis + frase + porPeriodo + porMes + porDia + porHora +
+    codigos + conductores + vehiculos + rutas + empresas + nota;
+}
+
+/**
+ * Clic (o Enter) sobre un gráfico: aplica el filtro y repinta.
+ *
+ * Es lo que hace la pantalla dinámica: de "junio es el peor mes" a ver esas
+ * infracciones no hay que pasar por ningún selector. Volver a tocar lo que ya
+ * está elegido lo quita, así que el mismo gesto entra y sale.
+ */
+function onInfraDrill(evento) {
+  const el = evento.target.closest('[data-drill]');
+  if (!el) return;
+  if (evento.type === 'keydown' && evento.key !== 'Enter' && evento.key !== ' ') return;
+  if (evento.type === 'keydown') evento.preventDefault();
+
+  const tipo = el.dataset.drill;
+  const val = el.dataset.val || '';
+  const alternar = (actual, nuevo) => (String(actual) === String(nuevo) ? '' : nuevo);
+
+  if (tipo === 'anio' && els.filtroInfraAnio) {
+    els.filtroInfraAnio.value = alternar(els.filtroInfraAnio.value, val);
+  } else if (tipo === 'mes') {
+    state.infraFiltroMes = alternar(state.infraFiltroMes, val);
+  } else if (tipo === 'dia') {
+    state.infraFiltroDia = alternar(state.infraFiltroDia, val);
+  } else if (tipo === 'franja') {
+    state.infraFiltroFranja = alternar(state.infraFiltroFranja, val);
+  } else if (tipo === 'empresa' && els.filtroInfraEmpresa) {
+    els.filtroInfraEmpresa.value = alternar(els.filtroInfraEmpresa.value, val);
+  } else if (tipo === 'texto' && els.buscarInfra) {
+    // Un código, una placa, un conductor: va al buscador, que es donde el
+    // usuario puede verlo y borrarlo. Nada de filtros invisibles.
+    els.buscarInfra.value = els.buscarInfra.value.trim() === val ? '' : val;
+  } else {
+    return;
+  }
+  state.infraPagina = 1;
+  refrescarInfra();
+}
+
+/**
+ * Los filtros que no tienen un control visible (mes, día y franja salen de
+ * tocar un gráfico) se muestran como chips con una ✕.
+ *
+ * Sin esto quedarían filtros invisibles: la lista mostraría 45 de 230 y nada
+ * en la pantalla diría por qué.
+ */
+function renderActivosInfra() {
+  const cont = els.infraActivos;
+  if (!cont) return;
+  const chips = [];
+  if (state.infraFiltroMes) {
+    chips.push(['mes', '📆 ' + MESES_LARGOS_INFRA[Number(state.infraFiltroMes) - 1]]);
+  }
+  if (state.infraFiltroDia) {
+    chips.push(['dia', '🗓️ ' + _DIAS_SEMANA[Number(state.infraFiltroDia)]]);
+  }
+  if (state.infraFiltroFranja) {
+    const f = FRANJAS.find(x => x.clave === state.infraFiltroFranja);
+    chips.push(['franja', '🕐 ' + (f ? f.etiqueta : state.infraFiltroFranja)]);
+  }
+  cont.innerHTML = chips.map(([campo, etiqueta]) =>
+    `<button type="button" class="inf-activo" data-quitar="${campo}"` +
+    ` title="Quitar este filtro">${escBandeja(etiqueta)} <span aria-hidden="true">✕</span></button>`).join('');
+  cont.classList.toggle('hidden', !chips.length);
 }
 
 /* ------------------------------------------------------------------ *
@@ -428,6 +800,7 @@ const INFRA_FORM = {
   empresa: 'infraEmpresa',
   placa: 'infraPlaca',
   fecha: 'infraFecha',
+  hora: 'infraHora',
   ruta: 'infraRuta',
   comparendo: 'infraComparendo',
   codigo: 'infraCodigo',
@@ -489,9 +862,11 @@ function abrirInfraccion(fila) {
   if (els.infraModalTitulo) els.infraModalTitulo.textContent = fila ? 'Editar infracción' : 'Registrar infracción';
   if (els.infraModalSub) {
     els.infraModalSub.textContent = fila
-      ? [fila.placa, fechaBonitaInfra(fila.fecha), fila.comparendo ? `Comparendo ${fila.comparendo}` : '']
+      ? [fila.placa,
+         fechaBonitaInfra(fila.fecha) + (fila.hora ? ' ' + horaBonitaInfra(fila.hora) : ''),
+         fila.comparendo ? `Comparendo ${fila.comparendo}` : '']
           .filter(Boolean).join('  ·  ')
-      : 'La placa y la fecha son obligatorias.';
+      : 'La placa y la fecha son obligatorias; la hora ayuda a la estadística.';
   }
   // Borrar sólo tiene sentido sobre algo que ya existe.
   if (els.btnInfraEliminar) els.btnInfraEliminar.classList.toggle('hidden', !fila);
@@ -516,6 +891,9 @@ async function guardarInfraccion(evento) {
       : (empresas[0] || ''),
     placa: String((els.infraPlaca && els.infraPlaca.value) || '').toUpperCase().replace(/[^A-Z0-9]/g, ''),
     fecha: String((els.infraFecha && els.infraFecha.value) || '').trim(),
+    // La hora es opcional y va como null, no como '': una columna `time` no
+    // acepta la cadena vacía y el guardado fallaría con un error de tipos.
+    hora: String((els.infraHora && els.infraHora.value) || '').trim() || null,
     estado: String((els.infraEstado && els.infraEstado.value) || 'SIN CANCELAR'),
     solidaridad: !!(els.infraSolidaridad && els.infraSolidaridad.checked),
     foto_multa: !!(els.infraFotoMulta && els.infraFotoMulta.checked)
@@ -579,6 +957,8 @@ function descargarInfracciones() {
   if (!filas.length) { showStatus('No hay infracciones para descargar.', 'error'); return; }
   const hoja = filas.map(r => ({
     FECHA: fechaBonitaInfra(r.fecha),
+    HORA: horaBonitaInfra(r.hora),
+    'DIA DE LA SEMANA': _DIAS_SEMANA[Number(_diaInfra(r))] || '',
     EMPRESA: r.empresa, PLACA: r.placa, 'NUMERO INTERNO': r.numero_interno || '',
     RUTA: r.ruta || '', 'COMPARENDO': r.comparendo || '', 'CODIGO': r.codigo || '',
     'INFRACCION': r.infraccion || '', 'CEDULA CONDUCTOR': r.cedula_conductor || '',
@@ -622,11 +1002,31 @@ function initInfracciones() {
   ['filtroInfraAnio', 'filtroInfraEstado', 'filtroInfraEmpresa'].forEach(id => {
     if (els[id]) els[id].addEventListener('change', refiltrar);
   });
+  // Los gráficos filtran al tocarlos. Por delegación: el contenedor sobrevive
+  // al reemplazo de innerHTML en cada redibujado.
+  if (els.infraEstadistica) {
+    els.infraEstadistica.addEventListener('click', onInfraDrill);
+    els.infraEstadistica.addEventListener('keydown', onInfraDrill);
+  }
+  // Y la ✕ de cada chip quita ese filtro.
+  if (els.infraActivos) {
+    els.infraActivos.addEventListener('click', event => {
+      const b = event.target.closest('[data-quitar]');
+      if (!b) return;
+      if (b.dataset.quitar === 'mes') state.infraFiltroMes = '';
+      else if (b.dataset.quitar === 'dia') state.infraFiltroDia = '';
+      else if (b.dataset.quitar === 'franja') state.infraFiltroFranja = '';
+      refiltrar();
+    });
+  }
   if (els.btnInfraFiltrosLimpiar) {
     els.btnInfraFiltrosLimpiar.addEventListener('click', () => {
       if (els.buscarInfra) els.buscarInfra.value = '';
       ['filtroInfraAnio', 'filtroInfraEstado', 'filtroInfraEmpresa']
         .forEach(id => { if (els[id]) els[id].value = ''; });
+      state.infraFiltroMes = '';
+      state.infraFiltroDia = '';
+      state.infraFiltroFranja = '';
       refiltrar();
     });
   }
