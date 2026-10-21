@@ -34,13 +34,16 @@ function initEmpresaPortal() {
   ['filtroEmpresaAnio', 'filtroEmpresaGravedad', 'filtroEmpresaEstado'].forEach(id => {
     if (els[id]) els[id].addEventListener('change', refiltrar);
   });
-  // Los chips de empresa: el listener vive en el contenedor, así sobrevive al
-  // reemplazo de innerHTML en cada redibujado (igual que la barra de la bandeja).
-  if (els.empresaResumenEmpresas) {
-    els.empresaResumenEmpresas.addEventListener('click', event => {
+  // Los chips de empresa y de mes: el listener vive en el contenedor, así
+  // sobrevive al reemplazo de innerHTML en cada redibujado (igual que la barra
+  // de resumen del Registro de Asistencias).
+  if (els.empresaResumenHist) {
+    els.empresaResumenHist.addEventListener('click', event => {
       const chip = event.target.closest('.br-chip');
       if (!chip) return;
-      state.empresaFiltroEmpresa = chip.dataset.emp || '';
+      const val = chip.dataset.val || '';
+      if (chip.dataset.campo === 'mes') state.empresaFiltroMes = val;
+      else state.empresaFiltroEmpresa = val;
       refiltrar();
     });
   }
@@ -50,6 +53,7 @@ function initEmpresaPortal() {
       ['filtroEmpresaAnio', 'filtroEmpresaGravedad', 'filtroEmpresaEstado']
         .forEach(id => { if (els[id]) els[id].value = ''; });
       state.empresaFiltroEmpresa = '';
+      state.empresaFiltroMes = '';
       refiltrar();
     });
   }
@@ -96,6 +100,17 @@ function initEmpresaPortal() {
   if (els.empresaCasoModal) {
     els.empresaCasoModal.addEventListener('click', event => {
       if (event.target === els.empresaCasoModal) cerrarDetalleCasoEmpresa();
+    });
+  }
+
+  // Los chips de empresa del dashboard: cambian TODOS los gráficos, así que
+  // vuelven a calcular la ficha completa.
+  if (els.empresaResumenFicha) {
+    els.empresaResumenFicha.addEventListener('click', event => {
+      const chip = event.target.closest('.br-chip');
+      if (!chip) return;
+      state.empresaFichaEmpresa = chip.dataset.emp || '';
+      renderFichaEmpresaPropia();
     });
   }
 
@@ -169,12 +184,56 @@ function renderFichaEmpresaPropia() {
   const cont = els.empresaFichaBody;
   if (!cont) return;
   const { desde, hasta } = _empresaRangoFiltro();
-  const metricas = calcularFichaEmpresa(
-    state.empresaCasosLista || [],
-    state.empresaVehiculosTotal || 0,
-    { desde, hasta, parquePorEmpresa: _parquePorEmpresa() }
-  );
-  renderFichaEmpresa(cont, metricas, { nombreEmpresa: _nombreEmpresaActual() });
+  const parque = _parquePorEmpresa();
+  const todas = state.empresaCasosLista || [];
+
+  // Primero el conjunto completo: de ahí salen los conteos de los chips, y
+  // tienen que ser los de la VENTANA que dibuja la ficha (12 meses por
+  // defecto), no los del historial entero, o no cuadrarían con los gráficos.
+  const mTodas = calcularFichaEmpresa(todas, state.empresaVehiculosTotal || 0,
+    { desde, hasta, parquePorEmpresa: parque });
+  renderResumenFicha(mTodas);
+
+  const sel = state.empresaFichaEmpresa || '';
+  if (!sel) {
+    renderFichaEmpresa(cont, mTodas, { nombreEmpresa: _nombreEmpresaActual() });
+    return;
+  }
+  // Con una empresa elegida se recalcula TODO con sus casos y con SU parque. Lo
+  // segundo es lo importante: dividir por la flota del grupo entero dejaría la
+  // tasa por 100 vehículos en una fracción de la real.
+  const suyos = todas.filter(c => _normEmpresa(_empresaCaso(c)) === sel);
+  const m = calcularFichaEmpresa(suyos, parque[sel] || 0,
+    { desde, hasta, parquePorEmpresa: parque });
+  renderFichaEmpresa(cont, m, { nombreEmpresa: tituloCaseFicha(sel) });
+}
+
+/**
+ * Los chips de empresa del dashboard.
+ *
+ * Son los mismos totales del panel "Siniestros por empresa", pero arriba y
+ * clicables: el panel dice cómo se reparten y el chip permite meterse en una
+ * sola y leer TODOS los gráficos —meses, gravedad, reincidencia, franja
+ * horaria— con los datos de esa empresa.
+ */
+function renderResumenFicha(metricas) {
+  const cont = els.empresaResumenFicha;
+  if (!cont) return;
+  const lista = (metricas && metricas.porEmpresa) || [];
+  // Con una sola empresa el chip sería un adorno que no filtra nada.
+  if (lista.length < 2) {
+    cont.innerHTML = '';
+    cont.classList.add('hidden');
+    return;
+  }
+  const sel = state.empresaFichaEmpresa || '';
+  const chip = (valor, etiqueta, n) =>
+    `<button type="button" class="br-chip${valor === '' ? ' br-todos' : ''}` +
+    `${sel === valor ? ' activo' : ''}" data-emp="${escBandeja(valor)}">` +
+    `${escBandeja(etiqueta)} <span class="br-count">${formatNumber(n)}</span></button>`;
+  cont.innerHTML = chip('', 'Todas', metricas.total) +
+    lista.map(x => chip(x.nombre, tituloCaseFicha(x.nombre), x.n)).join('');
+  cont.classList.remove('hidden');
 }
 
 /**
@@ -189,10 +248,15 @@ function renderFichaEmpresaPropia() {
 function _parquePorEmpresa() {
   const mapa = {};
   (state.empresaVehiculosLista || []).forEach(v => {
-    const e = String((v && v.empresa) || '').trim().replace(/\s+/g, ' ').toUpperCase();
+    const e = _normEmpresa(v && v.empresa);
     if (e) mapa[e] = (mapa[e] || 0) + 1;
   });
   return mapa;
+}
+
+/** El nombre de la empresa como lo agrupa la ficha (igual que _normFicha). */
+function _normEmpresa(v) {
+  return String(v == null ? '' : v).trim().replace(/\s+/g, ' ').toUpperCase();
 }
 
 /**
@@ -632,6 +696,8 @@ async function cargarMisCasos() {
     // portal de una empresa al de otra, arrastrarlo dejaría la lista vacía sin
     // explicar por qué.
     state.empresaFiltroEmpresa = '';
+    state.empresaFiltroMes = '';
+    state.empresaFichaEmpresa = '';
     llenarFiltrosEmpresa();
     // El contador lo pone renderHistorialEmpresa, que es quien sabe si hay un
     // filtro activo y cuántos casos está mostrando de verdad.
@@ -675,13 +741,19 @@ function _hayFiltroEmpresa() {
     _valorFiltroEmpresa('filtroEmpresaAnio') ||
     _valorFiltroEmpresa('filtroEmpresaGravedad') ||
     _valorFiltroEmpresa('filtroEmpresaEstado') ||
-    state.empresaFiltroEmpresa);
+    state.empresaFiltroEmpresa || state.empresaFiltroMes);
 }
 
 /** Año del caso por la fecha REAL del siniestro, no por la de importación. */
 function _anioCasoEmpresa(caso) {
   const dt = _fechaCaso(caso);
   return dt ? String(dt.getFullYear()) : '';
+}
+
+/** Mes del caso como '01'…'12', por la fecha REAL del siniestro. */
+function _mesCasoEmpresa(caso) {
+  const dt = _fechaCaso(caso);
+  return dt ? String(dt.getMonth() + 1).padStart(2, '0') : '';
 }
 
 /** La empresa dueña del caso (el historial de un grupo mezcla varias). */
@@ -702,9 +774,12 @@ function _empresasDelHistorial() {
 /**
  * Los casos que se ven: los selectores, el chip de empresa y el buscador.
  *
- * Con `sinEmpresa` se salta el chip. Lo necesita el resumen de arriba: el
- * conteo de cada empresa tiene que sumar el total que se está viendo, no
- * quedarse encerrado en la empresa que ya está elegida.
+ * Con `sinEmpresa` o `sinMes` se salta ese chip. Lo necesita el resumen de
+ * arriba: el conteo de cada empresa tiene que sumar el total que se está
+ * viendo, no quedarse encerrado en la empresa que ya está elegida (y lo mismo
+ * con los meses). Cada fila del resumen se cuenta sin SU propio filtro y con
+ * todos los demás, que es lo que hace que los números coincidan con lo que
+ * pasa al tocar el chip.
  */
 function _casosEmpresaFiltrados(opciones) {
   const o = opciones || {};
@@ -718,38 +793,87 @@ function _casosEmpresaFiltrados(opciones) {
   if (!o.sinEmpresa && state.empresaFiltroEmpresa) {
     filas = filas.filter(c => _empresaCaso(c) === state.empresaFiltroEmpresa);
   }
+  if (!o.sinMes && state.empresaFiltroMes) {
+    filas = filas.filter(c => _mesCasoEmpresa(c) === state.empresaFiltroMes);
+  }
   return filtrarCasosPorTexto(filas, (els.buscarEmpresaCasos && els.buscarEmpresaCasos.value) || '');
 }
 
+/** Nombres cortos de los meses para los chips del resumen. */
+const MESES_RESUMEN = ['ene', 'feb', 'mar', 'abr', 'may', 'jun',
+                       'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
 /**
- * Dibuja los totales separados por empresa, arriba del historial.
+ * Una fila del resumen: el rótulo, el chip "todos" y uno por valor.
+ *
+ * Es el mismo patrón de la barra del Registro de Asistencias (.bd-res-fila):
+ * el conteo va dentro del chip y el clic se atiende por delegación arriba.
+ */
+function _filaResumenHist(titulo, campo, activo, total, etiquetaTodos, items) {
+  const chip = (valor, etiqueta, n, tip) =>
+    `<button type="button" class="br-chip${valor === '' ? ' br-todos' : ''}` +
+    `${activo === valor ? ' activo' : ''}" data-campo="${campo}"` +
+    ` data-val="${escBandeja(valor)}"${tip ? ` title="${escBandeja(tip)}"` : ''}>` +
+    `${escBandeja(etiqueta)} <span class="br-count">${formatNumber(n)}</span></button>`;
+  return `<div class="bd-res-fila"><span class="bd-res-label">${escBandeja(titulo)}</span>` +
+    `<div class="bd-res-chips">${chip('', etiquetaTodos, total, '')}` +
+    items.map(x => chip(x.valor, x.etiqueta, x.n, x.tip)).join('') +
+    `</div></div>`;
+}
+
+/**
+ * Dibuja los totales del historial separados por empresa y por mes.
  *
  * Un usuario puede estar vinculado a varias compañías del mismo grupo (ERMIS
  * ve las de COOMETROPOL): un único total de 411 casos no dice de quién es el
- * problema. Cada chip trae su propio conteo y además filtra la lista, igual
- * que la barra de resumen de la bandeja.
+ * problema ni cuándo pasó. Cada chip trae su conteo y además filtra la lista.
  *
- * Los conteos salen con TODOS los demás filtros aplicados pero sin el de
- * empresa, así que la suma de los chips es siempre el total a la vista.
+ * La fila de empresa se cuenta sin el filtro de empresa, y la de mes sin el de
+ * mes: así los números de cada fila son exactamente lo que se ve al tocar ese
+ * chip, y cada fila suma el total de su propio "todos".
+ *
+ * Los meses son los doce del calendario, siempre, aunque alguno quede en cero:
+ * la posición fija se lee de un golpe y un cero también dice algo. Sin un año
+ * elegido suman TODOS los años (sirve para ver la temporada); con un año, son
+ * los meses de ese año, y el tooltip de cada chip lo aclara.
  */
-function renderResumenEmpresas() {
-  const cont = els.empresaResumenEmpresas;
+function renderResumenHistorial() {
+  const cont = els.empresaResumenHist;
   if (!cont) return;
   const empresas = _empresasDelHistorial();
-  // Con una sola empresa no hay nada que separar.
-  if (empresas.length < 2) {
-    cont.innerHTML = '';
-    cont.classList.add('hidden');
-    return;
+  const anio = _valorFiltroEmpresa('filtroEmpresaAnio');
+  let html = '';
+
+  // Fila de empresa: con una sola no hay nada que separar.
+  if (empresas.length > 1) {
+    const base = _casosEmpresaFiltrados({ sinEmpresa: true });
+    html += _filaResumenHist('Empresa', 'emp', state.empresaFiltroEmpresa || '',
+      base.length, 'Todas',
+      empresas.map(e => ({
+        valor: e, etiqueta: e,
+        n: base.filter(c => _empresaCaso(c) === e).length,
+        tip: `${e}: ${formatNumber(base.filter(c => _empresaCaso(c) === e).length)} casos`
+      })));
   }
-  const base = _casosEmpresaFiltrados({ sinEmpresa: true });
-  const sel = state.empresaFiltroEmpresa || '';
-  const chip = (valor, etiqueta, n, clase) =>
-    `<button type="button" class="br-chip${clase ? ' ' + clase : ''}${sel === valor ? ' activo' : ''}"` +
-    ` data-emp="${escBandeja(valor)}">${escBandeja(etiqueta)}` +
-    ` <span class="br-count">${formatNumber(n)}</span></button>`;
-  cont.innerHTML = chip('', 'Todas', base.length, 'br-todos') +
-    empresas.map(e => chip(e, e, base.filter(c => _empresaCaso(c) === e).length, '')).join('');
+
+  const baseMes = _casosEmpresaFiltrados({ sinMes: true });
+  const porMes = {};
+  baseMes.forEach(c => {
+    const m = _mesCasoEmpresa(c);
+    if (m) porMes[m] = (porMes[m] || 0) + 1;
+  });
+  html += _filaResumenHist('Mes', 'mes', state.empresaFiltroMes || '',
+    baseMes.length, 'Todos',
+    MESES_RESUMEN.map((etiqueta, i) => {
+      const valor = String(i + 1).padStart(2, '0');
+      const n = porMes[valor] || 0;
+      return {
+        valor, etiqueta, n,
+        tip: `${etiqueta}${anio ? ' ' + anio : ' de todos los años'}: ${formatNumber(n)} caso${n === 1 ? '' : 's'}`
+      };
+    }));
+
+  cont.innerHTML = html;
   cont.classList.remove('hidden');
 }
 
@@ -794,9 +918,9 @@ function renderHistorialEmpresa() {
   const todos = _casosEmpresaFiltrados();
   const acotado = _hayFiltroEmpresa();
   state.empresaCasosVisibles = todos;
-  // Los totales por empresa se recalculan en cada redibujado: dependen del
-  // resto de los filtros, así que no se pueden dejar quietos.
-  renderResumenEmpresas();
+  // Los totales por empresa y por mes se recalculan en cada redibujado:
+  // dependen del resto de los filtros, así que no se pueden dejar quietos.
+  renderResumenHistorial();
   // Con varias empresas a la vista, cada fila dice de cuál es. Cuando ya se
   // eligió una, el dato se repetiría en las 180 filas: ahí se omite.
   const variasEmpresas = _empresasDelHistorial().length > 1 && !state.empresaFiltroEmpresa;

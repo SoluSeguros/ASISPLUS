@@ -23,6 +23,28 @@ const NOVEDADES_KEY = 'asisplus-novedades-vista';
 // De la más nueva a la más vieja.
 const NOVEDADES = [
   {
+    version: '2.33.0',
+    titulo: 'Por mes en el historial, y los gráficos por empresa',
+    roles: ['empresa', 'admin'],
+    puntos: [
+      {
+        icono: '📆',
+        titulo: 'Los doce meses, con su total',
+        texto: 'Debajo de los botones de empresa hay una segunda fila con los doce meses y cuántos casos tiene cada uno. Tocá uno y la lista queda solo con los de ese mes. Sin elegir año suman todos los años —sirve para ver la temporada, por ejemplo que marzo y junio son los peores—; con un año elegido son los meses de ese año.'
+      },
+      {
+        icono: '🔀',
+        titulo: 'Empresa y mes se suman',
+        texto: 'Podés pedir «COOINVETRANS en diciembre». Cada fila de botones cuenta sin su propio filtro y con el de la otra, así que los números son siempre lo que vas a ver al tocar: si elegís diciembre, los botones de empresa pasan a mostrar cuántos tuvo cada una <b>en diciembre</b>.'
+      },
+      {
+        icono: '📊',
+        titulo: 'El dashboard también se puede ver empresa por empresa',
+        texto: 'Arriba de los gráficos hay botones con el total de cada empresa en el periodo. Al elegir una se recalcula <b>todo</b>: los meses, la gravedad, los vehículos y conductores que más repiten, la franja horaria y el día de la semana. La tasa por 100 vehículos pasa a dividir por el parque de esa empresa, que es lo correcto: con la flota del grupo entero salía una fracción de lo real.'
+      }
+    ]
+  },
+  {
     version: '2.32.0',
     titulo: 'Los siniestros, separados por empresa',
     roles: ['empresa', 'admin'],
