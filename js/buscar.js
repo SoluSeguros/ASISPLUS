@@ -39,15 +39,30 @@ function normalizarBusqueda(texto) {
 }
 
 /**
- * La base guarda la fecha como "9/9/2025" (así venía del AppSheet), pero quien
- * busca suele escribir "09/09/2025". Se indexan las dos formas para que las dos
- * encuentren el mismo caso.
+ * Todas las formas en que alguien puede escribir la fecha de un caso.
+ *
+ * La base la guarda como "9/9/2025" (así venía del AppSheet, en MES/día/año) o
+ * como "2025-09-09" (lo que escribe esta app), pero la pantalla la muestra
+ * siempre en día/mes/año. Quien busca escribe lo que VE, así que hay que
+ * indexar también esa forma: sin esto, copiar "18/07/2026" de la pantalla no
+ * encontraría el caso que la base tiene como "7/18/2026".
  */
 function _fechasBuscables(valor) {
   const s = String(valor == null ? '' : valor).trim();
+  if (!s) return '';
+  const formas = [s];
   const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (!m) return s;
-  return `${s} ${m[1].padStart(2, '0')}/${m[2].padStart(2, '0')}/${m[3]}`;
+  if (m) formas.push(`${m[1].padStart(2, '0')}/${m[2].padStart(2, '0')}/${m[3]}`);
+  // La de la pantalla (día/mes/año) y su versión sin ceros, que es como la
+  // escribe media gente.
+  const dma = (typeof fechaDMADeCampo === 'function')
+    ? fechaDMADeCampo('FECHA DEL SINIESTRO', s) : '';
+  if (dma && dma !== s) {
+    formas.push(dma);
+    const p = dma.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+    if (p) formas.push(`${Number(p[1])}/${Number(p[2])}/${p[3]}`);
+  }
+  return [...new Set(formas)].join(' ');
 }
 
 /**

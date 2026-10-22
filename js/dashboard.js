@@ -88,11 +88,16 @@ async function cargarParquePorEmpresa() {
   return mapa;
 }
 
-/** Fecha de referencia de un caso (siniestro si es válida; si no, creación). */
+/**
+ * Fecha de referencia de un caso (siniestro si es válida; si no, creación).
+ *
+ * Pasa por fechaDeTexto para que un "aaaa-mm-dd" no se lea en UTC: con
+ * new Date() directo, los 184 casos que esta app guardó en ISO se contaban un
+ * día antes y los del primero de mes caían en el mes anterior.
+ */
 function _fechaCaso(f) {
-  const s = (f.datos && f.datos['FECHA DEL SINIESTRO']) || '';
-  let dt = s ? new Date(String(s).trim()) : null;
-  if (!dt || isNaN(dt.getTime())) dt = f.creado_en ? new Date(f.creado_en) : null;
+  let dt = fechaDeTexto((f.datos && f.datos['FECHA DEL SINIESTRO']) || '');
+  if (!dt) dt = f.creado_en ? new Date(f.creado_en) : null;
   return (dt && !isNaN(dt.getTime())) ? dt : null;
 }
 

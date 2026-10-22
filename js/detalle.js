@@ -150,6 +150,11 @@ function valorLegible(clave, valor) {
     if (f && f !== s) return f;
   }
 
+  // Las fechas, siempre día/mes/año. Este es el único sitio por donde pasan
+  // TODOS los campos del detalle —el de la administración y el del portal de
+  // la empresa, que comparten la pieza—, así que basta con hacerlo aquí.
+  if (esClaveDeFecha(clave)) return fechaDMADeCampo(clave, s);
+
   if (s[0] === '{' || s[0] === '[') {
     try {
       const o = JSON.parse(s);
@@ -790,7 +795,8 @@ function abrirDetalleAsistencia(row) {
     d['EMPRESA'] || 'Asistencia', d['PLACA VEHICULO'] || ''
   ].filter(Boolean).join('  ·  ');
   els.detalleAsisSub.textContent = [
-    d['FECHA DEL SINIESTRO'], d['HORA DEL SINIESTRO'], d['NOMBRE CONDUCTOR']
+    fechaDMADeCampo('FECHA DEL SINIESTRO', d['FECHA DEL SINIESTRO']),
+    d['HORA DEL SINIESTRO'], d['NOMBRE CONDUCTOR']
   ].filter(Boolean).join('  ·  ');
 
   agregarMapaDetalle(els.detalleAsisMapaWrap, d);

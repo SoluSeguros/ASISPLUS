@@ -272,7 +272,7 @@ function tablaHTML() {
         <td>${escSv(d['PLACA VEHICULO'] || '—')}</td>
         <td>${escSv(d['NOMBRE CONDUCTOR'] || '—')}</td>
         ${tercerosCeldaHTML(f)}
-        <td>${escSv(d['FECHA DEL SINIESTRO'] || '—')}</td>
+        <td>${escSv(fechaDMADeCampo('FECHA DEL SINIESTRO', d['FECHA DEL SINIESTRO']) || '—')}</td>
         ${diasCeldaHTML(f)}
         <td><span class="cat-chip ${cat.cls}">${escSv(cat.label)}</span></td>
         <td>${escSv(d['RESPONSABILIDAD DEL CONDUCTOR'] || '—')}</td>
@@ -688,11 +688,14 @@ async function guardarGestionCaso(caso, nuevos, mutar) {
  *  Estado general (finalización) + días en proceso.
  * ------------------------------------------------------------------ */
 
-/** Parsea una fecha de texto (ISO o M/D/AAAA) a Date, o null. */
+/**
+ * Parsea una fecha de texto (ISO o M/D/AAAA) a Date, o null.
+ *
+ * Por fechaDeTexto: un "aaaa-mm-dd" leído en UTC daba el día anterior, y de
+ * aquí sale el contador de "días en proceso" de cada caso.
+ */
 function _parseFechaSv(s) {
-  if (!s) return null;
-  const d = new Date(String(s).trim());
-  return isNaN(d.getTime()) ? null : d;
+  return fechaDeTexto(s);
 }
 
 /** Días que lleva el caso en proceso (del siniestro a hoy, o a la finalización). */
@@ -861,7 +864,7 @@ function abrirModalCaso(caso) {
   SV_INFORME.forEach(([titulo, campos]) => {
     const items = campos
       .filter(([k]) => String(d[k] == null ? '' : d[k]).trim() !== '')
-      .map(([k, lab]) => `<div class="cat-inf-item"><span class="cat-inf-lab">${escSv(lab)}</span><span class="cat-inf-val">${escSv(d[k])}</span></div>`)
+      .map(([k, lab]) => `<div class="cat-inf-item"><span class="cat-inf-lab">${escSv(lab)}</span><span class="cat-inf-val">${escSv(_valSv(k, d[k]))}</span></div>`)
       .join('');
     if (items) cuerpo += `<div class="cat-inf-grupo"><h4>${escSv(titulo)}</h4><div class="cat-inf-grid">${items}</div></div>`;
   });
@@ -999,8 +1002,17 @@ function cerrarModalCaso() {
 function _infoGrid(d, campos) {
   return campos
     .filter(([k]) => String(d[k] == null ? '' : d[k]).trim() !== '')
-    .map(([k, lab]) => `<div class="cat-inf-item"><span class="cat-inf-lab">${escSv(lab)}</span><span class="cat-inf-val">${escSv(d[k])}</span></div>`)
+    .map(([k, lab]) => `<div class="cat-inf-item"><span class="cat-inf-lab">${escSv(lab)}</span><span class="cat-inf-val">${escSv(_valSv(k, d[k]))}</span></div>`)
     .join('');
+}
+
+/**
+ * El valor de un campo como se lee: las fechas en día/mes/año y el resto tal
+ * cual. Las audiencias y la finalización se guardan en ISO (yyyy-mm-dd) porque
+ * es lo que necesita el <input type="date">, pero nadie lee una fecha así.
+ */
+function _valSv(clave, valor) {
+  return esClaveDeFecha(clave) ? fechaDMADeCampo(clave, valor) : valor;
 }
 
 /** Miniatura de una evidencia de imagen (se llena con URL firmada async). */
@@ -1225,7 +1237,7 @@ function _esperarImgs(win, ms) {
 function _pdfGrid(d, campos) {
   return campos
     .filter(([k]) => String(d[k] == null ? '' : d[k]).trim() !== '')
-    .map(([k, lab]) => `<div class="item"><span class="lab">${escSv(lab)}</span><span class="val">${escSv(d[k])}</span></div>`)
+    .map(([k, lab]) => `<div class="item"><span class="lab">${escSv(lab)}</span><span class="val">${escSv(_valSv(k, d[k]))}</span></div>`)
     .join('');
 }
 

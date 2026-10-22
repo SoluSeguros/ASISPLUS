@@ -302,8 +302,11 @@ function renderTable() {
         td.appendChild(badge);
         td.classList.add('td-terceros');
       } else {
-        td.textContent = value;
-        td.title = value;
+        // Las columnas de fecha se muestran en día/mes/año: en la base conviven
+        // el ISO de esta app y el mes/día/año del AppSheet viejo.
+        const txt = esClaveDeFecha(col) ? fechaDMADeCampo(col, value) : value;
+        td.textContent = txt;
+        td.title = txt;
       }
       tr.appendChild(td);
     });

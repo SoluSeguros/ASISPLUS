@@ -23,6 +23,27 @@ const NOVEDADES_KEY = 'asisplus-novedades-vista';
 // De la más nueva a la más vieja.
 const NOVEDADES = [
   {
+    version: '2.35.0',
+    titulo: 'Todas las fechas en día/mes/año',
+    puntos: [
+      {
+        icono: '📅',
+        titulo: 'Como se escriben acá',
+        texto: 'En toda la app —el detalle del caso, la bandeja, la tabla del Registro de Asistencias, seguridad vial, los contratos y las descargas a Excel— las fechas se ven ahora como <b>18/07/2026</b>. Antes, los 2.707 casos que venían del sistema viejo se mostraban al revés (mes/día/año): decía «7/18/2026», y en los días del 1 al 12 eso se leía mal sin que nada avisara. «3/5/2026» parecía 3 de mayo y era el 5 de marzo.'
+      },
+      {
+        icono: '🔍',
+        titulo: 'Y el buscador entiende lo que ves',
+        texto: 'Podés copiar la fecha tal como aparece en pantalla y buscarla. Funciona igual escribiendo 18/07/2026 o 18/7/2026.'
+      },
+      {
+        icono: '🛠️',
+        titulo: 'Un día de corrimiento, corregido',
+        texto: 'Los casos registrados con esta app se guardan como 2026-08-18, y al contarlos el programa los tomaba en hora de Londres: salían con un día menos. Eran 184 casos, y los del primero de mes caían en el mes anterior. Ya no: la fecha que muestra la lista es la misma con la que cuentan el dashboard, la ficha de siniestralidad y los días en proceso de seguridad vial.'
+      }
+    ]
+  },
+  {
     version: '2.34.0',
     titulo: 'La estadística de infracciones, al detalle',
     roles: ['empresa', 'admin'],

@@ -397,17 +397,21 @@ const CONTRATO_TIPO_LABEL = {
   mutuo: 'Mutuo Acuerdo'
 };
 
-/** Normaliza una fecha del caso a formato yyyy-mm-dd para el <input type=date>. */
-function fechaContratoISO(v) {
+/**
+ * Normaliza una fecha del caso a yyyy-mm-dd para el <input type=date>.
+ *
+ * OJO con el orden: FECHA DEL SINIESTRO viene del AppSheet como MES/día/año
+ * (está medido en utils.js), así que leer "7/18/2026" como día/mes daba
+ * "2026-18-07" —un mes 18— y el campo del contrato quedaba vacío; peor aún,
+ * "3/5/2026" entraba como 3 de mayo cuando es el 5 de marzo. Se pasa por
+ * fechaDMADeCampo, que ya sabe de qué formato viene cada campo, y de ahí se
+ * invierte a ISO.
+ */
+function fechaContratoISO(v, clave) {
   if (!v) return '';
-  const s = String(v).trim();
-  // Ya viene ISO (yyyy-mm-dd...) → recorta a 10.
-  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
-  // dd/mm/yyyy o dd-mm-yyyy.
-  m = s.match(/^(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})/);
-  if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
-  return '';
+  const dma = fechaDMADeCampo(clave || 'FECHA DEL SINIESTRO', v);
+  const m = String(dma).match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : '';
 }
 
 /**
@@ -452,7 +456,9 @@ function construirPrefillContrato(caso, terceroDatos, tipo) {
     contractKind: tipo || 'desistimiento',
     casoOrigen: (caso && caso.numero_caso) || '',
     // Datos del hecho (del siniestro).
-    fecha: fechaContratoISO(d['FECHA DEL SINIESTRO'] || d['FECHA Y HORA']),
+    fecha: d['FECHA DEL SINIESTRO']
+      ? fechaContratoISO(d['FECHA DEL SINIESTRO'], 'FECHA DEL SINIESTRO')
+      : fechaContratoISO(d['FECHA Y HORA'], 'FECHA Y HORA'),
     ciudadHecho: ciudad,
     ciudadFirma: ciudad,
     lugarHecho: d['DIRECCION DEL LUGAR DEL SINIESTRO'] || '',
@@ -627,7 +633,7 @@ function itemContratoGenerado(row) {
   if (fd.valorTexto || pesos) {
     filas.push(`💰 ${escC(fd.valorTexto || '')}${pesos ? ' <b>(' + pesos + ')</b>' : ''}`);
   }
-  if (fd.fecha) filas.push(`🗓️ Hecho: ${escC(fd.fecha)}`);
+  if (fd.fecha) filas.push(`🗓️ Hecho: ${escC(fechaDMA(fd.fecha))}`);
   if (fd.banco || fd.cuenta) {
     filas.push(`🏦 ${escC(fd.banco || '')}${fd.cuenta ? ' · cta ' + escC(fd.cuenta) : ''}`);
   }

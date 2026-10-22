@@ -13,12 +13,7 @@ function descargarVistaActual() {
     return;
   }
 
-  // Quitar columnas ocultas (fotos) también en la exportación.
-  const limpias = rows.map(fila => {
-    const o = {};
-    Object.keys(fila).forEach(k => { if (columnaVisible(k)) o[k] = fila[k]; });
-    return o;
-  });
+  const limpias = rows.map(filaParaExcel);
 
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.json_to_sheet(limpias);
@@ -65,15 +60,26 @@ function descargarInformeCruce() {
   showStatus('Informe completo descargado correctamente.', 'ok');
 }
 
+/**
+ * Una fila lista para la hoja: sin las columnas ocultas (fotos, firmas,
+ * croquis, KEY) y con las fechas en día/mes/año.
+ *
+ * Lo segundo importa tanto como lo primero: el histórico del AppSheet guardó
+ * las fechas como mes/día/año, y una hoja de Excel con "7/18/2026" en una
+ * columna de texto no se puede ni leer ni ordenar aquí.
+ */
+function filaParaExcel(fila) {
+  const o = {};
+  Object.keys(fila || {}).forEach(k => {
+    if (!columnaVisible(k)) return;
+    o[k] = esClaveDeFecha(k) ? fechaDMADeCampo(k, fila[k]) : fila[k];
+  });
+  return o;
+}
+
 /** Agrega una hoja al libro con ancho de columnas automático. */
 function appendSheet(workbook, rows, sheetName) {
-  // Quita las columnas ocultas (fotos, firmas, croquis, KEY) también en el
-  // informe, igual que hace la descarga de la vista actual.
-  const limpias = (rows || []).map(fila => {
-    const o = {};
-    Object.keys(fila).forEach(k => { if (columnaVisible(k)) o[k] = fila[k]; });
-    return o;
-  });
+  const limpias = (rows || []).map(filaParaExcel);
   const ws = XLSX.utils.json_to_sheet(limpias.length ? limpias : [{ MENSAJE: 'Sin registros' }]);
   autoWidth(ws, limpias);
   XLSX.utils.book_append_sheet(workbook, ws, sheetName.substring(0, 31));

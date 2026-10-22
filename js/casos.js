@@ -609,10 +609,10 @@ function renderDuracionCaso(caso) {
   if (fin) {
     cont.innerHTML =
       `<span class="dur-ico">⏱️</span> Duración de la asistencia: <b>${formatearDuracion(fin - ini)}</b>
-       <span class="dur-detalle">Llegada ${d['FECHA Y HORA DE LLEGADA'] || ''} → Fin ${d['HORA FIN ATENCION'] || ''}</span>`;
+       <span class="dur-detalle">Llegada ${fechaDMADeCampo('FECHA Y HORA DE LLEGADA', d['FECHA Y HORA DE LLEGADA'])} → Fin ${d['HORA FIN ATENCION'] || ''}</span>`;
   } else {
     cont.innerHTML =
-      `<span class="dur-ico">⏱️</span> En atención desde ${d['FECHA Y HORA DE LLEGADA'] || ''}
+      `<span class="dur-ico">⏱️</span> En atención desde ${fechaDMADeCampo('FECHA Y HORA DE LLEGADA', d['FECHA Y HORA DE LLEGADA'])}
        · <b>${formatearDuracion(Date.now() - ini)}</b> transcurrido`;
   }
 }
@@ -1117,7 +1117,8 @@ function mostrarCasoCreado(numeroCaso, datos, asignadoNombre, estado) {
 
   const idVeh = [d['PLACA VEHICULO'], d['NUMERO INTERNO VEHICULO'] ? `Interno #${d['NUMERO INTERNO VEHICULO']}` : '']
     .filter(Boolean).join(' · ');
-  const fechaHora = [d['FECHA DEL SINIESTRO'], d['HORA DEL SINIESTRO']].filter(Boolean).join('  ');
+  const fechaHora = [fechaDMADeCampo('FECHA DEL SINIESTRO', d['FECHA DEL SINIESTRO']),
+                     d['HORA DEL SINIESTRO']].filter(Boolean).join('  ');
 
   const asignadoHtml = asignadoNombre
     ? `<b>${asignadoNombre}</b> — le aparecerá como pendiente (campanita 🔔).`
@@ -1343,9 +1344,8 @@ function renderResumenBandeja(filas) {
 
 /** Fecha de referencia de un caso (siniestro si es válida; si no, creación). */
 function _fechaCasoBandeja(c) {
-  const s = (c.datos && c.datos['FECHA DEL SINIESTRO']) || '';
-  let dt = s ? new Date(String(s).trim()) : null;
-  if (!dt || isNaN(dt.getTime())) dt = c.creado_en ? new Date(c.creado_en) : null;
+  let dt = fechaDeTexto((c.datos && c.datos['FECHA DEL SINIESTRO']) || '');
+  if (!dt) dt = c.creado_en ? new Date(c.creado_en) : null;
   return (dt && !isNaN(dt.getTime())) ? dt : null;
 }
 
@@ -1495,7 +1495,8 @@ function filaBandejaHTML(caso, i) {
   const interno = d['NUMERO INTERNO VEHICULO'] ? `Int. ${d['NUMERO INTERNO VEHICULO']}` : '';
   const conductor = d['NOMBRE CONDUCTOR'] || '';
   const direccion = d['DIRECCION DEL LUGAR DEL SINIESTRO'] || '';
-  const fechaHora = [d['FECHA DEL SINIESTRO'], d['HORA DEL SINIESTRO']].filter(Boolean).join(' · ');
+  const fechaHora = [fechaDMADeCampo('FECHA DEL SINIESTRO', d['FECHA DEL SINIESTRO']),
+                     d['HORA DEL SINIESTRO']].filter(Boolean).join(' · ');
   const gravedad = d['GRAVEDAD DEL SINIESTRO'] || '';
   const rutaChip = (typeof chipRutaBandeja === 'function') ? chipRutaBandeja(d) : '';
   const porRevisar = String(d['VEHICULO POR REVISAR'] || '').toUpperCase() === 'SI';
@@ -1717,7 +1718,8 @@ function renderResumenSiniestro(caso) {
   const esc = (typeof escBandeja === 'function') ? escBandeja : (v => String(v == null ? '' : v));
   const idVeh = [d['PLACA VEHICULO'], d['NUMERO INTERNO VEHICULO'] ? `Interno #${d['NUMERO INTERNO VEHICULO']}` : '']
     .filter(Boolean).join(' · ');
-  const fechaHora = [d['FECHA DEL SINIESTRO'], d['HORA DEL SINIESTRO']].filter(Boolean).join('  ');
+  const fechaHora = [fechaDMADeCampo('FECHA DEL SINIESTRO', d['FECHA DEL SINIESTRO']),
+                     d['HORA DEL SINIESTRO']].filter(Boolean).join('  ');
   const top = (lab, val) => val ? `<div class="rs-top-item"><span class="rs-lab">${lab}</span><span class="rs-top-val">${esc(val)}</span></div>` : '';
   const fila = (lab, val) => val ? `<div class="rs-item"><span class="rs-lab">${lab}</span><span class="rs-val">${esc(val)}</span></div>` : '';
 
@@ -1838,7 +1840,8 @@ function aplicarCheckin(caso, puedeEditar, enSitio, requiereCheckin) {
     els.checkinMapa.classList.add('hidden');
     els.checkinMapa.innerHTML = '';
   } else if (enSitio) {
-    const cuando = d['FECHA Y HORA DE LLEGADA'] ? ` · ${d['FECHA Y HORA DE LLEGADA']}` : '';
+    const cuando = d['FECHA Y HORA DE LLEGADA']
+      ? ` · ${fechaDMADeCampo('FECHA Y HORA DE LLEGADA', d['FECHA Y HORA DE LLEGADA'])}` : '';
     els.checkinTitulo.textContent = '✓ Llegada al sitio reportada';
     els.checkinTexto.textContent =
       `Ubicación registrada: ${d['COORDENADAS ASISTENCIA']}${cuando}. Ya puedes completar el caso.`;
