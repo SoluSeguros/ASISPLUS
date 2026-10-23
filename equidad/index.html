@@ -1,0 +1,4028 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>Formulario Móvil de Siniestros – Soluasistencia</title>
+
+<!-- Esta es la copia que vive DENTRO de ASIS PLUS (carpeta /equidad/).
+     El original es https://github.com/soluseguros/formatoequidad y de ahi se
+     sincroniza; aqui solo se cambian cuatro cosas:
+       1. No tiene manifest ni service worker propios: la instalacion, la
+          version y el trabajo sin conexion los maneja ASIS PLUS (sw.js).
+       2. Un boton para volver al caso.
+       3. Lee ?prefill= para llegar con los datos del caso ya puestos.
+       4. Sin boton de "Instalar app" ni aviso de version: ya esta instalada
+          como parte de ASIS PLUS.
+     Lo demas queda igual que el original, para poder comparar los dos. -->
+<meta name="theme-color" content="#008f45">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Siniestros">
+<link rel="icon" type="image/png" sizes="192x192" href="../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<style>
+:root{
+  --verde:#008f45;
+  --verde-oscuro:#006d36;
+  --azul:#17213b;
+  --gris:#f3f5f7;
+  --borde:#dbe1e8;
+}
+
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family:Arial, Helvetica, sans-serif;
+  background:var(--gris);
+  color:#1f2937;
+  overflow-x:hidden;
+}
+
+.app-header{
+  position:sticky;
+  top:0;
+  z-index:50;
+  background:linear-gradient(135deg,var(--verde),var(--verde-oscuro));
+  color:white;
+  padding:12px 14px;
+  /* Respeta la barra de estado del iPhone (notch / dynamic island) */
+  padding-top:max(12px, env(safe-area-inset-top));
+  padding-left:max(14px, env(safe-area-inset-left));
+  padding-right:max(14px, env(safe-area-inset-right));
+  box-shadow:0 3px 14px rgba(0,0,0,.18);
+}
+
+.app-header h1{
+  font-size:17px;
+  margin:0;
+  font-weight:800;
+}
+
+.app-header small{
+  opacity:.9;
+  font-size:12px;
+}
+
+.brand-wrap{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  justify-content:space-between;
+  max-width:1180px;
+  margin:0 auto;
+}
+
+.brand-left{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  min-width:0;
+  flex:1;
+}
+
+.header-actions{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-shrink:0;
+}
+
+.header-action-btn{
+  background:rgba(255,255,255,.18);
+  border:1px solid rgba(255,255,255,.4);
+  color:#fff;
+  border-radius:10px;
+  padding:7px 11px;
+  font-size:12px;
+  font-weight:700;
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  white-space:nowrap;
+}
+.header-action-btn:hover{background:rgba(255,255,255,.28)}
+.header-action-btn[hidden]{display:none}
+
+/* Toca la versión para buscar actualizaciones */
+.version-badge{
+  display:inline-block;
+  font-family:inherit;
+  font-size:10px;
+  font-weight:700;
+  line-height:1.4;
+  background:rgba(255,255,255,.22);
+  border:1px solid rgba(255,255,255,.35);
+  color:#fff;
+  padding:2px 7px;
+  border-radius:999px;
+  margin-left:6px;
+  vertical-align:middle;
+  letter-spacing:.3px;
+  cursor:pointer;
+}
+
+/* Banner de nueva versión / instalar (PWA): arriba, para no chocar con los mensajes de abajo */
+.update-banner{
+  position:fixed;
+  top:calc(10px + env(safe-area-inset-top, 0px));
+  left:12px;
+  right:12px;
+  max-width:480px;
+  margin:0 auto;
+  background:#17213b;
+  color:#fff;
+  border-radius:14px;
+  padding:12px 14px;
+  box-shadow:0 12px 30px rgba(0,0,0,.25);
+  display:none;
+  z-index:80;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:10px;
+  font-size:13px;
+}
+.update-banner.is-visible{display:flex}
+.update-banner strong{display:block;font-size:14px;margin-bottom:2px}
+/* Texto arriba a todo lo ancho; los botones juntos debajo, alineados a la derecha */
+.update-banner-text{flex:1 1 100%;min-width:0}
+.update-banner-text + button{margin-left:auto}
+.update-banner button{
+  background:var(--verde);color:#fff;border:none;
+  font-weight:700;border-radius:10px;padding:8px 12px;
+  cursor:pointer;font-size:13px;
+}
+.update-banner button.secondary{background:transparent;border:1px solid rgba(255,255,255,.4)}
+
+.brand-logo{
+  width:58px;
+  height:58px;
+  object-fit:contain;
+  background:#fff;
+  border-radius:14px;
+  padding:6px;
+  box-shadow:0 4px 12px rgba(0,0,0,.18);
+}
+
+.brand-text{
+  min-width:0;
+}
+
+.loading-logo{
+  width:78px;
+  height:auto;
+  margin:0 auto 12px;
+  display:block;
+}
+
+.main-wrap{
+  padding:12px;
+  padding-bottom:96px;
+}
+
+.card-mobile{
+  background:white;
+  border:1px solid var(--borde);
+  border-radius:18px;
+  box-shadow:0 8px 24px rgba(15,23,42,.07);
+  overflow:hidden;
+}
+
+.step-indicator{
+  display:flex;
+  gap:6px;
+  overflow-x:auto;
+  padding:10px 12px;
+  background:white;
+  border-bottom:1px solid var(--borde);
+}
+
+.step-dot{
+  min-width:max-content;
+  border:1px solid var(--borde);
+  background:#fff;
+  color:#526170;
+  border-radius:999px;
+  padding:7px 10px;
+  font-size:12px;
+  font-weight:700;
+  cursor:pointer;
+}
+
+.step-dot.active{
+  background:var(--verde);
+  color:#fff;
+  border-color:var(--verde);
+}
+
+.step-body{
+  padding:14px;
+}
+
+.step-title{
+  font-size:18px;
+  font-weight:800;
+  color:var(--azul);
+  margin-bottom:4px;
+}
+
+.step-help{
+  color:#6b7280;
+  font-size:13px;
+  margin-bottom:12px;
+}
+
+label{
+  font-size:13px;
+  color:#374151;
+  font-weight:700;
+  margin-bottom:4px;
+}
+
+.form-control,.form-select{
+  border-radius:12px;
+  min-height:46px;
+  /* 16px evita el zoom automático de iOS Safari al enfocar */
+  font-size:16px;
+}
+
+textarea.form-control{
+  min-height:105px;
+}
+
+.quick-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:9px;
+}
+
+.viewer-card{
+  margin-top:12px;
+  display:block;
+}
+
+.viewer-title-mobile{
+  padding:12px 14px;
+  border-bottom:1px solid var(--borde);
+  background:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  font-size:13px;
+  cursor:pointer;
+  user-select:none;
+}
+
+.viewer-title-mobile:hover{background:#f8fafc}
+
+.viewer-title-mobile span{
+  color:#6b7280;
+  font-size:12px;
+}
+
+.viewer-toggle-icon{
+  width:24px;
+  height:24px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  background:var(--verde);
+  color:#fff;
+  border-radius:50%;
+  font-weight:700;
+  font-size:14px;
+  flex-shrink:0;
+}
+
+.viewer-card.viewer-collapsed .viewer-toolbar,
+.viewer-card.viewer-collapsed .viewer{
+  display:none;
+}
+.viewer-card.viewer-collapsed .viewer-toggle-icon::before{content:"+"}
+.viewer-card:not(.viewer-collapsed) .viewer-toggle-icon::before{content:"−"}
+
+.viewer-toolbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  padding:10px;
+  border-bottom:1px solid var(--borde);
+  background:#fff;
+  position:sticky;
+  top:62px;
+  z-index:40;
+}
+
+.viewer-toolbar .btn{
+  border-radius:12px;
+  font-weight:800;
+}
+
+.viewer{
+  background:#cfd6df;
+  padding:10px;
+  overflow:auto;
+  max-height:72vh;
+  text-align:center;
+  -webkit-overflow-scrolling:touch;
+}
+
+.stage{
+  position:relative;
+  display:inline-block;
+  transform-origin:top center;
+}
+
+canvas{
+  display:block;
+  max-width:none;
+  touch-action:none;
+}
+
+#drawCanvas{
+  position:absolute;
+  inset:0;
+}
+
+.pdf-placeholder{
+  width:min(100%, 420px);
+  min-height:260px;
+  background:#fff;
+  border:1px dashed #9ca3af;
+  border-radius:16px;
+  padding:22px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  color:#374151;
+  text-align:center;
+  margin:auto;
+}
+
+.pdf-placeholder span{
+  font-size:13px;
+  color:#6b7280;
+}
+
+.mini-spinner{
+  width:34px;
+  height:34px;
+  border:4px solid #d8eadf;
+  border-top-color:var(--verde);
+  border-radius:50%;
+  animation:spin .9s linear infinite;
+}
+
+.bottom-bar{
+  position:fixed;
+  left:0;
+  right:0;
+  bottom:0;
+  z-index:60;
+  background:#fff;
+  border-top:1px solid var(--borde);
+  box-shadow:0 -6px 22px rgba(0,0,0,.12);
+  padding:10px;
+  /* Deja espacio para el home indicator del iPhone */
+  padding-bottom:max(10px, calc(env(safe-area-inset-bottom) + 8px));
+  padding-left:max(10px, env(safe-area-inset-left));
+  padding-right:max(10px, env(safe-area-inset-right));
+}
+
+.bottom-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  max-width:980px;
+  margin:0 auto;
+}
+
+.btn-main{
+  background:var(--verde);
+  color:white;
+  border:none;
+  border-radius:14px;
+  min-height:48px;
+  font-weight:900;
+}
+
+.btn-main:disabled{
+  background:#93c5aa;
+  color:#fff;
+}
+
+.btn-soft{
+  background:#eef2f7;
+  color:#1f2937;
+  border:none;
+  border-radius:14px;
+  min-height:48px;
+  font-weight:900;
+}
+
+.btn-danger-soft{
+  background:#fee2e2;
+  color:#991b1b;
+  border:none;
+  border-radius:14px;
+  min-height:48px;
+  font-weight:900;
+}
+
+.badge-ok{
+  background:#e7f7ee;
+  color:#08723a;
+  border:1px solid #bce9cf;
+  padding:6px 9px;
+  border-radius:999px;
+  font-weight:800;
+  font-size:12px;
+}
+
+.badge-warn{
+  background:#fff7ed;
+  color:#9a3412;
+  border:1px solid #fed7aa;
+  padding:6px 9px;
+  border-radius:999px;
+  font-weight:800;
+  font-size:12px;
+}
+
+.signature-box{
+  position:relative;
+  border:2px dashed #9ca3af;
+  border-radius:16px;
+  background:#fff;
+  overflow:hidden;
+}
+
+/* Línea guía: ayuda a firmar derecho y con un tamaño parejo */
+.signature-box::after{
+  content:"";
+  position:absolute;
+  left:7%;
+  right:7%;
+  bottom:26%;
+  border-bottom:1.5px solid #d1d5db;
+  pointer-events:none;
+}
+
+.signature-hint{
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:calc(26% + 10px);
+  text-align:center;
+  color:#9ca3af;
+  font-weight:700;
+  font-size:14px;
+  pointer-events:none;
+}
+
+.signature-box.has-signature .signature-hint{
+  display:none;
+}
+
+#signatureCanvas{
+  display:block;
+  width:100%;
+  height:210px;
+  background:#fff;
+  touch-action:none;
+}
+
+.fit-note{
+  margin-top:5px;
+  padding:6px 9px;
+  border:1px solid #fde68a;
+  border-radius:10px;
+  background:#fffbeb;
+  color:#92400e;
+  font-size:12px;
+  line-height:1.35;
+}
+
+.help-box{
+  background:#eefcf3;
+  border:1px solid #bce9cf;
+  border-radius:14px;
+  padding:10px;
+  color:#075f31;
+  font-size:13px;
+}
+
+.text-pill{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  border:1px solid var(--borde);
+  background:#fff;
+  border-radius:12px;
+  padding:8px 10px;
+  margin-bottom:8px;
+  font-size:13px;
+}
+
+.loading-modal{
+  position:fixed;
+  inset:0;
+  background:rgba(255,255,255,.94);
+  z-index:200;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+}
+
+.loader-card{
+  width:min(420px,100%);
+  background:#fff;
+  border:1px solid var(--borde);
+  border-radius:22px;
+  box-shadow:0 15px 45px rgba(0,0,0,.13);
+  padding:22px;
+  text-align:center;
+}
+
+.spinner{
+  width:48px;
+  height:48px;
+  border:5px solid #d8eadf;
+  border-top-color:var(--verde);
+  border-radius:50%;
+  animation:spin .9s linear infinite;
+  margin:0 auto 12px;
+}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.toast-app{
+  position:fixed;
+  left:12px;
+  right:12px;
+  bottom:86px;
+  z-index:180;
+  display:none;
+}
+
+.toast-app .box{
+  background:#111827;
+  color:#fff;
+  border-radius:14px;
+  padding:12px 14px;
+  font-size:14px;
+  box-shadow:0 10px 30px rgba(0,0,0,.25);
+}
+
+@media(min-width:900px){
+  .main-wrap{
+    max-width:1280px;
+    margin:0 auto;
+    display:grid;
+    /* Formulario con ancho cómodo (no super estirado) + preview ancho real */
+    grid-template-columns:minmax(420px, 560px) 1fr;
+    gap:18px;
+    padding:14px 16px 20px;
+    align-items:start;
+  }
+
+  .top-utility-bar{
+    max-width:1280px;
+    padding:8px 16px 0;
+  }
+
+  .viewer-card{
+    display:block !important;
+    margin-top:0;
+    position:sticky;
+    top:84px;
+    max-height:calc(100vh - 130px);
+    overflow:hidden;
+    display:flex !important;
+    flex-direction:column;
+  }
+
+  .viewer{
+    max-height:calc(100vh - 240px);
+    flex:1;
+  }
+
+  /* En desktop el viewer no debe colapsar (siempre visible al lado) */
+  .viewer-card.viewer-collapsed .viewer-toolbar,
+  .viewer-card.viewer-collapsed .viewer{
+    display:block;
+  }
+  .viewer-card.viewer-collapsed .viewer-toggle-icon{display:none}
+  .viewer-title-mobile{cursor:default}
+  .viewer-title-mobile:hover{background:#fff}
+
+  .bottom-bar{
+    position:sticky;
+    bottom:0;
+  }
+
+  /* Botones equilibrados (sin Guardar PDF duplicado), bajo el formulario */
+  .bottom-actions{
+    grid-template-columns:1fr 1fr;
+    max-width:560px;
+  }
+
+  /* Damage bar mejor distribuida en desktop */
+  .damage-bar{
+    display:grid;
+    grid-template-columns:auto 1fr;
+    align-items:center;
+    gap:14px;
+  }
+  .damage-bar-label{margin:0;white-space:nowrap}
+  .damage-bar-buttons{margin:0}
+}
+
+@media(min-width:1200px){
+  .main-wrap{
+    grid-template-columns:minmax(480px, 600px) 1fr;
+  }
+  .bottom-actions{max-width:600px}
+}
+
+@media(max-width:520px){
+  .main-wrap{
+    padding:8px;
+    padding-bottom:calc(102px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .step-body{
+    padding:12px 12px 14px;
+  }
+
+  .step-title{
+    font-size:16px;
+  }
+  .step-help{
+    font-size:12.5px;
+    margin-bottom:10px;
+  }
+
+  .quick-grid{
+    grid-template-columns:1fr;
+  }
+
+  .viewer{
+    max-height:60vh;
+  }
+
+  .app-header{
+    padding:9px 12px;
+    padding-top:max(9px, env(safe-area-inset-top));
+  }
+  .app-header h1{
+    font-size:14px;
+    line-height:1.15;
+    font-weight:800;
+  }
+
+  .app-header small{
+    font-size:10.5px;
+    opacity:.85;
+    display:-webkit-box;
+    -webkit-line-clamp:1;
+    -webkit-box-orient:vertical;
+    overflow:hidden;
+  }
+
+  .brand-logo{
+    width:40px;
+    height:40px;
+    padding:4px;
+    border-radius:10px;
+  }
+
+  .brand-wrap{
+    gap:8px;
+  }
+
+  .version-badge{
+    font-size:9px;
+    padding:1px 5px;
+    margin-left:4px;
+  }
+
+  /* En pantallas pequeñas, solo emoji para ahorrar espacio */
+  .header-action-btn .btn-label{display:none}
+  .header-action-btn{padding:7px 10px;font-size:15px}
+
+  /* Tabs más compactos */
+  .step-indicator{
+    padding:8px 10px;
+    gap:5px;
+    scroll-snap-type:x mandatory;
+  }
+  .step-dot{
+    padding:6px 9px;
+    font-size:11.5px;
+    scroll-snap-align:center;
+  }
+
+  /* Barra de daños más cómoda al tap */
+  .damage-bar{
+    padding:8px 10px;
+  }
+  .damage-bar-label{font-size:11.5px;margin-bottom:5px}
+  .draw-damage-btn{
+    font-size:12px;
+    padding:7px 6px;
+    min-height:40px;
+  }
+
+  /* Firma un poco más alta para que no quepa cortada */
+  #signatureCanvas{
+    height:180px;
+  }
+
+  /* Botones inferiores */
+  .btn-main,.btn-soft,.btn-danger-soft{
+    min-height:46px;
+    font-size:14px;
+  }
+
+  /* Espacio cómodo entre filas del formulario */
+  .step-body .row.g-2{
+    --bs-gutter-y:.65rem;
+  }
+
+  .toast-app{
+    bottom:calc(90px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Muy estrecho (<360px) — Inputs Bootstrap col-6 más cómodos */
+@media(max-width:360px){
+  .step-body .col-6{flex:0 0 100%;max-width:100%}
+  .damage-bar-buttons{grid-template-columns:1fr;gap:5px}
+}
+
+/* Validación */
+.pdf-field.is-invalid{
+  border-color:#dc3545 !important;
+  box-shadow:0 0 0 0.15rem rgba(220,53,69,.18) !important;
+}
+label.required::after{
+  content:" *";
+  color:#dc3545;
+  font-weight:700;
+}
+.missing-banner{
+  background:#fff3cd;
+  border:1px solid #ffe69c;
+  color:#664d03;
+  border-radius:10px;
+  padding:10px 12px;
+  margin:10px 12px 0;
+  font-size:13px;
+}
+.missing-banner strong{display:block;margin-bottom:4px}
+.restored-toast{
+  background:#cff4fc;
+  border:1px solid #b6effb;
+  color:#055160;
+  border-radius:10px;
+  padding:10px 12px;
+  margin:10px 12px 0;
+  font-size:13px;
+  display:none;
+}
+.restored-toast button{
+  background:transparent;
+  border:none;
+  color:#055160;
+  font-weight:700;
+  margin-left:8px;
+  text-decoration:underline;
+  cursor:pointer;
+  padding:0;
+}
+.btn-danger-clear{
+  background:#fff;
+  border:1px solid #dc3545;
+  color:#dc3545;
+  font-weight:600;
+  border-radius:12px;
+  padding:10px 14px;
+  width:100%;
+  margin-top:14px;
+  cursor:pointer;
+}
+.btn-danger-clear:hover{background:#fff5f5}
+
+/* Barra de dibujo de daños */
+.damage-bar{
+  background:#fff;
+  border:1px solid var(--borde);
+  border-radius:12px;
+  padding:10px 12px;
+  margin-top:8px;
+}
+.damage-bar-label{
+  font-size:12px;
+  font-weight:700;
+  color:#1f2937;
+  margin-bottom:6px;
+}
+.damage-bar-buttons{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:6px;
+}
+
+/* Botones de dibujo de daños - color según el carro */
+.draw-damage-btn{
+  background:#eef2f7;
+  border:1px solid var(--borde);
+  color:#1f2937;
+  font-weight:700;
+  border-radius:10px;
+  padding:8px 10px;
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  min-height:42px;
+  font-size:13px;
+  position:relative;
+}
+.draw-damage-btn:hover{filter:brightness(.97)}
+.draw-damage-btn[data-damage-key="asegurado"]{
+  background:#e7f7ee;border-color:#bce9cf;color:#08723a;
+}
+.draw-damage-btn[data-damage-key="tercero1"]{
+  background:#fff7ed;border-color:#fed7aa;color:#9a3412;
+}
+.draw-damage-btn[data-damage-key="tercero2"]{
+  background:#dbeafe;border-color:#bfdbfe;color:#1e40af;
+}
+.draw-damage-btn.has-drawing::after{
+  content:"✓";
+  position:absolute;
+  top:-6px;
+  right:-6px;
+  width:20px;
+  height:20px;
+  background:var(--verde);
+  color:#fff;
+  border:2px solid #fff;
+  border-radius:50%;
+  font-size:11px;
+  font-weight:900;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+/* Modal de dibujo */
+.modal-backdrop{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.55);
+  z-index:100;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:12px;
+}
+.modal-backdrop.is-open{display:flex}
+
+.modal-card{
+  background:#fff;
+  border-radius:18px;
+  max-width:520px;
+  width:100%;
+  max-height:92vh;
+  overflow:auto;
+  display:flex;
+  flex-direction:column;
+}
+
+/* En celular el modal ocupa toda la pantalla (más cómodo para dibujar) */
+@media(max-width:520px){
+  .modal-backdrop{padding:0}
+  .modal-card{
+    max-width:100%;
+    max-height:100vh;
+    height:100vh;
+    border-radius:0;
+    /* Safe area top/bottom para notch y home indicator */
+    padding-top:env(safe-area-inset-top);
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  .modal-header h3{font-size:15px}
+  .drawing-controls{gap:6px}
+  .color-swatch{width:34px;height:34px}
+  .modal-footer{padding:10px 12px;gap:6px}
+  .modal-footer button{padding:11px;font-size:13.5px;min-height:44px}
+}
+
+.modal-header{
+  padding:14px 16px;
+  border-bottom:1px solid var(--borde);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+}
+.modal-header h3{font-size:16px;font-weight:800;margin:0;color:var(--azul)}
+
+.car-tag{
+  display:inline-block;
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:.6px;
+  padding:3px 9px;
+  border-radius:999px;
+  margin-top:4px;
+  background:#e7f7ee;
+  color:#08723a;
+  border:1px solid #bce9cf;
+}
+.modal-close{
+  background:transparent;border:none;font-size:22px;
+  font-weight:700;cursor:pointer;color:#6b7280;
+  width:32px;height:32px;border-radius:8px;
+}
+.modal-close:hover{background:#f3f4f6}
+
+.modal-body{padding:14px 16px;flex:1}
+.modal-help{
+  font-size:13px;color:#6b7280;margin:0 0 10px;
+}
+
+.drawing-stage{
+  position:relative;
+  background:#f9fafb;
+  border:1px solid var(--borde);
+  border-radius:12px;
+  overflow:hidden;
+  width:100%;
+}
+.drawing-stage canvas{display:block;width:100%}
+.drawing-stage #drawingPaint{
+  position:absolute;inset:0;
+  touch-action:none;
+  cursor:crosshair;
+}
+
+.drawing-controls{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-top:12px;
+  flex-wrap:wrap;
+}
+.color-swatch{
+  width:30px;height:30px;
+  border-radius:50%;
+  border:2px solid #fff;
+  outline:1px solid var(--borde);
+  cursor:pointer;
+  padding:0;
+}
+.color-swatch.active{
+  outline:2px solid var(--verde);
+  transform:scale(1.1);
+}
+.stroke-control{
+  display:flex;align-items:center;gap:6px;
+  margin-left:auto;font-size:13px;color:#374151;
+}
+.stroke-control input{width:80px}
+
+.modal-footer{
+  padding:12px 16px;
+  border-top:1px solid var(--borde);
+  display:flex;
+  gap:8px;
+  background:#f9fafb;
+}
+.modal-footer button{
+  flex:1;
+  border:none;
+  border-radius:12px;
+  padding:12px;
+  font-weight:800;
+  cursor:pointer;
+  min-height:46px;
+}
+.btn-modal-clear{
+  background:#fee2e2;color:#991b1b;
+}
+.btn-modal-cancel{background:#eef2f7;color:#1f2937}
+.btn-modal-save{background:var(--verde);color:#fff}
+
+.top-utility-bar{
+  max-width:1180px;
+  margin:0 auto;
+  padding:8px 12px 0;
+}
+.upload-card{
+  background:#fff;
+  border:1px dashed var(--verde);
+  border-radius:10px;
+  padding:8px 12px;
+  margin-top:8px;
+  text-align:center;
+}
+.upload-link{
+  display:inline-block;
+  color:var(--verde-oscuro);
+  font-weight:600;
+  font-size:13px;
+  cursor:pointer;
+  margin:0;
+  padding:2px 4px;
+}
+.upload-link:hover{text-decoration:underline}
+.upload-link::before{content:"📄 "}
+.restored-toast{margin:8px 0 0}
+.missing-banner{margin:8px 12px 0}
+</style>
+</head>
+
+<body>
+
+<div id="loading" class="loading-modal">
+  <div class="loader-card">
+    <img class="loading-logo" src="https://soluasistencia.com/wp-content/uploads/2024/11/logo_solu.png" alt="Logo Soluasistencia">
+    <div class="spinner"></div>
+    <h5 class="fw-bold mb-1">Preparando formulario</h5>
+    <p class="text-muted mb-0">Cargando la plantilla y dejando todo listo para diligenciar.</p>
+  </div>
+</div>
+
+<header class="app-header">
+  <div class="brand-wrap">
+    <div class="brand-left">
+      <img class="brand-logo" src="https://soluasistencia.com/wp-content/uploads/2024/11/logo_solu.png" alt="Logo Soluasistencia">
+      <div class="brand-text">
+        <h1>
+          Formulario móvil de siniestros
+          <button type="button" class="version-badge" id="versionBadge" title="Toca para buscar actualizaciones"></button>
+        </h1>
+        <small>Soluasistencia · Declaración de responsabilidad civil servicio público</small>
+      </div>
+    </div>
+    <div class="header-actions">
+      <!-- Vuelve al caso del que se entro, o al menu si se abrio desde el
+           mosaico. Sin esto, dentro de la app instalada no hay forma de salir:
+           no hay barra del navegador. -->
+      <button type="button" class="header-action-btn" id="btnVolverAsisPlus" title="Volver a ASIS PLUS">
+        <span>←</span><span class="btn-label">ASIS PLUS</span>
+      </button>
+      <button type="button" class="header-action-btn" id="btnInstallApp" hidden title="Instalar la app en este dispositivo">
+        <span>📲</span><span class="btn-label">Instalar app</span>
+      </button>
+      <button type="button" class="header-action-btn" id="btnUploadHeader" title="Cargar PDF generado anteriormente para editarlo">
+        <span>📄</span><span class="btn-label">Cargar PDF</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="top-utility-bar">
+  <div class="restored-toast" id="restoredToast">
+    Se restauraron datos de una sesión anterior.
+    <button type="button" id="btnDismissRestored">OK</button>
+    <button type="button" id="btnClearRestored">Empezar nuevo</button>
+  </div>
+
+  <div class="damage-bar">
+    <div class="damage-bar-label">🎨 Dibujar daños sobre un carro:</div>
+    <div class="damage-bar-buttons">
+      <button type="button" class="draw-damage-btn" data-damage-key="asegurado">
+        Asegurado
+      </button>
+      <button type="button" class="draw-damage-btn" data-damage-key="tercero1">
+        Tercero 1
+      </button>
+      <button type="button" class="draw-damage-btn" data-damage-key="tercero2">
+        Tercero 2
+      </button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="pdfUploadInput" accept="application/pdf,.pdf" hidden>
+
+<main class="main-wrap">
+
+  <section class="card-mobile">
+    <div class="step-indicator" id="stepIndicator"></div>
+
+    <div class="step-body">
+
+      <!-- PASO 1 -->
+      <div class="step" data-step="0">
+        <div class="step-title">1. Datos del accidente</div>
+        <div class="step-help">Diligencia los datos principales. La app los ubicará automáticamente en el PDF.</div>
+
+        <div class="row g-2">
+          <div class="col-12">
+            <label>Lugar del accidente</label>
+            <input class="form-control pdf-field" data-key="lugarAccidente" placeholder="Ej: Av. Oriental con San Juan">
+          </div>
+          <div class="col-6">
+            <label>Ciudad</label>
+            <input class="form-control pdf-field" data-key="ciudad" placeholder="Medellín">
+          </div>
+          <div class="col-6">
+            <label>Municipio</label>
+            <input class="form-control pdf-field" data-key="municipio" placeholder="Medellín">
+          </div>
+          <div class="col-6">
+            <label>Fecha siniestro</label>
+            <input type="date" class="form-control pdf-field" data-key="fechaSiniestro">
+          </div>
+          <div class="col-6">
+            <label>Fecha reporte</label>
+            <input type="date" class="form-control pdf-field" data-key="fechaReporte">
+          </div>
+          <div class="col-12">
+            <label>N° póliza</label>
+            <input class="form-control pdf-field" data-key="poliza" placeholder="Número de póliza">
+          </div>
+        </div>
+      </div>
+
+      <!-- PASO 2 -->
+      <div class="step" data-step="1" style="display:none">
+        <div class="step-title">2. Asegurado y vehículo</div>
+        <div class="step-help">Información del tomador, asegurado y datos del vehículo.</div>
+
+        <div class="row g-2">
+          <div class="col-12">
+            <label>Nombre del tomador</label>
+            <input class="form-control pdf-field" data-key="tomador">
+          </div>
+          <div class="col-12">
+            <label>C.C. o NIT tomador</label>
+            <input class="form-control pdf-field" data-key="nitTomador">
+          </div>
+          <div class="col-12">
+            <label>Nombre del asegurado</label>
+            <input class="form-control pdf-field" data-key="asegurado">
+          </div>
+          <div class="col-12">
+            <label>C.C. o NIT asegurado</label>
+            <input class="form-control pdf-field" data-key="nitAsegurado">
+          </div>
+          <div class="col-12">
+            <label>Dirección del asegurado</label>
+            <input class="form-control pdf-field" data-key="direccionAsegurado">
+          </div>
+          <div class="col-6">
+            <label>Ciudad</label>
+            <input class="form-control pdf-field" data-key="ciudadAsegurado">
+          </div>
+          <div class="col-6">
+            <label>Teléfono 1</label>
+            <input class="form-control pdf-field" data-key="telefono1">
+          </div>
+          <div class="col-12">
+            <label>Correo electrónico</label>
+            <input type="email" class="form-control pdf-field" data-key="correo">
+          </div>
+          <div class="col-6">
+            <label>Teléfono 2</label>
+            <input class="form-control pdf-field" data-key="telefono2">
+          </div>
+          <div class="col-6">
+            <label>Celular</label>
+            <input class="form-control pdf-field" data-key="celular">
+          </div>
+          <div class="col-6">
+            <label>Marca</label>
+            <input class="form-control pdf-field" data-key="marca">
+          </div>
+          <div class="col-6">
+            <label>Tipo</label>
+            <input class="form-control pdf-field" data-key="tipo">
+          </div>
+          <div class="col-6">
+            <label>Placa</label>
+            <input class="form-control pdf-field text-uppercase" data-key="placa">
+          </div>
+          <div class="col-6">
+            <label>Modelo</label>
+            <input class="form-control pdf-field" data-key="modelo">
+          </div>
+          <div class="col-6">
+            <label>Capacidad</label>
+            <input class="form-control pdf-field" data-key="capacidad">
+          </div>
+          <div class="col-6">
+            <label>Color</label>
+            <input class="form-control pdf-field" data-key="color">
+          </div>
+        </div>
+      </div>
+
+      <!-- PASO 3 -->
+      <div class="step" data-step="2" style="display:none">
+        <div class="step-title">3. Conductor y relato</div>
+        <div class="step-help">El relato se parte automáticamente en varias líneas dentro del formulario.</div>
+
+        <div class="row g-2">
+          <div class="col-12">
+            <label>Nombre del conductor y teléfono</label>
+            <input class="form-control pdf-field" data-key="conductorTelefono">
+          </div>
+          <div class="col-6">
+            <label>Tipo de documento conductor</label>
+            <select class="form-select pdf-field" data-key="conductorTipoDoc">
+              <option value="">Seleccione</option>
+              <option>CC</option>
+              <option>CE</option>
+              <option>TI</option>
+              <option>OTRO</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label>N° documento conductor</label>
+            <input class="form-control pdf-field" data-key="documentoConductor">
+          </div>
+          <div class="col-12">
+            <label>Yo (nombre del declarante)</label>
+            <input class="form-control pdf-field" data-key="yoNombre" placeholder="Nombre completo">
+          </div>
+          <div class="col-12">
+            <label>En mi calidad de</label>
+            <select class="form-select pdf-field" data-key="calidad">
+              <option value="">Seleccione</option>
+              <option>CONDUCTOR</option>
+              <option>PROPIETARIO</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label>Día del hecho</label>
+            <input class="form-control pdf-field" data-key="diaHecho" placeholder="Ej: 23">
+          </div>
+          <div class="col-6">
+            <label>Mes</label>
+            <input class="form-control pdf-field" data-key="mesHecho" placeholder="Ej: abril">
+          </div>
+          <div class="col-6">
+            <label>Año</label>
+            <input class="form-control pdf-field" data-key="anioHecho" placeholder="Ej: 2026">
+          </div>
+          <div class="col-6">
+            <label>Hora aproximada</label>
+            <input class="form-control pdf-field" data-key="horaHecho" placeholder="Ej: 08:30">
+          </div>
+          <div class="col-12">
+            <label>Dirección del hecho</label>
+            <input class="form-control pdf-field" data-key="direccionHecho">
+          </div>
+          <div class="col-12">
+            <label>Relato de los hechos</label>
+            <textarea class="form-control pdf-field" data-key="relato" placeholder="Describe de manera clara y detallada lo ocurrido..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- PASO 4 -->
+      <div class="step" data-step="3" style="display:none">
+        <div class="step-title">4. Responsabilidad y observaciones</div>
+        <div class="step-help">Selecciona las opciones principales. Las respuestas se marcarán en la plantilla.</div>
+
+        <div class="row g-2">
+          <div class="col-6">
+            <label>Personas lesionadas</label>
+            <select class="form-select pdf-field" data-key="lesionados">
+              <option value="">Seleccione</option>
+              <option>SI</option>
+              <option>NO</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label>¿Cuántas?</label>
+            <input class="form-control pdf-field" data-key="cuantosLesionados">
+          </div>
+          <div class="col-6">
+            <label>Personas fallecidas</label>
+            <select class="form-select pdf-field" data-key="fallecidos">
+              <option value="">Seleccione</option>
+              <option>SI</option>
+              <option>NO</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label>¿Cuántas?</label>
+            <input class="form-control pdf-field" data-key="cuantosFallecidos">
+          </div>
+          <div class="col-12">
+            <label>El accidente se presentó por</label>
+            <select class="form-select pdf-field" data-key="causa">
+              <option value="">Seleccione</option>
+              <option value="A">A. Imprudencia de un tercero</option>
+              <option value="B">B. Fallas mecánicas</option>
+              <option value="C">C. Mal estado de la vía</option>
+              <option value="D">D. Otra</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label>Especifique (solo si seleccionó "Otra")</label>
+            <input class="form-control pdf-field" data-key="causaDOtra" placeholder="Describe la otra causa">
+          </div>
+          <div class="col-6">
+            <label>Grado responsabilidad 1 a 10</label>
+            <input type="number" min="1" max="10" class="form-control pdf-field" data-key="gradoResponsabilidad">
+          </div>
+          <div class="col-6">
+            <label>Responsabilidad compartida</label>
+            <select class="form-select pdf-field" data-key="responsabilidadCompartida">
+              <option value="">Seleccione</option>
+              <option>SI</option>
+              <option>NO</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label>¿Por qué?</label>
+            <input class="form-control pdf-field" data-key="porqueResponsabilidad">
+          </div>
+          <div class="col-6">
+            <label>Informe de autoridades</label>
+            <select class="form-select pdf-field" data-key="informeAutoridad">
+              <option value="">Seleccione</option>
+              <option>SI</option>
+              <option>NO</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label>Motivos (si no hubo informe)</label>
+            <input class="form-control pdf-field" data-key="motivosSinInforme" placeholder="Indique los motivos">
+          </div>
+          <div class="col-12">
+            <label>Daños del vehículo</label>
+            <textarea class="form-control pdf-field" data-key="danosVehiculo"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- PASO 5 -->
+      <div class="step" data-step="4" style="display:none">
+        <div class="step-title">5. Terceros afectados</div>
+        <div class="step-help">Esta sección llena los dos bloques de vehículos terceros en la página 2.</div>
+
+        <div class="accordion" id="tercerosAccordion">
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#tercero1">
+                Vehículo tercero 1
+              </button>
+            </h2>
+            <div id="tercero1" class="accordion-collapse collapse show" data-bs-parent="#tercerosAccordion">
+              <div class="accordion-body">
+                <div class="row g-2">
+                  <div class="col-6"><label>Marca</label><input class="form-control pdf-field" data-key="t1Marca"></div>
+                  <div class="col-6"><label>Modelo</label><input class="form-control pdf-field" data-key="t1Modelo"></div>
+                  <div class="col-6"><label>Color</label><input class="form-control pdf-field" data-key="t1Color"></div>
+                  <div class="col-6"><label>Placas</label><input class="form-control pdf-field text-uppercase" data-key="t1Placas"></div>
+                  <div class="col-6"><label>Servicio</label><input class="form-control pdf-field" data-key="t1Servicio"></div>
+                  <div class="col-6"><label>Asegurado en</label><input class="form-control pdf-field" data-key="t1Asegurado"></div>
+                  <div class="col-12"><label>Conductor</label><input class="form-control pdf-field" data-key="t1Conductor"></div>
+                  <div class="col-6"><label>Licencia</label><input class="form-control pdf-field" data-key="t1Licencia"></div>
+                  <div class="col-6"><label>C.C.</label><input class="form-control pdf-field" data-key="t1Cedula"></div>
+                  <div class="col-12"><label>Propietario</label><input class="form-control pdf-field" data-key="t1Propietario"></div>
+                  <div class="col-12"><label>Dirección</label><input class="form-control pdf-field" data-key="t1Direccion"></div>
+                  <div class="col-6"><label>Ciudad</label><input class="form-control pdf-field" data-key="t1Ciudad"></div>
+                  <div class="col-6"><label>Teléfono</label><input class="form-control pdf-field" data-key="t1Telefono"></div>
+                  <div class="col-12"><label>Actualmente se encuentra en</label><input class="form-control pdf-field" data-key="t1Ubicacion"></div>
+                  <div class="col-12"><label>Daños</label><textarea class="form-control pdf-field" data-key="t1Danos"></textarea></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#tercero2">
+                Vehículo tercero 2
+              </button>
+            </h2>
+            <div id="tercero2" class="accordion-collapse collapse" data-bs-parent="#tercerosAccordion">
+              <div class="accordion-body">
+                <div class="row g-2">
+                  <div class="col-6"><label>Marca</label><input class="form-control pdf-field" data-key="t2Marca"></div>
+                  <div class="col-6"><label>Modelo</label><input class="form-control pdf-field" data-key="t2Modelo"></div>
+                  <div class="col-6"><label>Color</label><input class="form-control pdf-field" data-key="t2Color"></div>
+                  <div class="col-6"><label>Placas</label><input class="form-control pdf-field text-uppercase" data-key="t2Placas"></div>
+                  <div class="col-6"><label>Servicio</label><input class="form-control pdf-field" data-key="t2Servicio"></div>
+                  <div class="col-6"><label>Asegurado en</label><input class="form-control pdf-field" data-key="t2Asegurado"></div>
+                  <div class="col-12"><label>Conductor</label><input class="form-control pdf-field" data-key="t2Conductor"></div>
+                  <div class="col-6"><label>Licencia</label><input class="form-control pdf-field" data-key="t2Licencia"></div>
+                  <div class="col-6"><label>C.C.</label><input class="form-control pdf-field" data-key="t2Cedula"></div>
+                  <div class="col-12"><label>Propietario</label><input class="form-control pdf-field" data-key="t2Propietario"></div>
+                  <div class="col-12"><label>Dirección</label><input class="form-control pdf-field" data-key="t2Direccion"></div>
+                  <div class="col-6"><label>Ciudad</label><input class="form-control pdf-field" data-key="t2Ciudad"></div>
+                  <div class="col-6"><label>Teléfono</label><input class="form-control pdf-field" data-key="t2Telefono"></div>
+                  <div class="col-12"><label>Actualmente se encuentra en</label><input class="form-control pdf-field" data-key="t2Ubicacion"></div>
+                  <div class="col-12"><label>Daños</label><textarea class="form-control pdf-field" data-key="t2Danos"></textarea></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- PASO 6 -->
+      <div class="step" data-step="5" style="display:none">
+        <div class="step-title">6. Lesionados y fallecidos</div>
+        <div class="step-help">Campos para la página 2. Puedes dejar en blanco los que no apliquen.</div>
+
+        <div class="row g-2">
+          <div class="col-12"><h6 class="fw-bold mt-1">Lesionado 1</h6></div>
+          <div class="col-12"><label>Nombre</label><input class="form-control pdf-field" data-key="l1Nombre"></div>
+          <div class="col-6"><label>C.C.</label><input class="form-control pdf-field" data-key="l1Cedula"></div>
+          <div class="col-6"><label>Dirección</label><input class="form-control pdf-field" data-key="l1Direccion"></div>
+          <div class="col-6"><label>Teléfono</label><input class="form-control pdf-field" data-key="l1Telefono"></div>
+          <div class="col-6"><label>Gravedad</label>
+            <select class="form-select pdf-field" data-key="l1Gravedad">
+              <option value="">Seleccione</option>
+              <option>LEVE</option>
+              <option>MODERADA</option>
+              <option>GRAVE</option>
+            </select>
+          </div>
+          <div class="col-12"><label>Lesiones sufridas (descripción)</label><input class="form-control pdf-field" data-key="l1Lesiones" maxlength="90" placeholder="Ej: fractura de tibia, trauma craneoencefálico..."></div>
+          <div class="col-12"><label>Clínica u hospital</label><input class="form-control pdf-field" data-key="l1Hospital"></div>
+
+          <div class="col-12"><h6 class="fw-bold mt-3">Lesionado 2</h6></div>
+          <div class="col-12"><label>Nombre</label><input class="form-control pdf-field" data-key="l2Nombre"></div>
+          <div class="col-6"><label>C.C.</label><input class="form-control pdf-field" data-key="l2Cedula"></div>
+          <div class="col-6"><label>Dirección</label><input class="form-control pdf-field" data-key="l2Direccion"></div>
+          <div class="col-6"><label>Teléfono</label><input class="form-control pdf-field" data-key="l2Telefono"></div>
+          <div class="col-6"><label>Gravedad</label>
+            <select class="form-select pdf-field" data-key="l2Gravedad">
+              <option value="">Seleccione</option>
+              <option>LEVE</option>
+              <option>MODERADA</option>
+              <option>GRAVE</option>
+            </select>
+          </div>
+          <div class="col-12"><label>Lesiones sufridas (descripción)</label><input class="form-control pdf-field" data-key="l2Lesiones" maxlength="90" placeholder="Ej: fractura de tibia, trauma craneoencefálico..."></div>
+          <div class="col-12"><label>Clínica u hospital</label><input class="form-control pdf-field" data-key="l2Hospital"></div>
+
+          <div class="col-12"><h6 class="fw-bold mt-3">Lesionado 3</h6></div>
+          <div class="col-12"><label>Nombre</label><input class="form-control pdf-field" data-key="l3Nombre"></div>
+          <div class="col-6"><label>C.C.</label><input class="form-control pdf-field" data-key="l3Cedula"></div>
+          <div class="col-6"><label>Dirección</label><input class="form-control pdf-field" data-key="l3Direccion"></div>
+          <div class="col-6"><label>Teléfono</label><input class="form-control pdf-field" data-key="l3Telefono"></div>
+          <div class="col-6"><label>Gravedad</label>
+            <select class="form-select pdf-field" data-key="l3Gravedad">
+              <option value="">Seleccione</option>
+              <option>LEVE</option>
+              <option>MODERADA</option>
+              <option>GRAVE</option>
+            </select>
+          </div>
+          <div class="col-12"><label>Lesiones sufridas (descripción)</label><input class="form-control pdf-field" data-key="l3Lesiones" maxlength="90" placeholder="Ej: fractura de tibia, trauma craneoencefálico..."></div>
+          <div class="col-12"><label>Clínica u hospital</label><input class="form-control pdf-field" data-key="l3Hospital"></div>
+
+          <div class="col-12"><h6 class="fw-bold mt-3">Fallecido 1</h6></div>
+          <div class="col-12"><label>Nombre</label><input class="form-control pdf-field" data-key="f1Nombre"></div>
+          <div class="col-6"><label>C.C.</label><input class="form-control pdf-field" data-key="f1Cedula"></div>
+          <div class="col-6"><label>Teléfono</label><input class="form-control pdf-field" data-key="f1Telefono"></div>
+          <div class="col-12"><label>Dirección</label><input class="form-control pdf-field" data-key="f1Direccion"></div>
+          <div class="col-6"><label>Género</label><input class="form-control pdf-field" data-key="f1Genero"></div>
+          <div class="col-6"><label>Edad</label><input class="form-control pdf-field" data-key="f1Edad"></div>
+          <div class="col-12"><label>Lugar donde se declara el fallecimiento</label><input class="form-control pdf-field" data-key="f1Lugar"></div>
+
+          <div class="col-12"><h6 class="fw-bold mt-3">Fallecido 2</h6></div>
+          <div class="col-12"><label>Nombre</label><input class="form-control pdf-field" data-key="f2Nombre"></div>
+          <div class="col-6"><label>C.C.</label><input class="form-control pdf-field" data-key="f2Cedula"></div>
+          <div class="col-6"><label>Teléfono</label><input class="form-control pdf-field" data-key="f2Telefono"></div>
+          <div class="col-12"><label>Dirección</label><input class="form-control pdf-field" data-key="f2Direccion"></div>
+          <div class="col-6"><label>Género</label><input class="form-control pdf-field" data-key="f2Genero"></div>
+          <div class="col-6"><label>Edad</label><input class="form-control pdf-field" data-key="f2Edad"></div>
+          <div class="col-12"><label>Lugar donde se declara el fallecimiento</label><input class="form-control pdf-field" data-key="f2Lugar"></div>
+
+          <div class="col-12"><h6 class="fw-bold mt-3">Fallecido 3</h6></div>
+          <div class="col-12"><label>Nombre</label><input class="form-control pdf-field" data-key="f3Nombre"></div>
+          <div class="col-6"><label>C.C.</label><input class="form-control pdf-field" data-key="f3Cedula"></div>
+          <div class="col-6"><label>Teléfono</label><input class="form-control pdf-field" data-key="f3Telefono"></div>
+          <div class="col-12"><label>Dirección</label><input class="form-control pdf-field" data-key="f3Direccion"></div>
+          <div class="col-6"><label>Género</label><input class="form-control pdf-field" data-key="f3Genero"></div>
+          <div class="col-6"><label>Edad</label><input class="form-control pdf-field" data-key="f3Edad"></div>
+          <div class="col-12"><label>Lugar donde se declara el fallecimiento</label><input class="form-control pdf-field" data-key="f3Lugar"></div>
+        </div>
+      </div>
+
+      <!-- PASO 7 -->
+      <div class="step" data-step="6" style="display:none">
+        <div class="step-title">7. Firma y guardar</div>
+        <div class="step-help">Datos del abogado (opcional), documento del declarante y firma.</div>
+
+        <div class="row g-2 mb-3">
+          <div class="col-12">
+            <label>Nombre del abogado que presta el servicio</label>
+            <input class="form-control pdf-field" data-key="abogadoNombre" placeholder="Opcional">
+          </div>
+          <div class="col-12">
+            <label>Firma de abogados que lo vincula</label>
+            <input class="form-control pdf-field" data-key="abogadoFirma" placeholder="Opcional">
+          </div>
+          <div class="col-6">
+            <label>Tipo doc. declarante</label>
+            <select class="form-select pdf-field" data-key="declaranteTipoDoc">
+              <option value="">Seleccione</option>
+              <option>CC</option>
+              <option>CE</option>
+              <option>TI</option>
+              <option>OTRO</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label>N° documento declarante</label>
+            <input class="form-control pdf-field" data-key="declaranteNumDoc">
+          </div>
+        </div>
+
+        <div class="help-box mb-3">
+          Firme con el dedo dentro del recuadro. La firma se ubicará sobre la línea «Firma del declarante» de la primera página.
+        </div>
+
+        <label>Firma del declarante</label>
+        <div class="signature-box mb-2" id="signatureBox">
+          <canvas id="signatureCanvas"></canvas>
+          <span class="signature-hint">Firme aquí</span>
+        </div>
+
+        <div class="quick-grid mb-3">
+          <button class="btn-danger-soft" id="btnClearSignature" type="button">Limpiar firma</button>
+          <button class="btn-soft" id="btnShowPreview" type="button">Ver vista previa</button>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <span class="badge-ok" id="statusTemplate">Cargando plantilla...</span>
+          <span class="badge-warn" id="statusFields">Campos: 0</span>
+        </div>
+
+        <button type="button" class="btn-danger-clear" id="btnClearForm">
+          Limpiar formulario y empezar de nuevo
+        </button>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="card-mobile viewer-card" id="viewerCard">
+    <div class="viewer-title-mobile" id="viewerToggle">
+      <div>
+        <strong>Vista previa del PDF</strong>
+        <span class="d-block">Toca para abrir / cerrar</span>
+      </div>
+      <span class="viewer-toggle-icon" aria-hidden="true"></span>
+    </div>
+    <div class="viewer-toolbar">
+      <button class="btn btn-light border" id="prevPage" type="button">◀</button>
+      <strong id="pageInfo">Página -</strong>
+      <button class="btn btn-light border" id="nextPage" type="button">▶</button>
+      <button class="btn btn-light border" id="zoomOut" type="button">−</button>
+      <button class="btn btn-light border" id="zoomIn" type="button">+</button>
+    </div>
+    <div class="viewer">
+      <div class="stage" id="stage">
+        <div id="pdfPlaceholder" class="pdf-placeholder">
+          <div class="mini-spinner"></div>
+          <strong>Cargando vista del PDF...</strong>
+          <span>La aplicación ya se puede diligenciar mientras se prepara la plantilla.</span>
+        </div>
+        <canvas id="pdfCanvas"></canvas>
+        <canvas id="drawCanvas"></canvas>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<div class="missing-banner" id="missingBanner" style="display:none">
+  <strong>Faltan campos obligatorios</strong>
+  <span id="missingDetail"></span>
+</div>
+
+<div class="bottom-bar">
+  <div class="bottom-actions">
+    <button class="btn-soft" id="btnBack" type="button">Atrás</button>
+    <button class="btn-main" id="btnNext" type="button">Siguiente</button>
+  </div>
+</div>
+
+<div class="toast-app" id="toastApp">
+  <div class="box" id="toastText"></div>
+</div>
+
+<!-- Banner de nueva versión PWA disponible -->
+<div class="update-banner" id="updateBanner" role="alert">
+  <div class="update-banner-text">
+    <strong id="updateTitle">Nueva versión disponible</strong>
+    <span id="updateText">Lo que llevas diligenciado se conserva.</span>
+  </div>
+  <button type="button" id="btnDismissUpdate" class="secondary">Después</button>
+  <button type="button" id="btnApplyUpdate">Actualizar</button>
+</div>
+
+<!-- Cómo instalar en iPhone / iPad (Safari no ofrece un botón de instalación) -->
+<div class="update-banner" id="installBanner" role="dialog" aria-label="Instalar la app">
+  <div class="update-banner-text">
+    <strong>Instalar en iPhone o iPad</strong>
+    <span>En Safari toca Compartir (el cuadro con la flecha ↑) y luego «Agregar a pantalla de inicio».</span>
+  </div>
+  <button type="button" id="btnCloseInstall">Entendido</button>
+</div>
+
+<!-- Modal para dibujar los daños sobre el carro -->
+<div class="modal-backdrop" id="drawingModal" role="dialog" aria-modal="true">
+  <div class="modal-card">
+    <div class="modal-header">
+      <div>
+        <h3 id="drawingModalTitle">Dibujar daños</h3>
+        <span class="car-tag" id="carTag">CARRO</span>
+      </div>
+      <button type="button" class="modal-close" id="drawingModalClose" aria-label="Cerrar">×</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-help">Marca con el dedo o el mouse las zonas afectadas sobre el carro.</p>
+      <div class="drawing-stage" id="drawingStage">
+        <canvas id="drawingBackground"></canvas>
+        <canvas id="drawingPaint"></canvas>
+      </div>
+      <div class="drawing-controls">
+        <button type="button" class="color-swatch active" data-color="#e11d48" style="background:#e11d48" aria-label="Rojo"></button>
+        <button type="button" class="color-swatch" data-color="#1d4ed8" style="background:#1d4ed8" aria-label="Azul"></button>
+        <button type="button" class="color-swatch" data-color="#111827" style="background:#111827" aria-label="Negro"></button>
+        <label class="stroke-control">
+          Grosor
+          <input type="range" id="drawingStroke" min="1" max="8" step="0.5" value="2.5">
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn-modal-clear" id="btnModalClear">Borrar</button>
+      <button type="button" class="btn-modal-cancel" id="btnModalCancel">Cancelar</button>
+      <button type="button" class="btn-modal-save" id="btnModalSave">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js"></script>
+<script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+/* =============================
+   CONFIGURACIÓN GENERAL
+============================= */
+
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+ "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
+
+const TEMPLATE_URL = "plantilla.pdf";
+
+// La versión NO se escribe aquí: se lee de version.json al arrancar
+// (ver "VERSIÓN Y SERVICE WORKER").
+let APP_VERSION = "";
+let appVersionInfo = null;
+let latestVersionInfo = null;
+
+const STEPS = [
+  "Accidente",
+  "Vehículo",
+  "Relato",
+  "Responsabilidad",
+  "Terceros",
+  "Lesionados",
+  "Firma"
+];
+
+const pdfCanvas = document.getElementById("pdfCanvas");
+const drawCanvas = document.getElementById("drawCanvas");
+const pdfCtx = pdfCanvas.getContext("2d");
+const overlayCtx = drawCanvas.getContext("2d");
+
+const signatureCanvas = document.getElementById("signatureCanvas");
+const sigCtx = signatureCanvas.getContext("2d");
+
+let pdfBytes = null;
+let pdfDoc = null;
+let pageCount = 0;
+let currentPage = 1;
+let currentStep = 0;
+let zoom = window.innerWidth < 900 ? 0.78 : 1.25;
+let renderRatio = 1;
+let previewRendered = false;
+let renderJob = 0;
+let fields = {};
+
+const PDF_PAGE_W = 594.96;
+const PDF_PAGE_H = 842.52;
+
+/*
+  Coordenadas calibradas en puntos PDF (A4 594.96 x 842.52), medidas sobre plantilla.pdf.
+  x / y se miden desde la esquina superior izquierda; y es la LÍNEA BASE del texto y se
+  deja ~1.7 pt por encima de cada raya para que las letras no queden tachadas.
+
+  Opciones por campo:
+    w        ancho disponible
+    size     tamaño inicial; se reduce de 0.25 en 0.25 hasta minSize si el texto no cabe
+    lines    líneas máximas (separadas por lineHeight, o centradas dentro de box)
+    box      [arriba, abajo] de la celda: el texto se centra verticalmente en ella
+    align    "center" centra el texto dentro de w
+    alt      ubicación alterna más ancha (encima del rótulo) si no cabe en la principal
+    slots    renglones exactos [{x,y,w}] cuando la plantilla trae renglones irregulares
+    cover    [x,y,w,h] rectángulo blanco que tapa el texto guía (p. ej. "DD/MM/AAAA")
+    marks    casillas para marcar con X: {VALOR:{x: centro de la casilla, y: línea base}}
+
+  Si un texto no cabe ni al tamaño mínimo, en la casilla se corta con "(ver anexo)" y se
+  imprime completo en una hoja anexa al final del PDF: nunca se pierden palabras.
+*/
+const ROW_ACCIDENTE = {page:1,box:[174.6,194.6],size:7.5,minSize:5.2,lines:2};
+const ROW_VEHICULO = {page:1,box:[303.4,323.4],size:7.5,minSize:5.2,lines:2};
+
+const FIELD_MAP = {
+  // Página 1 - Encabezado (abogado y declarante)
+  abogadoNombre:{page:1,x:18,y:113.4,w:292,size:8,minSize:5.5},
+  abogadoFirma:{page:1,x:330,y:114,w:248,size:8,minSize:5.5},
+  declaranteTipoDoc:{page:1,size:8,marks:{
+    CC:{x:340.6,y:137.6},
+    CE:{x:359.7,y:137.6},
+    TI:{x:379.6,y:137.6},
+    OTRO:{x:412.6,y:137.6}
+  }},
+  declaranteNumDoc:{page:1,x:434,y:137.4,w:146,size:8,minSize:5.5},
+
+  // Página 1 - Tabla principal
+  lugarAccidente:{...ROW_ACCIDENTE,x:16,w:92},
+  ciudad:{...ROW_ACCIDENTE,x:114,w:60},
+  municipio:{...ROW_ACCIDENTE,x:181,w:77},
+  fechaSiniestro:{...ROW_ACCIDENTE,x:262,w:117,lines:1,align:"center",type:"date",cover:[292,178.8,62.6,11.6]},
+  fechaReporte:{...ROW_ACCIDENTE,x:380.5,w:106,lines:1,align:"center",type:"date",cover:[403.3,178.8,62.6,11.6]},
+  poliza:{...ROW_ACCIDENTE,x:490,w:87},
+
+  tomador:{page:1,x:102,y:211.5,w:382,size:7.5,minSize:5.5},
+  nitTomador:{page:1,x:525.5,y:211.5,w:53,size:7.5,minSize:5.5,alt:{x:490,y:202.7,w:88}},
+  asegurado:{page:1,x:110,y:234,w:374,size:7.5,minSize:5.5},
+  nitAsegurado:{page:1,x:525.5,y:234,w:53,size:7.5,minSize:5.5,alt:{x:490,y:224.8,w:88}},
+  direccionAsegurado:{page:1,x:119,y:257.9,w:258,size:7.5,minSize:5.5,alt:{x:20,y:247.9,w:357}},
+  ciudadAsegurado:{page:1,x:419,y:257.9,w:65,size:7.5,minSize:5.5,alt:{x:390,y:247.9,w:94}},
+  telefono1:{page:1,x:532.5,y:257.9,w:46,size:7.5,minSize:5.5,alt:{x:490,y:247.9,w:88}},
+  correo:{page:1,x:180.5,y:282.3,w:197,size:7.2,minSize:5.3,alt:{x:20,y:272.2,w:357}},
+  telefono2:{page:1,x:431,y:282.3,w:53,size:7.5,minSize:5.5,alt:{x:390,y:272.2,w:94}},
+  celular:{page:1,x:522.5,y:282.3,w:56,size:7.5,minSize:5.5,alt:{x:490,y:272.2,w:88}},
+
+  marca:{...ROW_VEHICULO,x:16,w:92},
+  tipo:{...ROW_VEHICULO,x:114,w:60},
+  placa:{...ROW_VEHICULO,x:181,w:77},
+  modelo:{...ROW_VEHICULO,x:265,w:112},
+  capacidad:{...ROW_VEHICULO,x:383,w:101},
+  color:{...ROW_VEHICULO,x:490,w:87},
+
+  conductorTelefono:{page:1,x:151,y:344.3,w:226,size:7.3,minSize:5.2,alt:{x:17,y:333.4,w:360}},
+  conductorTipoDoc:{page:1,size:7.5,marks:{
+    CC:{x:399.5,y:344.6},
+    CE:{x:420.4,y:344.6},
+    TI:{x:436.6,y:344.6},
+    OTRO:{x:468.9,y:344.6}
+  }},
+  documentoConductor:{page:1,x:490,y:344.5,w:87,size:7.3,minSize:5.2},
+
+  // Página 1 - Relato
+  yoNombre:{page:1,x:40,y:417.5,w:132,size:8,minSize:5.5},
+  calidad:{page:1,size:8,marks:{
+    CONDUCTOR:{x:326.6,y:417.6},
+    PROPIETARIO:{x:403.3,y:417.6}
+  }},
+  diaHecho:{page:1,x:55.5,y:448.4,w:21.5,size:8,minSize:5.5,align:"center"},
+  mesHecho:{page:1,x:124,y:448.4,w:58,size:8,minSize:5.5},
+  anioHecho:{page:1,x:229.5,y:448.4,w:35,size:8,minSize:5.5,align:"center"},
+  horaHecho:{page:1,x:418,y:448.4,w:28,size:8,minSize:5.5,align:"center"},
+  direccionHecho:{page:1,x:209.5,y:458.3,w:122,size:8,minSize:5.5},
+  // Los 5 renglones de la plantilla no están igual de separados: se usan sus posiciones reales
+  relato:{page:1,size:8,minSize:6,slots:[
+    {x:21.5,y:473.4,w:553},
+    {x:21.5,y:486.1,w:553},
+    {x:21.5,y:496.7,w:553},
+    {x:21.5,y:507.4,w:553},
+    {x:21.5,y:518.1,w:553}
+  ]},
+
+  // Página 1 - Marcas y responsabilidad
+  lesionados:{page:1,size:8,marks:{SI:{x:134.5,y:537.3},NO:{x:168.9,y:537.3}}},
+  cuantosLesionados:{page:1,x:230.5,y:537.2,w:18,size:8,minSize:5.5,align:"center"},
+  fallecidos:{page:1,size:8,marks:{SI:{x:378.3,y:537.3},NO:{x:412.8,y:537.3}}},
+  cuantosFallecidos:{page:1,x:474.5,y:537.2,w:18.5,size:8,minSize:5.5,align:"center"},
+  causa:{page:1,size:8,marks:{
+    A:{x:172,y:568.1},
+    B:{x:277.8,y:568.1},
+    C:{x:405.1,y:568.1},
+    D:{x:515,y:568.1}
+  }},
+  causaDOtra:{page:1,x:22,y:587.4,w:324,size:7.5,minSize:5.2},
+  gradoResponsabilidad:{page:1,x:188.1,y:609.6,w:17.1,size:8,minSize:5.5,align:"center"},
+  responsabilidadCompartida:{page:1,size:8,marks:{SI:{x:39.6,y:640.4},NO:{x:82.7,y:640.4}}},
+  porqueResponsabilidad:{page:1,x:150,y:640.4,w:427,size:7.5,minSize:5.2},
+  informeAutoridad:{page:1,size:8,marks:{SI:{x:39.6,y:671.2},NO:{x:76.2,y:671.2}}},
+  motivosSinInforme:{page:1,x:276,y:671.2,w:301,size:7.5,minSize:5.2},
+  // Los renglones de abajo se acortan para no pisar la silueta del carro (x ≥ 485)
+  danosVehiculo:{page:1,size:8,minSize:6,slots:[
+    {x:21,y:705,w:555},
+    {x:21,y:715.5,w:555},
+    {x:21,y:726,w:462},
+    {x:21,y:736.5,w:462},
+    {x:21,y:747,w:462},
+    {x:21,y:757.5,w:462}
+  ]},
+
+  // Página 2 - Vehículos terceros (el bloque 2 está 152.9 pt más abajo)
+  ...terceroFields(1, 0),
+  ...terceroFields(2, 152.9),
+
+  // Página 2 - Lesionados: tope del rótulo "NOMBRE" y del rótulo "LESIONES SUFRIDAS"
+  ...lesionadoFields(1, 441.6, 463.5),
+  ...lesionadoFields(2, 487.2, 509.0),
+  ...lesionadoFields(3, 532.6, 554.4),
+
+  // Página 2 - Fallecidos: tope de los rótulos de cada fila
+  ...fallecidoFields(1, 623.5, 645.3),
+  ...fallecidoFields(2, 668.9, 690.7),
+  ...fallecidoFields(3, 714.3, 736.1)
+};
+
+function terceroFields(n, dy){
+  const p = "t" + n;
+  const row1 = {page:2,box:[111.6 + dy,133 + dy],size:7,minSize:5.2};
+  const row3 = {page:2,box:[176.3 + dy,198.4 + dy],size:7,minSize:5.2};
+  const yLabel = 157.5 + dy;
+  const yAlt = 145.8 + dy;
+  return {
+    [p + "Marca"]:{...row1,x:16,w:92,lines:2},
+    [p + "Modelo"]:{...row1,x:114,w:60,lines:2},
+    [p + "Color"]:{...row1,x:181,w:77,lines:2},
+    [p + "Placas"]:{...row1,x:265,w:111},
+    [p + "Servicio"]:{...row1,x:383,w:100,lines:2},
+    [p + "Asegurado"]:{...row1,x:490,w:87,lines:2},
+    [p + "Conductor"]:{page:2,x:70,y:yLabel,w:188,size:7,minSize:5.2,alt:{x:16,y:yAlt,w:242}},
+    [p + "Licencia"]:{page:2,x:339.5,y:yLabel,w:38,size:7,minSize:5.2,alt:{x:265,y:yAlt,w:111}},
+    [p + "Cedula"]:{page:2,x:419,y:yLabel,w:65,size:7,minSize:5.2,alt:{x:383,y:yAlt,w:100}},
+    [p + "Propietario"]:{page:2,x:546,y:yLabel,w:32,size:7,minSize:5.2,alt:{x:490,y:yAlt,w:87}},
+    [p + "Direccion"]:{...row3,x:16,w:158,lines:2},
+    [p + "Ciudad"]:{...row3,x:181,w:77,lines:2},
+    [p + "Telefono"]:{...row3,x:265,w:111},
+    [p + "Ubicacion"]:{...row3,x:383,w:100,lines:2},
+    // Dos renglones sobre el rótulo "Describa..." y uno a su derecha, sin pisar el carro
+    [p + "Danos"]:{page:2,size:7,minSize:5,slots:[
+      {x:16,y:208.5 + dy,w:462},
+      {x:16,y:217.5 + dy,w:462},
+      {x:331,y:230.1 + dy,w:147}
+    ]}
+  };
+}
+
+function lesionadoFields(n, nameTop, row2Top){
+  const p = "l" + n;
+  const y1 = nameTop + 6.6;    // misma línea base que el rótulo
+  const a1 = nameTop - 4.5;    // espacio libre encima del rótulo
+  const y2 = row2Top + 6.6;
+  const a2 = row2Top - 2.9;
+  const yMark = row2Top + 8.2; // centro de la casilla Leve / Moderada / Grave
+  return {
+    [p + "Nombre"]:{page:2,x:103,y:y1,w:72,size:7,minSize:5,alt:{x:23,y:a1,w:151}},
+    [p + "Cedula"]:{page:2,x:218,y:y1,w:99,size:7,minSize:5,alt:{x:181,y:a1,w:136}},
+    [p + "Direccion"]:{page:2,x:373,y:y1,w:83,size:7,minSize:5,alt:{x:323,y:a1,w:133}},
+    [p + "Telefono"]:{page:2,x:505,y:y1,w:73,size:7,minSize:5,alt:{x:461,y:a1,w:117}},
+    [p + "Gravedad"]:{page:2,size:8,marks:{
+      LEVE:{x:195.4,y:yMark},
+      MODERADA:{x:244.3,y:yMark},
+      GRAVE:{x:297.3,y:yMark}
+    }},
+    // Encima del rótulo "LESIONES SUFRIDAS" y a su derecha, dentro de la misma celda
+    [p + "Lesiones"]:{page:2,size:6,minSize:4.5,slots:[
+      {x:17,y:a2,w:157},
+      {x:91,y:y2,w:84}
+    ]},
+    [p + "Hospital"]:{page:2,size:6.5,minSize:4.5,slots:[
+      {x:323,y:a2,w:255},
+      {x:521,y:y2,w:57}
+    ]}
+  };
+}
+
+function fallecidoFields(n, row1Top, row2Top){
+  const p = "f" + n;
+  const y1 = row1Top + 6.6;
+  const a1 = row1Top - 4.5;
+  const y2 = row2Top + 6.6;
+  const a2 = row2Top - 2.6;
+  return {
+    [p + "Nombre"]:{page:2,x:101,y:y1,w:74,size:7,minSize:5,alt:{x:23,y:a1,w:151}},
+    [p + "Cedula"]:{page:2,x:218,y:y1,w:99,size:7,minSize:5,alt:{x:181,y:a1,w:136}},
+    [p + "Direccion"]:{page:2,x:373,y:y1,w:70,size:7,minSize:5,alt:{x:323,y:a1,w:120}},
+    [p + "Telefono"]:{page:2,x:505,y:y1,w:73,size:7,minSize:5,alt:{x:449,y:a1,w:129}},
+    [p + "Lugar"]:{page:2,x:181,y:y2,w:136,size:7,minSize:5,alt:{x:23,y:a2,w:294}},
+    [p + "Genero"]:{page:2,x:363,y:y2,w:80,size:7,minSize:5,alt:{x:323,y:a2,w:120}},
+    [p + "Edad"]:{page:2,x:489,y:y2,w:89,size:7,minSize:5,alt:{x:449,y:a2,w:129}}
+  };
+}
+
+// Campos que se repiten automáticamente en otra parte del PDF.
+// source puede ser una lista: se usa el primero que tenga valor.
+const EXTRA_FIELD_MAP = {
+  municipioRelato:{source:["municipio","ciudad"],page:1,x:67,y:458.3,w:85,size:8,minSize:5.5},
+  placaRelato:{source:"placa",page:1,x:519,y:417.5,w:42,size:8,minSize:5.5}
+};
+
+// Espacio libre a la derecha del rótulo "FIRMA DEL DECLARANTE", apoyado sobre su línea (y = 139.1)
+const SIGNATURE_BOX = {page:1,x:177,y:116.8,width:136,height:24.6};
+
+// Regiones (en coordenadas PDF, desde la esquina superior izquierda) donde están
+// las siluetas del carro en la plantilla. Se renderizan en el modal de dibujo
+// y se sobreponen al guardar el PDF.
+const CAR_REGIONS = {
+  asegurado: {
+    page:1, x:485, y:718, width:100, height:55,
+    label:"Vehículo asegurado",
+    short:"ASEGURADO",
+    color:"#08723a",         // verde
+    bg:"#e7f7ee"
+  },
+  tercero1:  {
+    page:2, x:485, y:185, width:100, height:65,
+    label:"Vehículo tercero 1",
+    short:"TERCERO 1",
+    color:"#9a3412",         // naranja
+    bg:"#fff7ed"
+  },
+  tercero2:  {
+    page:2, x:485, y:340, width:100, height:65,
+    label:"Vehículo tercero 2",
+    short:"TERCERO 2",
+    color:"#1e40af",         // azul
+    bg:"#dbeafe"
+  }
+};
+
+const DAMAGE_STORAGE_KEY = "soluseguros_damage_v1";
+let damageDrawings = {}; // { asegurado: dataUrl, tercero1: dataUrl, tercero2: dataUrl }
+
+// Auto-guardado en localStorage
+const STORAGE_KEY = "soluseguros_form_v1";
+const SIG_KEY = "soluseguros_sig_v2";          // trazos vectoriales de la firma
+const SIG_KEY_LEGACY = "soluseguros_sig_v1";   // imagen PNG de versiones anteriores (se descarta)
+
+// Campos obligatorios: ninguno. Todos son opcionales.
+// (Si quieres volver a marcar obligatorios, añade entradas aquí.)
+const REQUIRED_FIELDS = [];
+
+// Prefijo para identificar PDFs generados por esta app y leer los datos embebidos
+const PDF_METADATA_PREFIX = "SOLU_DATA::";
+
+/* =============================
+   INICIO
+============================= */
+
+document.addEventListener("DOMContentLoaded", () => {
+  initVersionAndPwa();
+
+  buildSteps();
+  markRequiredLabels();
+  bindInputs();
+  bindButtons();
+  setupSignatureCanvas();
+  setupDamageDrawing();
+  restoreFromStorage();
+  restoreSignature();
+  restoreDamageFromStorage();
+  prepararVueltaAsisPlus();
+  aplicarPrefillAsisPlus();
+
+  initMetricsFonts()
+    .then(() => {
+      updateAllFitNotes();
+      scheduleOverlay();
+    })
+    .catch(err => console.warn("No se cargaron las fuentes de medición:", err));
+
+  // La pantalla principal debe abrir de inmediato.
+  // La plantilla se carga en segundo plano para evitar esperas largas en celular.
+  document.getElementById("loading").style.display = "none";
+  showStep(0);
+  renderCurrentPage();
+
+  loadTemplate()
+    .then(() => {
+      showToast("Plantilla lista para vista previa y descarga.");
+      // Como el visor debe estar visible desde el paso 1,
+      // renderizamos la primera página apenas termine de cargar la plantilla.
+      setTimeout(renderCurrentPage, 80);
+    })
+    .catch(err => {
+      console.error(err);
+      showToast("No se pudo cargar plantilla.pdf. Verifica que esté en la misma carpeta del HTML.");
+      document.getElementById("statusTemplate").textContent = "Plantilla no cargada";
+    });
+});
+
+/* =============================
+   VERSIÓN Y SERVICE WORKER (PWA)
+   La versión publicada vive solo en version.json. Para publicar una versión nueva
+   se cambia ese archivo (ver README.md); el resto es automático:
+   - Al abrir la app, al volver a ella y cada 30 min se compara con version.json.
+   - Si hay otra versión, el navegador la descarga completa en segundo plano.
+   - Si el formulario está vacío se aplica sola; si tiene datos, se pregunta.
+============================= */
+
+const UPDATE_CHECK_INTERVAL = 30 * 60 * 1000;
+const LAST_VERSION_KEY = "soluseguros_last_version";
+
+let swRegistration = null;
+let waitingWorker = null;
+let checkingUpdate = false;
+let deferredInstallPrompt = null;
+
+/*
+ * Dentro de ASIS PLUS esto no corre.
+ *
+ * La app suelta se actualiza sola comparando version.json y registrando su
+ * propio service worker. Aqui los dos trabajos ya los hace ASIS PLUS: su sw.js
+ * guarda este archivo y la plantilla, y su aviso de novedades cuenta que
+ * cambio. Dos service workers anidados en el mismo origen se pisan el cache y
+ * dejan al asistente con medio formulario viejo.
+ *
+ * El cuerpo original se deja debajo, sin llamar, para que al comparar con
+ * soluseguros/formatoequidad se vea que no falta nada.
+ */
+async function initVersionAndPwa(){
+  const badge = document.getElementById("versionBadge");
+  if(badge) badge.hidden = true;
+  const instalar = document.getElementById("btnInstallApp");
+  if(instalar) instalar.remove();
+}
+
+async function initVersionAndPwaOriginal(){
+  setupInstallPrompt();
+  await loadRunningVersion();
+  announceUpdatedVersion();
+  setupServiceWorker();
+}
+
+// version.json lo entrega el service worker desde el caché de la versión activa
+// (o la red en la primera visita): es la versión que de verdad se está ejecutando.
+async function loadRunningVersion(){
+  try{
+    const res = await fetch("version.json");
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    appVersionInfo = await res.json();
+    APP_VERSION = String(appVersionInfo.version || "");
+  }catch(err){
+    console.warn("[PWA] No se pudo leer version.json:", err);
+  }
+  const badge = document.getElementById("versionBadge");
+  if(badge) badge.textContent = APP_VERSION ? "v" + APP_VERSION : "v?";
+}
+
+// Tras una actualización, cuenta qué cambió
+function announceUpdatedVersion(){
+  if(!APP_VERSION) return;
+  let previous = null;
+  try{
+    previous = localStorage.getItem(LAST_VERSION_KEY);
+    localStorage.setItem(LAST_VERSION_KEY, APP_VERSION);
+  }catch(e){}
+  if(previous && previous !== APP_VERSION){
+    const first = ((appVersionInfo && appVersionInfo.cambios) || [])[0];
+    setTimeout(() => showToast(`Actualizado a la v${APP_VERSION}.` + (first ? " " + first : "")), 2800);
+  }
+}
+
+function setupServiceWorker(){
+  if(!("serviceWorker" in navigator) || !APP_VERSION) return;
+
+  // En la primera visita el SW toma el control sin cambiar de versión: eso no recarga.
+  // Cualquier cambio posterior de controlador es una versión nueva: se recarga.
+  let controlled = !!navigator.serviceWorker.controller;
+  let reloading = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if(!controlled){
+      controlled = true;
+      return;
+    }
+    if(reloading) return;
+    reloading = true;
+    window.location.reload();
+  });
+
+  navigator.serviceWorker.register(swUrlFor(APP_VERSION), {updateViaCache: "none"})
+    .then(reg => {
+      swRegistration = reg;
+      if(reg.waiting && navigator.serviceWorker.controller) onUpdateReady(reg.waiting);
+      reg.addEventListener("updatefound", () => {
+        const worker = reg.installing;
+        if(!worker) return;
+        worker.addEventListener("statechange", () => {
+          if(worker.state === "installed" && navigator.serviceWorker.controller) onUpdateReady(worker);
+        });
+      });
+      checkForUpdate(false);
+    })
+    .catch(err => console.warn("[PWA] No se pudo registrar el service worker:", err));
+
+  // Una app instalada puede quedar abierta días: revisa al volver a ella y cada cierto tiempo
+  document.addEventListener("visibilitychange", () => {
+    if(document.visibilityState === "visible") checkForUpdate(false);
+  });
+  window.addEventListener("online", () => checkForUpdate(false));
+  window.addEventListener("offline", () => {
+    showToast("Sin conexión: puedes seguir diligenciando y generar el PDF.");
+  });
+  setInterval(() => checkForUpdate(false), UPDATE_CHECK_INTERVAL);
+
+  document.getElementById("versionBadge").addEventListener("click", () => checkForUpdate(true));
+  document.getElementById("btnApplyUpdate").addEventListener("click", applyUpdate);
+  document.getElementById("btnDismissUpdate").addEventListener("click", () => {
+    document.getElementById("updateBanner").classList.remove("is-visible");
+  });
+}
+
+function swUrlFor(version){
+  return "sw.js?v=" + encodeURIComponent(version);
+}
+
+function versionOfWorker(worker){
+  try{
+    return new URL(worker.scriptURL).searchParams.get("v") || "";
+  }catch(e){
+    return "";
+  }
+}
+
+async function fetchLatestVersion(){
+  const res = await fetch("version.json?check=" + Date.now(), {cache: "no-store"});
+  if(!res.ok) throw new Error("HTTP " + res.status);
+  latestVersionInfo = await res.json();
+  return latestVersionInfo;
+}
+
+async function checkForUpdate(manual){
+  if(!swRegistration || checkingUpdate) return;
+  if(waitingWorker){
+    if(manual) showUpdateBanner();
+    return;
+  }
+
+  checkingUpdate = true;
+  try{
+    const latest = await fetchLatestVersion();
+    // Distinta (no "mayor"): así también funciona volver a una versión anterior
+    if(latest.version && latest.version !== APP_VERSION){
+      if(manual) showToast(`Descargando la versión ${latest.version}...`);
+      // Registrar el SW de esa versión hace que el navegador la descargue completa;
+      // al terminar se dispara onUpdateReady.
+      await navigator.serviceWorker.register(swUrlFor(latest.version), {updateViaCache: "none"});
+    }else if(manual){
+      showToast(`Ya tienes la última versión (v${APP_VERSION}).`);
+    }
+  }catch(err){
+    console.warn("[PWA] No se pudo revisar la versión:", err);
+    if(manual){
+      showToast(navigator.onLine
+        ? "No se pudo buscar actualizaciones. Intenta de nuevo."
+        : "Sin conexión: no se pueden buscar actualizaciones ahora.");
+    }
+  }finally{
+    checkingUpdate = false;
+  }
+}
+
+function onUpdateReady(worker){
+  waitingWorker = worker;
+  // Sin nada diligenciado no hay nada que interrumpir: se actualiza de una vez
+  if(isFormEmpty()){
+    showToast(`Actualizando a la versión ${versionOfWorker(worker)}...`);
+    applyUpdate();
+  }else{
+    showUpdateBanner();
+  }
+}
+
+function isFormEmpty(){
+  return !Object.values(fields).some(v => String(v || "").trim())
+    && !hasSignature()
+    && !Object.keys(damageDrawings).length;
+}
+
+function showUpdateBanner(){
+  const version = waitingWorker ? versionOfWorker(waitingWorker) : "";
+  document.getElementById("updateTitle").textContent = version ? `Nueva versión ${version} lista` : "Nueva versión lista";
+  document.getElementById("updateText").textContent = "Lo que llevas diligenciado se conserva.";
+  document.getElementById("updateBanner").classList.add("is-visible");
+
+  // Agrega el primer cambio de la lista, si version.json corresponde a esa versión
+  const fill = info => {
+    const first = info && info.version === version && (info.cambios || [])[0];
+    if(first) document.getElementById("updateText").textContent = first + " Lo que llevas diligenciado se conserva.";
+  };
+  if(latestVersionInfo && latestVersionInfo.version === version) fill(latestVersionInfo);
+  else fetchLatestVersion().then(fill).catch(() => {});
+}
+
+function applyUpdate(){
+  if(!waitingWorker){
+    window.location.reload();
+    return;
+  }
+  // La página se recargará al activarse la versión nueva: se guarda ya lo pendiente
+  clearTimeout(saveTimer);
+  saveToStorage();
+  document.getElementById("updateBanner").classList.remove("is-visible");
+  waitingWorker.postMessage({type: "SKIP_WAITING"});
+}
+
+/* =============================
+   INSTALAR LA APP
+============================= */
+
+function isStandalone(){
+  return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+}
+
+function isIos(){
+  return /iphone|ipad|ipod/i.test(navigator.userAgent)
+    || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
+function setupInstallPrompt(){
+  const btn = document.getElementById("btnInstallApp");
+  const help = document.getElementById("installBanner");
+  if(!btn || isStandalone()) return;
+
+  // Android / Chrome / Edge: el navegador ofrece instalar y lo lanzamos desde el botón
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    btn.hidden = false;
+  });
+  window.addEventListener("appinstalled", () => {
+    deferredInstallPrompt = null;
+    btn.hidden = true;
+    help.classList.remove("is-visible");
+    showToast("App instalada. Ábrela desde la pantalla de inicio.");
+  });
+
+  // Safari en iPhone/iPad no ofrece instalar solo: el botón explica cómo hacerlo
+  if(isIos()) btn.hidden = false;
+
+  btn.addEventListener("click", async () => {
+    if(deferredInstallPrompt){
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      btn.hidden = true;
+    }else{
+      help.classList.add("is-visible");
+    }
+  });
+  document.getElementById("btnCloseInstall").addEventListener("click", () => {
+    help.classList.remove("is-visible");
+  });
+}
+
+/* =============================
+   AUTO-GUARDADO Y VALIDACIÓN
+============================= */
+
+let saveTimer = null;
+function scheduleSave(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveToStorage, 500);
+}
+
+function saveToStorage(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(fields));
+  }catch(e){
+    console.warn("No se pudo guardar en localStorage:", e);
+  }
+}
+
+function restoreFromStorage(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return;
+    const saved = JSON.parse(raw);
+    if(!saved || typeof saved !== "object") return;
+
+    let restoredCount = 0;
+    Object.assign(fields, saved);
+    document.querySelectorAll(".pdf-field").forEach(input=>{
+      const key = input.dataset.key;
+      if(saved[key] !== undefined && saved[key] !== ""){
+        input.value = saved[key];
+        restoredCount++;
+      }
+    });
+
+    updateFieldCount();
+    if(restoredCount > 0){
+      document.getElementById("restoredToast").style.display = "block";
+    }
+  }catch(e){
+    console.warn("No se pudo restaurar:", e);
+  }
+}
+
+function clearFormStorage(){
+  try{
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(SIG_KEY);
+  }catch(e){}
+}
+
+function clearForm(){
+  fields = {};
+  document.querySelectorAll(".pdf-field").forEach(input=>{
+    input.value = "";
+    input.classList.remove("is-invalid");
+  });
+  clearSignature();
+  clearDamageDrawings();
+  clearFormStorage();
+  hideMissingBanner();
+  document.getElementById("restoredToast").style.display = "none";
+  updateFieldCount();
+  updateAllFitNotes();
+  drawOverlay();
+  showStep(0);
+  showToast("Formulario limpio. Puedes empezar de nuevo.");
+}
+
+function markRequiredLabels(){
+  const required = new Set(REQUIRED_FIELDS.map(f => f.key));
+  document.querySelectorAll(".pdf-field").forEach(input=>{
+    if(required.has(input.dataset.key)){
+      const label = input.previousElementSibling;
+      if(label && label.tagName === "LABEL"){
+        label.classList.add("required");
+      }
+    }
+  });
+}
+
+function getMissingRequired(){
+  return REQUIRED_FIELDS.filter(f => !String(fields[f.key] || "").trim());
+}
+
+function showMissingBanner(missing){
+  const banner = document.getElementById("missingBanner");
+  const detail = document.getElementById("missingDetail");
+  const labels = missing.slice(0, 4).map(f => f.label).join(", ");
+  const more = missing.length > 4 ? ` y ${missing.length - 4} más` : "";
+  detail.textContent = `${missing.length} sin diligenciar: ${labels}${more}.`;
+  banner.style.display = "block";
+}
+
+function hideMissingBanner(){
+  document.getElementById("missingBanner").style.display = "none";
+  document.querySelectorAll(".pdf-field.is-invalid").forEach(el => el.classList.remove("is-invalid"));
+}
+
+function markMissingFields(missing){
+  document.querySelectorAll(".pdf-field.is-invalid").forEach(el => el.classList.remove("is-invalid"));
+  missing.forEach(f => {
+    const input = document.querySelector(`.pdf-field[data-key="${f.key}"]`);
+    if(input) input.classList.add("is-invalid");
+  });
+}
+
+function validateBeforeSave(){
+  // Sin campos obligatorios — siempre permite guardar.
+  hideMissingBanner();
+  if(!hasSignature()){
+    showToast("Nota: el PDF se generará sin firma. Puedes firmar en el paso 7 si lo necesitas.");
+  }
+  return true;
+}
+
+/* =============================
+   MODAL DE DIBUJO DE DAÑOS
+============================= */
+
+let activeDrawingKey = null;
+let drawingPainting = false;
+let drawingColor = "#e11d48";
+let drawingStrokeWidth = 2.5;
+
+function setupDamageDrawing(){
+  document.querySelectorAll(".draw-damage-btn").forEach(btn => {
+    const key = btn.dataset.damageKey;
+    refreshDamageBtn(btn, key);
+    btn.addEventListener("click", () => openDrawingModal(key));
+  });
+
+  document.getElementById("drawingModalClose").addEventListener("click", closeDrawingModal);
+  document.getElementById("btnModalCancel").addEventListener("click", closeDrawingModal);
+  document.getElementById("btnModalSave").addEventListener("click", saveDrawingFromModal);
+  document.getElementById("btnModalClear").addEventListener("click", clearDrawingPaint);
+
+  document.querySelectorAll(".color-swatch").forEach(sw => {
+    sw.addEventListener("click", () => {
+      document.querySelectorAll(".color-swatch").forEach(s => s.classList.remove("active"));
+      sw.classList.add("active");
+      drawingColor = sw.dataset.color;
+    });
+  });
+
+  document.getElementById("drawingStroke").addEventListener("input", (e) => {
+    drawingStrokeWidth = parseFloat(e.target.value);
+  });
+
+  // Cerrar al hacer click en el backdrop (fuera de la tarjeta)
+  document.getElementById("drawingModal").addEventListener("click", (e) => {
+    if(e.target.id === "drawingModal") closeDrawingModal();
+  });
+
+  setupDrawingCanvasEvents();
+}
+
+function refreshDamageBtn(btn, key){
+  if(damageDrawings[key]){
+    btn.classList.add("has-drawing");
+  }else{
+    btn.classList.remove("has-drawing");
+  }
+}
+
+async function openDrawingModal(key){
+  if(!pdfDoc){
+    showToast("La plantilla todavía no está cargada. Espera unos segundos.");
+    return;
+  }
+  const region = CAR_REGIONS[key];
+  if(!region) return;
+
+  activeDrawingKey = key;
+  document.getElementById("drawingModalTitle").textContent = region.label;
+
+  // Badge con color identificador del carro
+  const tag = document.getElementById("carTag");
+  if(tag){
+    tag.textContent = region.short;
+    tag.style.background = region.bg;
+    tag.style.color = region.color;
+    tag.style.borderColor = region.color + "55";
+  }
+
+  // Color del trazo por defecto: rojo (siempre visible sobre el carro negro)
+  drawingColor = "#e11d48";
+  document.querySelectorAll(".color-swatch").forEach(s => s.classList.remove("active"));
+  const firstSwatch = document.querySelector(".color-swatch[data-color='#e11d48']");
+  if(firstSwatch) firstSwatch.classList.add("active");
+
+  document.getElementById("drawingModal").classList.add("is-open");
+
+  await renderCarBackground(region);
+  loadExistingDrawing(key);
+}
+
+function closeDrawingModal(){
+  document.getElementById("drawingModal").classList.remove("is-open");
+  activeDrawingKey = null;
+}
+
+async function renderCarBackground(region){
+  const bgCanvas = document.getElementById("drawingBackground");
+  const paintCanvas = document.getElementById("drawingPaint");
+  const stage = document.getElementById("drawingStage");
+  const dpr = window.devicePixelRatio || 1;
+
+  // Tamaño visible del lienzo: ancho del modal con relación 64:42 del carro
+  const cssWidth = Math.min(460, stage.clientWidth || 320);
+  const cssHeight = Math.round(cssWidth * (region.height / region.width));
+
+  // Tamaño real (alta resolución) para nitidez
+  const intW = Math.round(cssWidth * dpr);
+  const intH = Math.round(cssHeight * dpr);
+
+  bgCanvas.style.width = cssWidth + "px";
+  bgCanvas.style.height = cssHeight + "px";
+  paintCanvas.style.width = cssWidth + "px";
+  paintCanvas.style.height = cssHeight + "px";
+
+  bgCanvas.width = intW;
+  bgCanvas.height = intH;
+  paintCanvas.width = intW;
+  paintCanvas.height = intH;
+
+  // Renderizar la página PDF a un canvas temporal de alta resolución y recortar la región
+  const page = await pdfDoc.getPage(region.page);
+  const fullScale = 4; // 4x para nitidez del recorte
+  const viewport = page.getViewport({scale: fullScale});
+  const tmp = document.createElement("canvas");
+  tmp.width = viewport.width;
+  tmp.height = viewport.height;
+  const tmpCtx = tmp.getContext("2d");
+  await page.render({canvasContext: tmpCtx, viewport: viewport}).promise;
+
+  // Calcular el recorte de la región
+  const scale = viewport.width / PDF_PAGE_W;
+  const sx = region.x * scale;
+  const sy = region.y * scale;
+  const sw = region.width * scale;
+  const sh = region.height * scale;
+
+  const bgCtx = bgCanvas.getContext("2d");
+  bgCtx.imageSmoothingEnabled = true;
+  bgCtx.imageSmoothingQuality = "high";
+  bgCtx.fillStyle = "#fff";
+  bgCtx.fillRect(0, 0, intW, intH);
+  bgCtx.drawImage(tmp, sx, sy, sw, sh, 0, 0, intW, intH);
+
+  // Preparar el canvas de pintura con DPR escalado
+  const paintCtx = paintCanvas.getContext("2d");
+  paintCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  paintCtx.lineCap = "round";
+  paintCtx.lineJoin = "round";
+  paintCtx.clearRect(0, 0, cssWidth, cssHeight);
+}
+
+function loadExistingDrawing(key){
+  if(!damageDrawings[key]) return;
+  const paintCanvas = document.getElementById("drawingPaint");
+  const paintCtx = paintCanvas.getContext("2d");
+  const img = new Image();
+  img.onload = () => {
+    const cssWidth = parseFloat(paintCanvas.style.width);
+    const cssHeight = parseFloat(paintCanvas.style.height);
+    paintCtx.drawImage(img, 0, 0, cssWidth, cssHeight);
+  };
+  img.src = damageDrawings[key];
+}
+
+function setupDrawingCanvasEvents(){
+  const paintCanvas = document.getElementById("drawingPaint");
+
+  let lastPoint = null;
+
+  paintCanvas.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    drawingPainting = true;
+    try{ paintCanvas.setPointerCapture(e.pointerId); }catch(err){}
+    lastPoint = getDrawingPos(e, paintCanvas);
+    const ctx = paintCanvas.getContext("2d");
+    ctx.strokeStyle = drawingColor;
+    ctx.lineWidth = drawingStrokeWidth;
+  });
+
+  paintCanvas.addEventListener("pointermove", (e) => {
+    if(!drawingPainting) return;
+    e.preventDefault();
+    const p = getDrawingPos(e, paintCanvas);
+    const ctx = paintCanvas.getContext("2d");
+    // Solo el tramo nuevo: re-pintar el trazo entero endurece los bordes
+    ctx.beginPath();
+    ctx.moveTo(lastPoint.x, lastPoint.y);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+    lastPoint = p;
+  });
+
+  const endStroke = () => { drawingPainting = false; };
+  paintCanvas.addEventListener("pointerup", endStroke);
+  paintCanvas.addEventListener("pointercancel", endStroke);
+  paintCanvas.addEventListener("pointerleave", endStroke);
+}
+
+function getDrawingPos(e, canvas){
+  const r = canvas.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+
+function clearDrawingPaint(){
+  const paintCanvas = document.getElementById("drawingPaint");
+  const paintCtx = paintCanvas.getContext("2d");
+  const cssWidth = parseFloat(paintCanvas.style.width);
+  const cssHeight = parseFloat(paintCanvas.style.height);
+  paintCtx.clearRect(0, 0, cssWidth, cssHeight);
+}
+
+function saveDrawingFromModal(){
+  if(!activeDrawingKey) return;
+  const paintCanvas = document.getElementById("drawingPaint");
+
+  // Verifica si el canvas tiene algún píxel pintado
+  const ctx = paintCanvas.getContext("2d");
+  const imgData = ctx.getImageData(0, 0, paintCanvas.width, paintCanvas.height);
+  let hasPixels = false;
+  for(let i = 3; i < imgData.data.length; i += 4){
+    if(imgData.data[i] > 0){ hasPixels = true; break; }
+  }
+
+  if(hasPixels){
+    damageDrawings[activeDrawingKey] = paintCanvas.toDataURL("image/png");
+    saveDamageToStorage();
+    showToast("Dibujo guardado.");
+  }else{
+    delete damageDrawings[activeDrawingKey];
+    saveDamageToStorage();
+    showToast("Dibujo vacío — no se guardó nada.");
+  }
+
+  // Refresca el botón para mostrar el check
+  const btn = document.querySelector(`.draw-damage-btn[data-damage-key="${activeDrawingKey}"]`);
+  if(btn) refreshDamageBtn(btn, activeDrawingKey);
+
+  closeDrawingModal();
+}
+
+function saveDamageToStorage(){
+  try{
+    localStorage.setItem(DAMAGE_STORAGE_KEY, JSON.stringify(damageDrawings));
+  }catch(e){
+    console.warn("No se pudo guardar dibujos:", e);
+  }
+}
+
+function restoreDamageFromStorage(){
+  try{
+    const raw = localStorage.getItem(DAMAGE_STORAGE_KEY);
+    if(!raw) return;
+    const parsed = JSON.parse(raw);
+    if(parsed && typeof parsed === "object"){
+      damageDrawings = parsed;
+      document.querySelectorAll(".draw-damage-btn").forEach(btn => {
+        refreshDamageBtn(btn, btn.dataset.damageKey);
+      });
+    }
+  }catch(e){
+    console.warn("No se pudieron restaurar dibujos:", e);
+  }
+}
+
+function clearDamageDrawings(){
+  damageDrawings = {};
+  try{ localStorage.removeItem(DAMAGE_STORAGE_KEY); }catch(e){}
+  document.querySelectorAll(".draw-damage-btn").forEach(btn => {
+    refreshDamageBtn(btn, btn.dataset.damageKey);
+  });
+}
+
+/* =============================
+   CARGAR PDF PARA EDITAR
+============================= */
+
+async function handlePdfUpload(file){
+  if(!file) return;
+  if(!/pdf$/i.test(file.name) && file.type !== "application/pdf"){
+    showToast("Por favor selecciona un archivo PDF.");
+    return;
+  }
+
+  try{
+    document.getElementById("loading").style.display = "flex";
+    document.querySelector("#loading h5").textContent = "Leyendo PDF";
+    document.querySelector("#loading p").textContent = "Buscando los datos del formulario.";
+
+    const buffer = await file.arrayBuffer();
+    const { PDFDocument } = PDFLib;
+    const doc = await PDFDocument.load(buffer);
+    const subject = doc.getSubject() || "";
+
+    let restored = null;
+    if(subject.startsWith(PDF_METADATA_PREFIX)){
+      try{
+        restored = JSON.parse(subject.slice(PDF_METADATA_PREFIX.length));
+      }catch(e){
+        console.warn("Metadata corrupta:", e);
+      }
+    }
+
+    if(restored && typeof restored === "object"){
+      // PDF generado por esta app: restauramos datos pero SEGUIMOS usando
+      // la plantilla en blanco original para no duplicar texto al re-dibujar.
+      fields = {};
+      Object.assign(fields, restored);
+      document.querySelectorAll(".pdf-field").forEach(input=>{
+        const key = input.dataset.key;
+        input.value = restored[key] !== undefined ? restored[key] : "";
+      });
+      // La plantilla original (plantilla.pdf) sigue cargada en pdfBytes/pdfDoc,
+      // que se inicializan en loadTemplate(). No las tocamos.
+      updateFieldCount();
+      updateAllFitNotes();
+      saveToStorage();
+      drawOverlay();
+      const total = Object.keys(restored).filter(k => String(restored[k]||"").trim()).length;
+      showToast(`Datos restaurados del PDF (${total} campos). Puedes editar y volver a guardar.`);
+    }else{
+      // PDF no generado por la app: lo tratamos como nueva plantilla
+      // (útil si quieres dibujar sobre otro PDF base).
+      const confirmUse = confirm(
+        "Este PDF no contiene datos del formulario. ¿Quieres usarlo como nueva plantilla en blanco para dibujar el formulario encima?"
+      );
+      if(confirmUse){
+        pdfBytes = buffer.slice(0);
+        pdfDoc = await pdfjsLib.getDocument({data: buffer.slice(0)}).promise;
+        pageCount = pdfDoc.numPages;
+        currentPage = 1;
+        document.getElementById("statusTemplate").textContent = "PDF cargado como plantilla";
+        renderCurrentPage();
+        showToast("PDF cargado como plantilla. Diligencia el formulario para dibujar sobre él.");
+      }else{
+        showToast("Operación cancelada.");
+      }
+    }
+  }catch(err){
+    console.error(err);
+    showToast("No se pudo leer el PDF. Asegúrate de que sea un PDF válido.");
+  }finally{
+    document.getElementById("loading").style.display = "none";
+    document.querySelector("#loading h5").textContent = "Preparando formulario";
+    document.querySelector("#loading p").textContent = "Cargando la plantilla y dejando todo listo para diligenciar.";
+  }
+}
+
+/* =============================
+   PASOS / UI
+============================= */
+
+function buildSteps(){
+  const box = document.getElementById("stepIndicator");
+  box.innerHTML = "";
+  STEPS.forEach((name,idx)=>{
+    const b = document.createElement("button");
+    b.className = "step-dot";
+    b.textContent = `${idx+1}. ${name}`;
+    b.onclick = () => showStep(idx);
+    box.appendChild(b);
+  });
+}
+
+function showStep(idx){
+  currentStep = idx;
+  document.querySelectorAll(".step").forEach(step=>{
+    step.style.display = Number(step.dataset.step) === idx ? "block" : "none";
+  });
+
+  document.querySelectorAll(".step-dot").forEach((btn,i)=>{
+    const isActive = i === idx;
+    btn.classList.toggle("active", isActive);
+    if(isActive && btn.scrollIntoView){
+      btn.scrollIntoView({behavior:"smooth", inline:"center", block:"nearest"});
+    }
+  });
+
+  document.getElementById("btnBack").disabled = idx === 0;
+  document.getElementById("btnNext").textContent = idx === STEPS.length - 1 ? "Guardar PDF" : "Siguiente";
+
+  if(idx === STEPS.length - 1){
+    document.getElementById("viewerCard").style.display = "block";
+    requestAnimationFrame(resizeSignatureCanvas);
+    setTimeout(renderCurrentPage, 150);
+  }
+}
+
+function bindButtons(){
+  document.getElementById("btnBack").onclick = () => {
+    if(currentStep > 0) showStep(currentStep - 1);
+  };
+
+  document.getElementById("btnNext").onclick = async () => {
+    if(currentStep < STEPS.length - 1){
+      showStep(currentStep + 1);
+    }else{
+      if(validateBeforeSave()) await savePdf();
+    }
+  };
+
+  const btnSaveDesktop = document.getElementById("btnSaveDesktop");
+  if(btnSaveDesktop){
+    btnSaveDesktop.onclick = async () => {
+      if(validateBeforeSave()) await savePdf();
+    };
+  }
+
+  document.getElementById("btnClearForm").onclick = () => {
+    if(confirm("¿Seguro que quieres borrar todo el formulario? Esta acción no se puede deshacer.")){
+      clearForm();
+    }
+  };
+
+  const dismissBtn = document.getElementById("btnDismissRestored");
+  if(dismissBtn){
+    dismissBtn.onclick = () => {
+      document.getElementById("restoredToast").style.display = "none";
+    };
+  }
+
+  const clearRestoredBtn = document.getElementById("btnClearRestored");
+  if(clearRestoredBtn){
+    clearRestoredBtn.onclick = () => {
+      document.getElementById("restoredToast").style.display = "none";
+      if(confirm("¿Borrar los datos restaurados y empezar de cero?")){
+        clearForm();
+      }
+    };
+  }
+
+  const uploadInput = document.getElementById("pdfUploadInput");
+  if(uploadInput){
+    uploadInput.addEventListener("change", (e) => {
+      const file = e.target.files && e.target.files[0];
+      if(file) handlePdfUpload(file);
+      e.target.value = ""; // permite re-cargar el mismo archivo
+    });
+  }
+
+  const uploadHeaderBtn = document.getElementById("btnUploadHeader");
+  if(uploadHeaderBtn){
+    uploadHeaderBtn.addEventListener("click", () => {
+      uploadInput && uploadInput.click();
+    });
+  }
+
+  // Toggle del preview (en móvil arranca cerrado, en desktop abierto)
+  const viewerCard = document.getElementById("viewerCard");
+  const viewerToggle = document.getElementById("viewerToggle");
+  const isMobile = window.innerWidth < 900;
+  if(isMobile){
+    viewerCard.classList.add("viewer-collapsed");
+  }
+  if(viewerToggle){
+    viewerToggle.addEventListener("click", () => {
+      const wasCollapsed = viewerCard.classList.contains("viewer-collapsed");
+      viewerCard.classList.toggle("viewer-collapsed");
+      if(wasCollapsed){
+        // Al abrir, re-renderizamos para que el contenido cargue correctamente
+        setTimeout(renderCurrentPage, 60);
+      }
+    });
+  }
+
+  document.getElementById("btnShowPreview").onclick = () => {
+    const vc = document.getElementById("viewerCard");
+    vc.style.display = "block";
+    vc.classList.remove("viewer-collapsed");
+    setTimeout(renderCurrentPage, 60);
+    vc.scrollIntoView({behavior:"smooth", block:"start"});
+  };
+
+  document.getElementById("prevPage").onclick = () => {
+    if(currentPage > 1){
+      currentPage--;
+      renderCurrentPage();
+    }
+  };
+
+  document.getElementById("nextPage").onclick = () => {
+    if(currentPage < pageCount){
+      currentPage++;
+      renderCurrentPage();
+    }
+  };
+
+  document.getElementById("zoomIn").onclick = () => {
+    zoom = Math.min(2.2, zoom + .15);
+    renderCurrentPage();
+  };
+
+  document.getElementById("zoomOut").onclick = () => {
+    zoom = Math.max(.45, zoom - .15);
+    renderCurrentPage();
+  };
+
+  document.getElementById("btnClearSignature").onclick = () => {
+    clearSignature();
+    showToast("Firma limpiada.");
+  };
+}
+
+function applyMobileInputHints(input, key){
+  // Sin pisar attributes que ya haya puesto el HTML (tipo email, date)
+  if(input.type === "date" || input.type === "email") return;
+  const k = key.toLowerCase();
+  if(/(telefono|celular)/.test(k)){
+    input.setAttribute("inputmode","tel");
+    input.setAttribute("autocomplete","tel");
+  }else if(/(cedula|numdoc|nit)/.test(k)){
+    input.setAttribute("inputmode","numeric");
+    input.setAttribute("autocomplete","off");
+  }else if(/(edad|placa)/.test(k)){
+    // Placa es alfanumérica (ABC123); edad numérica
+    if(/edad/.test(k)) input.setAttribute("inputmode","numeric");
+    input.setAttribute("autocomplete","off");
+  }else if(/(correo|email)/.test(k)){
+    input.setAttribute("inputmode","email");
+    input.setAttribute("autocomplete","email");
+  }else if(/(nombre|tomador|asegurado|declarante|conductor|propietario)/.test(k)){
+    input.setAttribute("autocomplete","name");
+  }else if(/(direccion)/.test(k)){
+    input.setAttribute("autocomplete","street-address");
+  }else if(/(ciudad|municipio)/.test(k)){
+    input.setAttribute("autocomplete","address-level2");
+  }
+}
+
+function bindInputs(){
+  document.querySelectorAll(".pdf-field").forEach(input=>{
+    const key = input.dataset.key;
+    fields[key] = input.value || "";
+    applyMobileInputHints(input, key);
+
+    input.addEventListener("input",()=>{
+      fields[key] = input.value || "";
+      input.classList.remove("is-invalid");
+      hideMissingBannerIfResolved();
+      updateFieldCount();
+      scheduleSave();
+      scheduleFitNote(key);
+      if(document.getElementById("viewerCard").style.display !== "none"){
+        scheduleOverlay();
+      }
+    });
+
+    input.addEventListener("change",()=>{
+      fields[key] = input.value || "";
+      input.classList.remove("is-invalid");
+      hideMissingBannerIfResolved();
+      updateFieldCount();
+      scheduleSave();
+      scheduleFitNote(key);
+      scheduleOverlay();
+    });
+  });
+}
+
+function hideMissingBannerIfResolved(){
+  const banner = document.getElementById("missingBanner");
+  if(banner.style.display === "none") return;
+  if(getMissingRequired().length === 0){
+    hideMissingBanner();
+  }
+}
+
+function updateFieldCount(){
+  const count = Object.values(fields).filter(v => String(v || "").trim()).length;
+  document.getElementById("statusFields").textContent = `Campos: ${count}`;
+}
+
+function showToast(msg){
+  const toast = document.getElementById("toastApp");
+  document.getElementById("toastText").textContent = msg;
+  toast.style.display = "block";
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(()=> toast.style.display = "none", 2600);
+}
+
+/* =============================
+   PDF PREVIEW
+============================= */
+
+async function loadTemplate(){
+  const res = await fetch(TEMPLATE_URL);
+  if(!res.ok) throw new Error("No se encontró plantilla.pdf");
+  pdfBytes = await res.arrayBuffer();
+  pdfDoc = await pdfjsLib.getDocument({data:pdfBytes}).promise;
+  pageCount = pdfDoc.numPages;
+  document.getElementById("pageInfo").textContent = `Página ${currentPage} / ${pageCount}`;
+  document.getElementById("statusTemplate").textContent = "Plantilla cargada";
+}
+
+function getPreviewRenderRatio(cssVp){
+  const dpr = window.devicePixelRatio || 1;
+
+  // Balance entre nitidez y velocidad.
+  // Antes se usaba hasta 3x al abrir, lo cual demoraba mucho en celulares.
+  let ratio = window.innerWidth < 900
+    ? Math.min(2.0, Math.max(1.45, dpr))
+    : Math.min(2.2, Math.max(1.35, dpr));
+
+  // Límite de seguridad: evita canvas gigantes que congelan teléfonos.
+  if(cssVp){
+    const maxPixels = window.innerWidth < 900 ? 1800000 : 2600000;
+    const pixels = cssVp.width * cssVp.height * ratio * ratio;
+    if(pixels > maxPixels){
+      ratio = Math.sqrt(maxPixels / (cssVp.width * cssVp.height));
+    }
+  }
+
+  return Math.max(1.25, ratio);
+}
+
+async function renderCurrentPage(){
+  if(!pdfDoc){
+    document.getElementById("pageInfo").textContent = "Cargando PDF...";
+    const placeholder = document.getElementById("pdfPlaceholder");
+    if(placeholder) placeholder.style.display = "flex";
+    return;
+  }
+
+  const job = ++renderJob;
+  const page = await pdfDoc.getPage(currentPage);
+  if(job !== renderJob) return;
+
+  const cssVp = page.getViewport({scale:zoom});
+  renderRatio = getPreviewRenderRatio(cssVp);
+  const renderVp = page.getViewport({scale:zoom * renderRatio});
+
+  pdfCanvas.width = Math.floor(renderVp.width);
+  pdfCanvas.height = Math.floor(renderVp.height);
+  drawCanvas.width = Math.floor(renderVp.width);
+  drawCanvas.height = Math.floor(renderVp.height);
+
+  pdfCanvas.style.width = `${cssVp.width}px`;
+  pdfCanvas.style.height = `${cssVp.height}px`;
+  drawCanvas.style.width = `${cssVp.width}px`;
+  drawCanvas.style.height = `${cssVp.height}px`;
+
+  pdfCtx.setTransform(1,0,0,1,0,0);
+  overlayCtx.setTransform(1,0,0,1,0,0);
+  pdfCtx.clearRect(0,0,pdfCanvas.width,pdfCanvas.height);
+  overlayCtx.clearRect(0,0,drawCanvas.width,drawCanvas.height);
+
+  const placeholder = document.getElementById("pdfPlaceholder");
+  if(placeholder) placeholder.style.display = "none";
+
+  document.getElementById("pageInfo").textContent = `Cargando página ${currentPage}...`;
+
+  await page.render({canvasContext:pdfCtx, viewport:renderVp}).promise;
+  if(job !== renderJob) return;
+
+  previewRendered = true;
+  document.getElementById("pageInfo").textContent = `Página ${currentPage} / ${pageCount}`;
+  drawOverlay();
+}
+
+function getDrawableItems(){
+  const base = Object.keys(FIELD_MAP).map(key => ({
+    key,
+    sourceKey: key,
+    cfg: FIELD_MAP[key],
+    value: fields[key]
+  }));
+
+  const extras = Object.keys(EXTRA_FIELD_MAP).map(key => {
+    const cfg = EXTRA_FIELD_MAP[key];
+    const sources = [].concat(cfg.source);
+    const sourceKey = sources.find(s => String(fields[s] || "").trim()) || sources[0];
+    return {
+      key,
+      sourceKey,
+      cfg,
+      value: fields[sourceKey]
+    };
+  });
+
+  return base.concat(extras);
+}
+
+/* =============================
+   TEXTO COMPATIBLE CON EL PDF
+============================= */
+
+// La fuente estándar del PDF (Helvetica) solo conoce la codificación WinAnsi.
+// Cualquier otro carácter (emojis, espacios invisibles que vienen al copiar de
+// WhatsApp o Word, flechas...) hacía que pdf-lib lanzara un error y el PDF no se
+// generaba. Por eso todo texto se normaliza antes de medirlo o dibujarlo.
+const WIN_ANSI_EXTRA = new Set(Array.from("€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ", ch => ch.codePointAt(0)));
+const CHAR_REPLACEMENTS = {
+  "→":"->", "⇒":"=>", "←":"<-", "↔":"<->", "≥":">=", "≤":"<=", "≠":"<>",
+  "−":"-", "‐":"-", "‑":"-", "‒":"-", "―":"-", "′":"'", "″":"\"", "№":"No.",
+  "●":"•", "▪":"•", "◦":"•", "‣":"•", "⁃":"-", "✓":"", "✔":"", "✗":"x", "✘":"x"
+};
+
+function isWinAnsi(cp){
+  return (cp >= 0x20 && cp <= 0x7e) || (cp >= 0xa1 && cp <= 0xff && cp !== 0xad) || WIN_ANSI_EXTRA.has(cp);
+}
+
+function toPdfTextInfo(value){
+  let dropped = false;
+  let out = "";
+  const src = String(value ?? "")
+    .normalize("NFC")
+    .replace(/[­​-‏‪-‮⁠-⁤﻿︀-️]/g, "")
+    .replace(/\s+/g, " ");
+
+  for(const ch of src){
+    if(isWinAnsi(ch.codePointAt(0))){
+      out += ch;
+    }else if(CHAR_REPLACEMENTS[ch] !== undefined){
+      out += CHAR_REPLACEMENTS[ch];
+    }else{
+      // Letras con tildes poco comunes (ő, ț...) se cambian por su letra base
+      const base = ch.normalize("NFD").replace(/[̀-ͯ]/g, "");
+      if(base && Array.from(base).every(c => isWinAnsi(c.codePointAt(0)))){
+        out += base;
+      }else{
+        out += "\u0000";   // marca temporal donde había un emoji o símbolo
+        dropped = true;
+      }
+    }
+  }
+
+  out = out
+    .replace(/ ?\u0000+(?=[.,;:!?)]|$)/g, "")   // "partida 💥, capó" -> "partida, capó"
+    .replace(/\u0000+/g, "")
+    .replace(/ {2,}/g, " ")
+    .trim();
+  return { text: out, dropped };
+}
+
+function toPdfText(value){
+  return toPdfTextInfo(value).text;
+}
+
+/* =============================
+   DISTRIBUCIÓN DEL TEXTO EN LAS CASILLAS
+   La misma para la vista previa y para el PDF.
+============================= */
+
+const SIZE_STEP = 0.25;
+
+// Fuentes de pdf-lib usadas solo para medir: así la vista previa parte las
+// líneas exactamente igual que el PDF final.
+let metricsFont = null;
+let metricsFontBold = null;
+const measureCtx = document.createElement("canvas").getContext("2d");
+
+async function initMetricsFonts(){
+  const doc = await PDFLib.PDFDocument.create();
+  metricsFont = await doc.embedFont(PDFLib.StandardFonts.Helvetica);
+  metricsFontBold = await doc.embedFont(PDFLib.StandardFonts.HelveticaBold);
+}
+
+function fontMeasure(font){
+  return (text, size) => font.widthOfTextAtSize(text, size);
+}
+
+function getMeasure(bold){
+  const font = bold ? metricsFontBold : metricsFont;
+  if(font) return fontMeasure(font);
+  // Respaldo mientras cargan las fuentes de medición
+  return (text, size) => {
+    measureCtx.font = `${bold ? "bold " : ""}${size}px Helvetica, Arial, sans-serif`;
+    return measureCtx.measureText(text).width;
+  };
+}
+
+function buildLayouts(cfg){
+  const minSize = cfg.minSize || Math.min(cfg.size, 5.5);
+  if(cfg.slots) return [{slots: cfg.slots, minSize}];
+
+  const main = {x: cfg.x, y: cfg.y, w: cfg.w, lines: cfg.lines || 1, lineHeight: cfg.lineHeight, box: cfg.box, minSize};
+  if(!cfg.alt) return [main];
+
+  // Si no cabe con buen tamaño en su sitio, se pasa al espacio libre encima del rótulo
+  main.minSize = Math.max(minSize, Math.min(cfg.size, 6.5));
+  return [main, {x: cfg.alt.x, y: cfg.alt.y, w: cfg.alt.w, lines: 1, minSize}];
+}
+
+function layoutWidths(layout){
+  return layout.slots ? layout.slots.map(s => s.w) : new Array(layout.lines).fill(layout.w);
+}
+
+// Reparte las palabras en renglones de ancho widths[i]. Devuelve null si no caben
+// (salvo con allowOverflow, que sigue usando el ancho del último renglón).
+function wrapWords(text, widths, size, measure, allowOverflow){
+  const words = String(text).split(" ").filter(Boolean);
+  const lines = [];
+  let line = "";
+  const widthAt = i => widths[Math.min(i, widths.length - 1)];
+  const pushLine = () => {
+    lines.push(line);
+    line = "";
+    return allowOverflow || lines.length < widths.length;
+  };
+
+  for(const word of words){
+    let rest = word;
+    while(rest){
+      const avail = widthAt(lines.length);
+      const test = line ? line + " " + rest : rest;
+      if(measure(test, size) <= avail){
+        line = test;
+        break;
+      }
+      if(line){
+        if(!pushLine()) return null;
+        continue;
+      }
+      // Palabra sola más ancha que el renglón: se parte por caracteres
+      let cut = "";
+      for(const ch of rest){
+        if(cut && measure(cut + ch, size) > avail) break;
+        cut += ch;
+      }
+      line = cut;
+      rest = rest.slice(cut.length);
+      if(rest && !pushLine()) return null;
+    }
+  }
+  if(line) lines.push(line);
+  if(!allowOverflow && lines.length > widths.length) return null;
+  return lines;
+}
+
+function placeLines(layout, lines, size, cfg, measure){
+  const lineHeight = layout.lineHeight || size * 1.18;
+  return lines.map((text, i) => {
+    let x, y, w;
+    if(layout.slots){
+      ({x, y, w} = layout.slots[i]);
+    }else{
+      x = layout.x;
+      w = layout.w;
+      if(layout.box){
+        // Centrado vertical en la celda (0.36 ≈ media altura de mayúsculas de Helvetica)
+        const mid = (layout.box[0] + layout.box[1]) / 2;
+        y = mid + size * 0.36 + (i - (lines.length - 1) / 2) * lineHeight;
+      }else{
+        y = layout.y + i * lineHeight;
+      }
+    }
+    if(cfg.align === "center") x += Math.max(0, (w - measure(text, size)) / 2);
+    return {text, x, y};
+  });
+}
+
+function overflowSuffix(width){
+  if(width >= 110) return " ... (ver anexo)";
+  if(width >= 45) return "... (anexo)";
+  return "...";
+}
+
+function cutToWidth(text, width, size, measure, suffix){
+  let cut = "";
+  for(const ch of text){
+    if(measure(cut + ch + suffix, size) > width) break;
+    cut += ch;
+  }
+  // Mejor cortar en un espacio que a mitad de palabra
+  const space = cut.lastIndexOf(" ");
+  if(cut.length < text.length && space > cut.length * 0.6) cut = cut.slice(0, space);
+  return cut.trimEnd() + suffix;
+}
+
+function layoutField(text, cfg, measure){
+  const layouts = buildLayouts(cfg);
+  for(const layout of layouts){
+    const widths = layoutWidths(layout);
+    for(let size = cfg.size; size >= layout.minSize - 0.001; size = +(size - SIZE_STEP).toFixed(2)){
+      const lines = wrapWords(text, widths, size, measure, false);
+      if(lines) return {size, lines: placeLines(layout, lines, size, cfg, measure), truncated: false};
+    }
+  }
+
+  // Ni al tamaño mínimo cabe: se corta aquí y el texto completo va a la hoja anexa
+  const layout = layouts[layouts.length - 1];
+  const widths = layoutWidths(layout);
+  const size = layout.minSize;
+  const all = wrapWords(text, widths, size, measure, true);
+  const lines = all.slice(0, widths.length);
+  const last = lines.length - 1;
+  lines[last] = cutToWidth(all.slice(last).join(" "), widths[last], size, measure, overflowSuffix(widths[last]));
+  return {size, lines: placeLines(layout, lines, size, cfg, measure), truncated: true};
+}
+
+// Calcula qué dibujar para un campo, en coordenadas de la plantilla.
+function renderItem(item, measure, measureBold){
+  const cfg = item.cfg;
+  const raw = item.value;
+  if(!String(raw ?? "").trim()) return null;
+
+  if(cfg.marks){
+    const pos = cfg.marks[String(raw).toUpperCase().trim()];
+    if(!pos) return null;
+    return {mark: {x: pos.x - measureBold("X", cfg.size) / 2, y: pos.y, size: cfg.size}};
+  }
+
+  const {text, dropped} = toPdfTextInfo(formatValueForField(item.key, raw, cfg));
+  if(!text) return {dropped, lines: [], size: cfg.size};
+  const fit = layoutField(text, cfg, measure);
+  return {cover: cfg.cover || null, size: fit.size, lines: fit.lines, truncated: fit.truncated, dropped};
+}
+
+/* =============================
+   AVISOS DE TEXTO LARGO O SÍMBOLOS
+============================= */
+
+const fitNoteTimers = {};
+
+function scheduleFitNote(key){
+  clearTimeout(fitNoteTimers[key]);
+  fitNoteTimers[key] = setTimeout(() => updateFitNote(key), 250);
+}
+
+function analyzeFieldFit(key){
+  const measure = getMeasure(false);
+  const measureBold = getMeasure(true);
+  const res = {truncated: false, dropped: false};
+  getDrawableItems().forEach(item => {
+    if(item.sourceKey !== key) return;
+    const r = renderItem(item, measure, measureBold);
+    if(!r) return;
+    if(r.truncated) res.truncated = true;
+    if(r.dropped) res.dropped = true;
+  });
+  return res;
+}
+
+function updateFitNote(key){
+  const input = document.querySelector(`.pdf-field[data-key="${key}"]`);
+  if(!input || input.tagName === "SELECT") return;
+  const {truncated, dropped} = analyzeFieldFit(key);
+
+  let note = input.nextElementSibling;
+  if(!note || !note.classList.contains("fit-note")){
+    if(!truncated && !dropped) return;
+    note = document.createElement("div");
+    note.className = "fit-note";
+    input.insertAdjacentElement("afterend", note);
+  }
+
+  const msgs = [];
+  if(truncated) msgs.push("No cabe completo en la casilla del formulario: se imprimirá completo en una hoja anexa al final del PDF.");
+  if(dropped) msgs.push("Los emojis y algunos símbolos especiales no se pueden imprimir en el PDF y se omitirán.");
+  note.textContent = msgs.join(" ");
+  note.style.display = msgs.length ? "block" : "none";
+}
+
+function updateAllFitNotes(){
+  document.querySelectorAll(".pdf-field").forEach(input => updateFitNote(input.dataset.key));
+}
+
+function getFieldLabel(key){
+  const groups = {t: "Vehículo tercero", l: "Lesionado", f: "Fallecido"};
+  const input = document.querySelector(`.pdf-field[data-key="${key}"]`);
+  const holder = input && (input.closest("[class*='col-']") || input.parentElement);
+  const labelEl = holder && holder.querySelector("label");
+  let label = labelEl ? labelEl.textContent.trim() : key;
+  const m = key.match(/^([tlf])([1-3])[A-Z]/);
+  if(m) label = `${groups[m[1]]} ${m[2]} - ${label}`;
+  return label;
+}
+
+/* =============================
+   VISTA PREVIA
+============================= */
+
+let overlayFrame = 0;
+function scheduleOverlay(){
+  if(overlayFrame) return;
+  overlayFrame = requestAnimationFrame(() => {
+    overlayFrame = 0;
+    drawOverlay();
+  });
+}
+
+function drawOverlay(){
+  if(!drawCanvas.width || !drawCanvas.height) return;
+  overlayCtx.setTransform(1,0,0,1,0,0);
+  overlayCtx.clearRect(0,0,drawCanvas.width,drawCanvas.height);
+
+  // Se dibuja en puntos de la plantilla: exactamente la misma geometría que el PDF
+  const k = renderRatio * zoom;
+  overlayCtx.setTransform(k,0,0,k,0,0);
+  overlayCtx.textBaseline = "alphabetic";
+  const measure = getMeasure(false);
+  const measureBold = getMeasure(true);
+
+  getDrawableItems().forEach(item=>{
+    if(item.cfg.page !== currentPage) return;
+    const r = renderItem(item, measure, measureBold);
+    if(!r) return;
+
+    if(r.mark){
+      overlayCtx.fillStyle = "#000";
+      overlayCtx.font = `bold ${r.mark.size}px Helvetica, Arial, sans-serif`;
+      overlayCtx.fillText("X", r.mark.x, r.mark.y);
+      return;
+    }
+
+    if(r.cover){
+      overlayCtx.fillStyle = "#fff";
+      overlayCtx.fillRect(r.cover[0], r.cover[1], r.cover[2], r.cover[3]);
+    }
+    overlayCtx.fillStyle = "#000";
+    overlayCtx.font = `${r.size}px Helvetica, Arial, sans-serif`;
+    r.lines.forEach(ln => overlayCtx.fillText(ln.text, ln.x, ln.y));
+  });
+
+  if(currentPage === SIGNATURE_BOX.page && hasSignature()){
+    drawSignatureOnCanvas(overlayCtx, SIGNATURE_BOX);
+  }
+}
+
+/* =============================
+   FIRMA
+   Se guarda como trazos vectoriales (puntos en px CSS del panel), no como imagen:
+   se redibuja nítida a cualquier tamaño, no se deforma al cambiar el tamaño de la
+   pantalla y entra al PDF como vector.
+============================= */
+
+const SIG_PAD_LINE = 2.6;   // grosor del trazo en el panel (px CSS)
+const SIG_INK = "#0f172a";
+
+let sigStrokes = [];        // [[[x,y], ...], ...]
+let sigActive = null;
+let sigPointerId = null;
+let sigCssW = 0;
+
+function hasSignature(){
+  return sigStrokes.length > 0;
+}
+
+function applyInkStyle(ctx, width){
+  ctx.lineWidth = width;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = SIG_INK;
+  ctx.fillStyle = SIG_INK;
+}
+
+function midPoint(a, b){
+  return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+}
+
+// Trazo suavizado con curvas entre los puntos medios
+function traceStroke(ctx, st){
+  if(!st.length) return;
+  ctx.beginPath();
+  if(st.length === 1){
+    ctx.arc(st[0][0], st[0][1], ctx.lineWidth / 2, 0, Math.PI * 2);
+    ctx.fill();
+    return;
+  }
+  ctx.moveTo(st[0][0], st[0][1]);
+  for(let i = 1; i < st.length - 1; i++){
+    const m = midPoint(st[i], st[i + 1]);
+    ctx.quadraticCurveTo(st[i][0], st[i][1], m[0], m[1]);
+  }
+  const last = st[st.length - 1];
+  ctx.lineTo(last[0], last[1]);
+  ctx.stroke();
+}
+
+function setupSignatureCanvas(){
+  try{ localStorage.removeItem(SIG_KEY_LEGACY); }catch(e){}
+
+  // El panel se dimensiona cuando de verdad se ve (el paso 7 arranca oculto)
+  if("ResizeObserver" in window){
+    new ResizeObserver(() => resizeSignatureCanvas()).observe(signatureCanvas);
+  }else{
+    window.addEventListener("resize", resizeSignatureCanvas);
+  }
+
+  signatureCanvas.addEventListener("pointerdown", startSignature);
+  signatureCanvas.addEventListener("pointermove", moveSignature);
+  window.addEventListener("pointerup", endSignature);
+  window.addEventListener("pointercancel", endSignature);
+  resizeSignatureCanvas();
+}
+
+function resizeSignatureCanvas(){
+  const box = signatureCanvas.getBoundingClientRect();
+  if(!box.width || !box.height) return;
+  const ratio = window.devicePixelRatio || 1;
+  const w = Math.round(box.width * ratio);
+  const h = Math.round(box.height * ratio);
+  if(signatureCanvas.width === w && signatureCanvas.height === h) return;
+  signatureCanvas.width = w;
+  signatureCanvas.height = h;
+  sigCssW = box.width;
+  redrawSignaturePad();
+}
+
+function redrawSignaturePad(){
+  const ratio = sigCssW ? signatureCanvas.width / sigCssW : 1;
+  sigCtx.setTransform(1,0,0,1,0,0);
+  sigCtx.clearRect(0,0,signatureCanvas.width,signatureCanvas.height);
+  sigCtx.setTransform(ratio,0,0,ratio,0,0);
+  applyInkStyle(sigCtx, SIG_PAD_LINE);
+  sigStrokes.forEach(st => traceStroke(sigCtx, st));
+  updateSignatureHint();
+}
+
+function updateSignatureHint(){
+  const box = document.getElementById("signatureBox");
+  if(box) box.classList.toggle("has-signature", hasSignature());
+}
+
+function signaturePos(e){
+  const r = signatureCanvas.getBoundingClientRect();
+  return [Math.round((e.clientX - r.left) * 10) / 10, Math.round((e.clientY - r.top) * 10) / 10];
+}
+
+function startSignature(e){
+  if(sigPointerId !== null) return;              // ignora un segundo dedo
+  if(e.pointerType === "mouse" && e.button !== 0) return;
+  e.preventDefault();
+  resizeSignatureCanvas();
+  sigPointerId = e.pointerId;
+  try{ signatureCanvas.setPointerCapture(e.pointerId); }catch(err){}
+  sigActive = [signaturePos(e)];
+  sigStrokes.push(sigActive);
+  applyInkStyle(sigCtx, SIG_PAD_LINE);
+  updateSignatureHint();
+}
+
+function moveSignature(e){
+  if(e.pointerId !== sigPointerId || !sigActive) return;
+  e.preventDefault();
+  // Los eventos agrupados dan muchos más puntos en celulares: trazo más fiel
+  const coalesced = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
+  (coalesced.length ? coalesced : [e]).forEach(ev => addSignaturePoint(signaturePos(ev)));
+  scheduleOverlay();
+}
+
+function addSignaturePoint(p){
+  const st = sigActive;
+  const prev = st[st.length - 1];
+  if(Math.abs(p[0] - prev[0]) + Math.abs(p[1] - prev[1]) < 1) return;
+  st.push(p);
+  // Solo el tramo nuevo: de punto medio a punto medio con el punto anterior como control
+  const n = st.length;
+  const a = n > 2 ? midPoint(st[n - 3], st[n - 2]) : st[0];
+  const b = midPoint(st[n - 2], st[n - 1]);
+  sigCtx.beginPath();
+  sigCtx.moveTo(a[0], a[1]);
+  sigCtx.quadraticCurveTo(st[n - 2][0], st[n - 2][1], b[0], b[1]);
+  sigCtx.stroke();
+}
+
+function endSignature(e){
+  if(e.pointerId !== sigPointerId) return;
+  sigPointerId = null;
+  const st = sigActive;
+  sigActive = null;
+  if(!st) return;
+
+  if(st.length === 1){
+    traceStroke(sigCtx, st);    // un toque deja un punto
+  }else{
+    const n = st.length;
+    const a = midPoint(st[n - 2], st[n - 1]);
+    sigCtx.beginPath();
+    sigCtx.moveTo(a[0], a[1]);
+    sigCtx.lineTo(st[n - 1][0], st[n - 1][1]);
+    sigCtx.stroke();
+  }
+  saveSignature();
+  scheduleOverlay();
+}
+
+function saveSignature(){
+  try{
+    if(hasSignature()) localStorage.setItem(SIG_KEY, JSON.stringify(sigStrokes));
+    else localStorage.removeItem(SIG_KEY);
+  }catch(e){
+    console.warn("No se pudo guardar la firma:", e);
+  }
+}
+
+function restoreSignature(){
+  try{
+    const raw = localStorage.getItem(SIG_KEY);
+    if(!raw) return;
+    const data = JSON.parse(raw);
+    const valid = Array.isArray(data) && data.every(st =>
+      Array.isArray(st) && st.length && st.every(p => Array.isArray(p) && p.length === 2 && isFinite(p[0]) && isFinite(p[1]))
+    );
+    if(!valid) return;
+    sigStrokes = data;
+    redrawSignaturePad();
+    scheduleOverlay();
+  }catch(e){
+    console.warn("No se pudo restaurar la firma:", e);
+  }
+}
+
+function clearSignature(){
+  sigStrokes = [];
+  sigActive = null;
+  sigPointerId = null;
+  redrawSignaturePad();
+  saveSignature();
+  scheduleOverlay();
+}
+
+function getSignatureBounds(){
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  sigStrokes.forEach(st => st.forEach(([x, y]) => {
+    if(x < minX) minX = x;
+    if(x > maxX) maxX = x;
+    if(y < minY) minY = y;
+    if(y > maxY) maxY = y;
+  }));
+  if(minX === Infinity) return null;
+  const pad = SIG_PAD_LINE / 2;
+  return {minX: minX - pad, minY: minY - pad, w: maxX - minX + pad * 2, h: maxY - minY + pad * 2};
+}
+
+// Ubica la firma dentro de box (coordenadas de plantilla) sin deformarla:
+// centrada a lo ancho y apoyada sobre la línea de abajo.
+function getSignatureLayout(box){
+  const b = getSignatureBounds();
+  if(!b) return null;
+  const s = Math.min(box.width / b.w, box.height / b.h, 0.9);
+  return {
+    s,
+    minX: b.minX,
+    minY: b.minY,
+    left: box.x + (box.width - b.w * s) / 2,
+    top: box.y + box.height - b.h * s,
+    // Grosor de bolígrafo, sin importar cuánto se haya reducido el trazo
+    lineWidth: Math.min(1.25, Math.max(0.7, SIG_PAD_LINE * s))
+  };
+}
+
+function drawSignatureOnCanvas(ctx, box){
+  const lay = getSignatureLayout(box);
+  if(!lay) return;
+  ctx.save();
+  ctx.translate(lay.left - lay.minX * lay.s, lay.top - lay.minY * lay.s);
+  ctx.scale(lay.s, lay.s);
+  applyInkStyle(ctx, lay.lineWidth / lay.s);
+  sigStrokes.forEach(st => traceStroke(ctx, st));
+  ctx.restore();
+}
+
+function signatureSvgPath(){
+  const f = n => +n.toFixed(1);
+  return sigStrokes.map(st => {
+    if(st.length === 1) return `M${f(st[0][0])} ${f(st[0][1])} L${f(st[0][0] + 0.1)} ${f(st[0][1])}`;
+    let d = `M${f(st[0][0])} ${f(st[0][1])}`;
+    for(let i = 1; i < st.length - 1; i++){
+      const m = midPoint(st[i], st[i + 1]);
+      d += ` Q${f(st[i][0])} ${f(st[i][1])} ${f(m[0])} ${f(m[1])}`;
+    }
+    const last = st[st.length - 1];
+    return d + ` L${f(last[0])} ${f(last[1])}`;
+  }).join(" ");
+}
+
+// Firma vectorial en el PDF: nítida a cualquier zoom o impresión
+function drawSignatureOnPdf(page, box, sx, sy){
+  const lay = getSignatureLayout(box);
+  if(!lay) return;
+  page.drawSvgPath(signatureSvgPath(), {
+    x: (lay.left - lay.minX * lay.s) * sx,
+    y: page.getHeight() - (lay.top - lay.minY * lay.s) * sy,
+    scale: lay.s * sy,
+    borderColor: PDFLib.rgb(0.06, 0.09, 0.16),
+    borderWidth: lay.lineWidth / lay.s,
+    borderLineCap: PDFLib.LineCapStyle.Round
+  });
+}
+
+/* =============================
+   GENERAR PDF
+============================= */
+
+async function savePdf(){
+  if(!pdfBytes){
+    showToast("La plantilla todavía no está cargada.");
+    return;
+  }
+
+  try{
+    document.getElementById("loading").style.display = "flex";
+    document.querySelector("#loading h5").textContent = "Generando PDF";
+    document.querySelector("#loading p").textContent = "Insertando los datos y preparando la descarga.";
+
+    const { PDFDocument, StandardFonts } = PDFLib;
+    const out = await PDFDocument.load(pdfBytes);
+    const font = await out.embedFont(StandardFonts.Helvetica);
+    const fontBold = await out.embedFont(StandardFonts.HelveticaBold);
+    const measure = fontMeasure(font);
+    const measureBold = fontMeasure(fontBold);
+    const pages = out.getPages();
+
+    // Embebe los datos del formulario en el Subject del PDF para poder re-editarlo
+    try{
+      const payload = PDF_METADATA_PREFIX + JSON.stringify(fields);
+      out.setSubject(payload);
+      out.setTitle("Declaración de siniestro - Soluasistencia");
+      out.setProducer("Soluasistencia Formulario Móvil v" + APP_VERSION);
+      out.setCreator("Soluasistencia v" + APP_VERSION);
+    }catch(e){
+      console.warn("No se pudo embeber metadata:", e);
+    }
+
+    const annex = new Map();   // campo -> texto completo que no cupo en su casilla
+    const failed = [];
+
+    getDrawableItems().forEach(item=>{
+      const page = pages[item.cfg.page - 1];
+      if(!page) return;
+      // Un campo con problemas no debe impedir que se genere todo el PDF
+      try{
+        const r = renderItem(item, measure, measureBold);
+        if(!r) return;
+        drawRenderedItem(page, r, font, fontBold);
+        if(r.truncated && !annex.has(item.sourceKey)){
+          const srcCfg = FIELD_MAP[item.sourceKey] || item.cfg;
+          annex.set(item.sourceKey, formatValueForField(item.sourceKey, item.value, srcCfg));
+        }
+      }catch(err){
+        console.error("No se pudo escribir el campo " + item.key + ":", err);
+        failed.push(item.key);
+      }
+    });
+
+    const sigPage = pages[SIGNATURE_BOX.page - 1];
+    if(hasSignature() && sigPage){
+      const [sx, sy] = pageScale(sigPage);
+      drawSignatureOnPdf(sigPage, SIGNATURE_BOX, sx, sy);
+    }
+
+    // Embebe los dibujos de daños sobre cada silueta de carro
+    for(const key in damageDrawings){
+      const dataUrl = damageDrawings[key];
+      const region = CAR_REGIONS[key];
+      if(!dataUrl || !region) continue;
+      const pngBytes = dataUrlToUint8Array(dataUrl);
+      const dmgImg = await out.embedPng(pngBytes);
+      const page = pages[region.page - 1];
+      if(!page) continue;
+      const [scaleX, scaleY] = pageScale(page);
+      page.drawImage(dmgImg, {
+        x: region.x * scaleX,
+        y: page.getHeight() - ((region.y + region.height) * scaleY),
+        width: region.width * scaleX,
+        height: region.height * scaleY
+      });
+    }
+
+    if(annex.size){
+      const items = Array.from(annex, ([key, text]) => ({label: getFieldLabel(key), text}));
+      addAnnexPages(out, items, font, fontBold);
+    }
+
+    const bytes = await out.save();
+    const placa = cleanFilePart(fields.placa || "SINIESTRO");
+    const fecha = cleanFilePart(formatDateForFile(fields.fechaSiniestro) || new Date().toISOString().slice(0,10));
+    downloadBytes(bytes, `SINIESTRO_${placa}_${fecha}.pdf`);
+
+    if(failed.length){
+      showToast(`PDF generado, pero ${failed.length} campo(s) no se pudieron escribir. Revísalos.`);
+    }else if(annex.size){
+      showToast(`PDF generado. ${annex.size} texto(s) largo(s) van completos en la hoja anexa.`);
+    }else{
+      showToast("PDF generado correctamente.");
+    }
+  }catch(err){
+    console.error(err);
+    showToast("No se pudo generar el PDF. Revisa la consola para más detalle.");
+  }finally{
+    document.getElementById("loading").style.display = "none";
+    document.querySelector("#loading h5").textContent = "Preparando formulario";
+    document.querySelector("#loading p").textContent = "Cargando la plantilla y dejando todo listo para diligenciar.";
+  }
+}
+
+function pageScale(page){
+  return [page.getWidth() / PDF_PAGE_W, page.getHeight() / PDF_PAGE_H];
+}
+
+function drawRenderedItem(page, r, font, fontBold){
+  const [sx, sy] = pageScale(page);
+  const h = page.getHeight();
+  const black = PDFLib.rgb(0,0,0);
+
+  if(r.mark){
+    page.drawText("X",{x: r.mark.x * sx, y: h - r.mark.y * sy, size: r.mark.size * sy, font: fontBold, color: black});
+    return;
+  }
+
+  if(r.cover){
+    const [cx, cy, cw, ch] = r.cover;
+    page.drawRectangle({x: cx * sx, y: h - (cy + ch) * sy, width: cw * sx, height: ch * sy, color: PDFLib.rgb(1,1,1)});
+  }
+  r.lines.forEach(ln => {
+    page.drawText(ln.text,{x: ln.x * sx, y: h - ln.y * sy, size: r.size * sy, font, color: black});
+  });
+}
+
+// Hoja(s) al final del PDF con el texto completo de los campos que no cupieron
+function addAnnexPages(doc, items, font, fontBold){
+  const { rgb } = PDFLib;
+  const W = PDF_PAGE_W, H = PDF_PAGE_H, M = 50, maxW = W - M * 2;
+  const BODY = 9.5, LH = 13, BOTTOM = H - 60;
+  const green = rgb(0, 0.5, 0.25), gray = rgb(0.35, 0.35, 0.35), black = rgb(0, 0, 0);
+  const measure = fontMeasure(font);
+  const added = [];
+  let page, y;
+
+  const summary = [
+    fields.placa ? "Placa: " + String(fields.placa).toUpperCase() : "",
+    fields.fechaSiniestro ? "Fecha del siniestro: " + formatDate(fields.fechaSiniestro) : "",
+    fields.poliza ? "Póliza: " + fields.poliza : "",
+    fields.yoNombre ? "Declarante: " + fields.yoNombre : ""
+  ].filter(Boolean).map(toPdfText).join("   |   ");
+
+  const newPage = () => {
+    page = doc.addPage([W, H]);
+    added.push(page);
+    y = 58;
+    page.drawText("ANEXO - CONTINUACIÓN DEL FORMULARIO DE DECLARACIÓN DE SINIESTROS", {x: M, y: H - y, size: 10.5, font: fontBold, color: green});
+    y += 14;
+    if(summary){
+      page.drawText(cutToWidth(summary, maxW, 8, measure, ""), {x: M, y: H - y, size: 8, font, color: gray});
+      y += 8;
+    }
+    page.drawLine({start: {x: M, y: H - y}, end: {x: W - M, y: H - y}, thickness: 0.8, color: green});
+    y += 20;
+  };
+  const ensure = need => { if(y + need > BOTTOM) newPage(); };
+
+  newPage();
+  items.forEach(it => {
+    ensure(LH * 3);
+    page.drawText(toPdfText(it.label).toUpperCase(), {x: M, y: H - y, size: 8.5, font: fontBold, color: green});
+    y += 13;
+    // En el anexo sí se respetan los saltos de párrafo que escribió el usuario
+    String(it.text).split(/\r?\n/).map(toPdfText).filter(Boolean).forEach(para => {
+      wrapWords(para, [maxW], BODY, measure, true).forEach(line => {
+        ensure(LH);
+        page.drawText(line, {x: M, y: H - y, size: BODY, font, color: black});
+        y += LH;
+      });
+      y += 4;
+    });
+    y += 10;
+  });
+
+  // El anexo también queda firmado
+  if(hasSignature()){
+    ensure(80);
+    y += 12;
+    const box = {x: M, y, width: 200, height: 36};
+    drawSignatureOnPdf(page, box, 1, 1);
+    y += box.height + 3;
+    page.drawLine({start: {x: M, y: H - y}, end: {x: M + 240, y: H - y}, thickness: 0.6, color: gray});
+    y += 10;
+    page.drawText("FIRMA DEL DECLARANTE", {x: M, y: H - y, size: 7.5, font: fontBold, color: gray});
+    const docTxt = [fields.declaranteTipoDoc, fields.declaranteNumDoc].filter(Boolean).join(" ");
+    const who = toPdfText([fields.yoNombre, docTxt].filter(Boolean).join(" - "));
+    if(who){
+      y += 11;
+      page.drawText(cutToWidth(who, maxW, 8.5, measure, ""), {x: M, y: H - y, size: 8.5, font, color: black});
+    }
+  }
+
+  added.forEach((p, i) => {
+    const txt = `Anexo - página ${i + 1} de ${added.length}`;
+    p.drawText(txt, {x: W - M - measure(txt, 7.5), y: 30, size: 7.5, font, color: gray});
+  });
+}
+
+function formatValueForField(key, value, cfg){
+  let v = String(value || "").trim();
+
+  if(cfg.type === "date"){
+    return formatDate(v);
+  }
+
+  if(key.toLowerCase().includes("placa")){
+    return v.toUpperCase();
+  }
+
+  return v;
+}
+
+function formatDate(v){
+  if(!v) return "";
+  if(/^\d{4}-\d{2}-\d{2}$/.test(v)){
+    const [y,m,d] = v.split("-");
+    return `${d}/${m}/${y}`;
+  }
+  return v;
+}
+
+function formatDateForFile(v){
+  if(!v) return "";
+  return String(v).replaceAll("/","-");
+}
+
+function cleanFilePart(v){
+  return String(v).trim().replace(/[^\w\-]+/g,"_").toUpperCase();
+}
+
+function dataUrlToUint8Array(dataUrl){
+  const base64 = dataUrl.split(",")[1];
+  const binary = atob(base64);
+  const len = binary.length;
+  const bytes = new Uint8Array(len);
+  for(let i=0;i<len;i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+/* =============================
+   INTEGRACION CON ASIS PLUS
+   Lo unico que se agrego al original. Son dos cosas: volver, y llegar con los
+   datos del caso ya puestos.
+============================= */
+
+/**
+ * El boton de volver.
+ *
+ * Con ?volver=CASO-XXXX regresa a ese caso (ASIS PLUS ya sabe abrir un caso
+ * desde la URL, es el mismo camino que usa el modulo de contratos); sin el
+ * parametro, al menu. No se usa history.back(): el asistente pudo llegar aqui
+ * despues de varias pantallas, y dentro de la app instalada el historial puede
+ * estar vacio.
+ */
+function prepararVueltaAsisPlus(){
+  const btn = document.getElementById("btnVolverAsisPlus");
+  if(!btn) return;
+  const caso = new URLSearchParams(location.search).get("volver");
+  const destino = caso
+    ? "../asisplus.html?caso=" + encodeURIComponent(caso)
+    : "../asisplus.html";
+  btn.addEventListener("click", () => { location.href = destino; });
+}
+
+/**
+ * Llega con los datos del caso ya diligenciados.
+ *
+ * ASIS PLUS manda en ?prefill= un JSON en base64 con las claves de este
+ * formulario (las mismas de data-key). Se escriben en `fields` y en los
+ * inputs, igual que hace restoreFromStorage.
+ *
+ * Solo se llenan las casillas VACIAS: si el asistente ya venia diligenciando
+ * y vuelve a entrar desde el caso, lo que escribio a mano manda sobre lo que
+ * traiga el caso. Es su version de los hechos, no la de la base.
+ */
+function aplicarPrefillAsisPlus(){
+  const crudo = new URLSearchParams(location.search).get("prefill");
+  if(!crudo) return;
+  let datos;
+  try{
+    const b64 = crudo.replace(/-/g, "+").replace(/_/g, "/");
+    datos = JSON.parse(decodeURIComponent(escape(atob(b64))));
+  }catch(err){
+    console.warn("[ASIS PLUS] No se pudo leer el prefill:", err);
+    return;
+  }
+  if(!datos || typeof datos !== "object") return;
+
+  let puestos = 0;
+  document.querySelectorAll(".pdf-field").forEach(input => {
+    const key = input.dataset.key;
+    const valor = datos[key];
+    if(valor === undefined || valor === null || valor === "") return;
+    // Lo que el asistente ya escribio no se toca.
+    if(String(input.value || "").trim() !== "") return;
+    input.value = valor;
+    fields[key] = valor;
+    puestos++;
+  });
+
+  if(puestos){
+    scheduleSave();
+    scheduleOverlay();
+    showToast(puestos + " dato(s) del caso " + (datos.casoOrigen || "") + " ya quedaron puestos.");
+  }
+}
+
+function downloadBytes(bytes, filename){
+  const blob = new Blob([bytes], {type:"application/pdf"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{
+    URL.revokeObjectURL(url);
+    a.remove();
+  }, 1000);
+}
+</script>
+
+</body>
+</html>
+
+
+

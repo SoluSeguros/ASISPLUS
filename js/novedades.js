@@ -23,6 +23,33 @@ const NOVEDADES_KEY = 'asisplus-novedades-vista';
 // De la más nueva a la más vieja.
 const NOVEDADES = [
   {
+    version: '2.36.0',
+    titulo: 'El formulario de Equidad, adentro',
+    roles: ['asistente', 'gestor', 'admin'],
+    puntos: [
+      {
+        icono: '📝',
+        titulo: 'Ya no hay que abrirlo aparte',
+        texto: 'La declaración de Equidad es ahora una pantalla más de ASIS PLUS: está en el menú como <b>Formulario Equidad</b> y, dentro de cada caso, debajo de los datos del siniestro. Misma sesión, mismo celular, sin acordarse del enlace.'
+      },
+      {
+        icono: '⚡',
+        titulo: 'Llega con los datos del caso puestos',
+        texto: 'Si lo abres desde el caso, el formulario ya trae la fecha, la hora, el lugar, la placa, el conductor con su cédula y teléfono, los terceros con su placa y sus daños, y los lesionados. En un caso real quedaron <b>39 casillas</b> diligenciadas solas. Lo que tú escribas manda: si ya habías llenado una casilla, no se toca.'
+      },
+      {
+        icono: '📴',
+        titulo: 'Funciona sin señal',
+        texto: 'El formulario, el formato de Equidad en blanco y lo que se necesita para armar el PDF quedan guardados en el celular junto con el resto de la app. En la vía, donde no hay señal, es donde más se necesita.'
+      },
+      {
+        icono: '↩️',
+        titulo: 'Y se vuelve al mismo caso',
+        texto: 'El botón <b>← ASIS PLUS</b> del encabezado te devuelve al caso que estabas atendiendo, no al menú.'
+      }
+    ]
+  },
+  {
     version: '2.35.0',
     titulo: 'Todas las fechas en día/mes/año',
     puntos: [

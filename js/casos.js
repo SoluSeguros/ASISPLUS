@@ -225,6 +225,13 @@ function aplicarRol() {
     const veContratos = rol === 'gestor' || rol === 'admin' || esArea;
     els.btnMenuContratos.classList.toggle('hidden', !veContratos);
   }
+  // Formulario de Equidad: lo diligencia el ASISTENTE en el sitio. El gestor y
+  // el admin también lo abren, para terminarlo desde la oficina cuando el
+  // asistente no alcanzó. Las áreas y la empresa no lo diligencian.
+  if (els.btnMenuEquidad) {
+    els.btnMenuEquidad.classList.toggle('hidden',
+      !(typeof rolVeEquidad === 'function' && rolVeEquidad()));
+  }
 
   // Texto del tile de bandeja según el rol.
   if (els.bandejaTileTitulo) {
@@ -1764,6 +1771,12 @@ async function abrirCaso(caso) {
   els.detalleTitulo.textContent =
     `${idMostrar} · ${d['EMPRESA'] || ''} · ${d['PLACA VEHICULO'] || ''}`;
   renderResumenSiniestro(caso); // resumen visible del caso a asistir (conductor, empresa…)
+  // La declaración de Equidad se diligencia sobre un caso concreto: el acceso
+  // vive aquí, no en el menú, para que llegue con los datos ya puestos.
+  if (els.equidadBox) {
+    els.equidadBox.classList.toggle('hidden',
+      !(typeof rolVeEquidad === 'function' && rolVeEquidad()));
+  }
   els.detalleEstado.value = caso.estado || 'REPORTADO';
 
   if (!state.perfilesLista.length) await cargarPerfilesLista();

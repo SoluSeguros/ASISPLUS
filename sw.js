@@ -35,6 +35,7 @@ const ASSETS = [
   './js/instalarapp.js?v=' + APP_VERSION,
   './js/usuarios.js?v=' + APP_VERSION,
   './js/empresa.js?v=' + APP_VERSION,
+  './js/equidad.js?v=' + APP_VERSION,
   './js/vehiculos-empresa.js?v=' + APP_VERSION,
   './js/mapa-empresa.js?v=' + APP_VERSION,
   './js/servicios.js?v=' + APP_VERSION,
@@ -60,14 +61,38 @@ const ASSETS = [
   './icons/soluasistencia-trans.png',
   // Módulo de contratos legales (integrado, mismo origen y misma sesión).
   './contratos/casos.html',
-  './contratos/formularios2.html'
+  './contratos/formularios2.html',
+  // Formulario de Equidad (integrado bajo /equidad/). La plantilla pesa 180 KB
+  // y sin ella el formulario no sirve: el asistente la necesita en la vía,
+  // justo donde no hay señal.
+  './equidad/index.html',
+  './equidad/plantilla.pdf'
+];
+
+// Librerías de terceros que el formulario de Equidad necesita para armar el
+// PDF. Son las únicas externas que se guardan, y a propósito: sin ellas, sin
+// señal, el asistente llena el formulario y no puede generar nada. Van con la
+// versión clavada en la URL, así que no cambian solas.
+//
+// OJO: van en una pasada aparte de ASSETS. cache.addAll() falla ENTERO si una
+// sola URL falla, y un CDN lento dejaría la app sin precachear.
+const EXTERNOS_EQUIDAD = [
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js',
+  'https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js',
+  'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css',
+  'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js'
 ];
 
 // Instalación: precachear la carcasa (sin activar todavía).
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE).then(cache => cache.addAll(ASSETS).catch(() => {}))
-  );
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE);
+    await cache.addAll(ASSETS).catch(() => {});
+    // Cada una por su lado y sin cortar la instalación si alguna falla.
+    await Promise.all(EXTERNOS_EQUIDAD.map(url =>
+      cache.add(new Request(url, { mode: 'cors' })).catch(() => {})));
+  })());
 });
 
 // Activación: borrar cachés de versiones anteriores.

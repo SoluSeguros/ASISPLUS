@@ -2295,6 +2295,29 @@ input[type="password"]:focus {
 .checkin-btns { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .checkin-btns button { width: auto; white-space: nowrap; }
 
+/* Acceso a la declaración de Equidad desde el caso. Mismo formato que el
+   banner de check-in, pero en azul: no es una alerta, es una herramienta. */
+.equidad-box {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  margin-bottom: 18px;
+  border-radius: 14px;
+  background: #eef4ff;
+  border: 1px solid #bcd4ff;
+}
+.equidad-ico { font-size: 26px; line-height: 1; }
+.equidad-info { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.equidad-info strong { font-size: 14.5px; color: #1d4ed8; }
+.equidad-info span { font-size: 13px; color: var(--muted); }
+.equidad-box button { width: auto; white-space: nowrap; }
+
+@media (max-width: 640px) {
+  .equidad-box { flex-wrap: wrap; }
+  .equidad-box button { width: 100%; }
+}
+
 /* En celular el banner de check-in se apila: el texto arriba y los botones
    (llegada / telefónica) a todo el ancho, para que se vean claros y sean
    fáciles de tocar. */

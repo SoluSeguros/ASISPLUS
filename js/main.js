@@ -219,6 +219,11 @@ if (els.btnMenuContratos) {
     window.location.href = 'contratos/casos.html';
   });
 }
+
+// Formulario de Equidad (app integrada bajo /equidad/, mismo criterio).
+// Desde el menú abre en blanco; desde un caso, con los datos ya puestos.
+if (els.btnMenuEquidad) els.btnMenuEquidad.addEventListener('click', abrirEquidad);
+if (els.btnCasoEquidad) els.btnCasoEquidad.addEventListener('click', abrirEquidadDelCaso);
 els.btnConectadosVolver.addEventListener('click', ocultarPantallas);
 
 // Ahorro: pausa/reanuda los sondeos según si la pestaña está visible.
