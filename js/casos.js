@@ -362,6 +362,26 @@ async function cargarConectados() {
 // desplegable de asignar solo con "— Sin asignar —", sin decir nada.
 const PERFILES_CACHE_KEY = 'asisplus-perfiles-cache';
 let _cargaPerfiles = null; // consulta en curso: no se lanzan dos a la vez
+let _errorPerfiles = null; // por qué falló la última consulta (para decirlo)
+
+/**
+ * El motivo del fallo en palabras de quien está frente al equipo, con lo que
+ * puede hacer. Un "no cargó" a secas no deja saber si es la señal o la sesión.
+ */
+function motivoFalloPerfiles() {
+  const e = _errorPerfiles;
+  if (!e) return '';
+  const txt = String(e.message || e) + ' ' + String(e.code || '');
+  if (/JWT|PGRST30\d|401|token/i.test(txt)) {
+    return 'La sesión de este equipo venció o no es válida: cierra sesión y vuelve a entrar. ' +
+      'Si sigue igual, revisa que la fecha y la hora del equipo estén bien.';
+  }
+  if (/fetch|network|load failed|timeout|abort/i.test(txt)) {
+    return 'Este equipo no logra conectarse con el servidor: revisa el internet ' +
+      '(o si hay VPN, antivirus o firewall que lo bloquee).';
+  }
+  return 'Motivo: ' + String(e.message || e).replace(/\.?\s*$/, '.');
+}
 
 function _ponerPerfilesLista(lista) {
   state.perfilesLista = Array.isArray(lista) ? lista : [];
@@ -380,9 +400,11 @@ function cargarPerfilesLista() {
     try {
       const { data, error } = await db.from('perfiles').select('id, nombre, rol');
       if (error) throw error;
+      _errorPerfiles = null;
       _ponerPerfilesLista(data || []);
       try { localStorage.setItem(PERFILES_CACHE_KEY, JSON.stringify(state.perfilesLista)); } catch (_) {}
     } catch (error) {
+      _errorPerfiles = error;
       console.warn('No se pudo cargar la lista de perfiles:', (error && error.message) || error);
       if (!state.perfilesLista.length) {
         try { _ponerPerfilesLista(JSON.parse(localStorage.getItem(PERFILES_CACHE_KEY) || '[]')); } catch (_) {}
@@ -448,7 +470,8 @@ async function reintentarListaAsignar(sel) {
   if (llenarSelectAsistentes(sel, sel.value)) {
     showStatus('Lista de asistentes cargada.', 'ok');
   } else {
-    showStatus('Sigue sin cargar la lista de asistentes. Revisa la señal e inténtalo de nuevo.', 'error');
+    showStatus('Sigue sin cargar la lista de asistentes. ' +
+      (motivoFalloPerfiles() || 'Revisa la señal e inténtalo de nuevo.'), 'error');
   }
 }
 
@@ -466,7 +489,9 @@ async function prepararSelectAsignar(sel, seleccionadoId) {
     await cargarPerfilesLista();
   }
   if (!llenarSelectAsistentes(sel, seleccionadoId)) {
-    showStatus('No se pudo cargar la lista de asistentes. Revisa la conexión; al tocar "Asignar" se vuelve a intentar.', 'error');
+    showStatus('No se pudo cargar la lista de asistentes. ' +
+      (motivoFalloPerfiles() || 'Revisa la conexión.') +
+      ' Al tocar "Asignar" se vuelve a intentar.', 'error');
   }
 }
 
