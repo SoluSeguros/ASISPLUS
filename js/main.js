@@ -163,6 +163,11 @@ initReclamaciones();
 els.detalleAsignar.addEventListener('change', () => {
   if (state.perfil && state.perfil.rol === 'admin') guardarReasignacion();
 });
+// Si la lista de asistentes no cargó al abrir, tocar el desplegable la vuelve
+// a pedir (focus cubre el toque en el celular y el tabulador en el PC).
+[els.casoAsignar, els.detalleAsignar].forEach(sel => {
+  if (sel) sel.addEventListener('focus', () => reintentarListaAsignar(sel));
+});
 // Registro completo del tercero (datos + fotos + firmas).
 initTerceros();
 

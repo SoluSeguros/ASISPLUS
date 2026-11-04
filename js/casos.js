@@ -357,35 +357,117 @@ async function cargarConectados() {
   }
 }
 
-/** Carga la lista de perfiles (para asignar y mostrar nombres). */
-async function cargarPerfilesLista() {
-  try {
-    const { data, error } = await db.from('perfiles').select('id, nombre, rol');
-    if (error) throw error;
-    state.perfilesLista = data || [];
-    state.usuariosPorId = {};
-    state.perfilesLista.forEach(p => { state.usuariosPorId[p.id] = p.nombre || p.id; });
-  } catch (error) {
-    state.perfilesLista = [];
+// Copia de la lista de personas en el dispositivo. Sin ella, una consulta que
+// falla (señal débil, la red del celular que se cae un segundo) dejaba el
+// desplegable de asignar solo con "— Sin asignar —", sin decir nada.
+const PERFILES_CACHE_KEY = 'asisplus-perfiles-cache';
+let _cargaPerfiles = null; // consulta en curso: no se lanzan dos a la vez
+
+function _ponerPerfilesLista(lista) {
+  state.perfilesLista = Array.isArray(lista) ? lista : [];
+  state.usuariosPorId = {};
+  state.perfilesLista.forEach(p => { state.usuariosPorId[p.id] = p.nombre || p.id; });
+}
+
+/**
+ * Carga la lista de perfiles (para asignar y mostrar nombres). Si la consulta
+ * falla NO borra la que ya había: se queda con la de memoria o, si no hay, con
+ * la copia del dispositivo. Devuelve true si quedó una lista con qué trabajar.
+ */
+function cargarPerfilesLista() {
+  if (_cargaPerfiles) return _cargaPerfiles;
+  const carga = (async () => {
+    try {
+      const { data, error } = await db.from('perfiles').select('id, nombre, rol');
+      if (error) throw error;
+      _ponerPerfilesLista(data || []);
+      try { localStorage.setItem(PERFILES_CACHE_KEY, JSON.stringify(state.perfilesLista)); } catch (_) {}
+    } catch (error) {
+      console.warn('No se pudo cargar la lista de perfiles:', (error && error.message) || error);
+      if (!state.perfilesLista.length) {
+        try { _ponerPerfilesLista(JSON.parse(localStorage.getItem(PERFILES_CACHE_KEY) || '[]')); } catch (_) {}
+      }
+    }
+    return state.perfilesLista.length > 0;
+  })();
+  _cargaPerfiles = carga;
+  carga.then(() => { if (_cargaPerfiles === carga) _cargaPerfiles = null; });
+  return carga;
+}
+
+/**
+ * Llena un <select> con las personas asignables (asistentes y admin). Devuelve
+ * cuántas quedaron. Sin ninguna, lo dice en el propio desplegable (y al tocarlo
+ * se reintenta, ver reintentarListaAsignar).
+ */
+function llenarSelectAsistentes(sel, seleccionadoId) {
+  if (!sel) return 0;
+  sel.innerHTML = '<option value="">— Sin asignar —</option>';
+  const asignables = state.perfilesLista
+    // Se puede asignar a asistentes y a administradores (para pruebas).
+    .filter(p => p.rol === 'asistente' || p.rol === 'admin')
+    .sort((a, b) => String(a.nombre || '').localeCompare(String(b.nombre || '')));
+  asignables.forEach(p => {
+    const o = document.createElement('option');
+    o.value = p.id;
+    const etiqueta = p.rol === 'admin' ? ` · ${nombreRol('admin')}` : '';
+    o.textContent = `${p.nombre || p.id}${etiqueta}`;
+    if (p.id === seleccionadoId) o.selected = true;
+    sel.appendChild(o);
+  });
+  // Quien ya tiene el caso se queda en el desplegable aunque no esté en la
+  // lista (no cargó, o ya no es asistente): al guardar se lee el valor de aquí,
+  // y sin esta opción el caso quedaba SIN ASIGNAR y se le iba de la bandeja.
+  if (seleccionadoId && !asignables.some(p => p.id === seleccionadoId)) {
+    const o = document.createElement('option');
+    o.value = seleccionadoId;
+    o.textContent = state.usuariosPorId[seleccionadoId]
+      || (state.perfil && state.perfil.id === seleccionadoId && state.perfil.nombre)
+      || 'Asignado actual';
+    o.selected = true;
+    sel.appendChild(o);
+  }
+  sel.dataset.sinLista = asignables.length ? '' : '1';
+  if (!asignables.length) {
+    const o = document.createElement('option');
+    o.value = '';
+    o.disabled = true;
+    o.textContent = '⚠️ No cargó la lista de asistentes — toca para reintentar';
+    sel.appendChild(o);
+  }
+  return asignables.length;
+}
+
+/**
+ * Pide la lista otra vez cuando se toca un desplegable de asignar que quedó
+ * vacío, en vez de obligar a cerrar y volver a abrir el formulario.
+ */
+async function reintentarListaAsignar(sel) {
+  if (!sel || sel.dataset.sinLista !== '1') return;
+  await cargarPerfilesLista();
+  if (llenarSelectAsistentes(sel, sel.value)) {
+    showStatus('Lista de asistentes cargada.', 'ok');
+  } else {
+    showStatus('Sigue sin cargar la lista de asistentes. Revisa la señal e inténtalo de nuevo.', 'error');
   }
 }
 
-/** Llena un <select> con las personas asignables (asistentes y admin). */
-function llenarSelectAsistentes(sel, seleccionadoId) {
-  if (!sel) return;
-  sel.innerHTML = '<option value="">— Sin asignar —</option>';
-  state.perfilesLista
-    // Se puede asignar a asistentes y a administradores (para pruebas).
-    .filter(p => p.rol === 'asistente' || p.rol === 'admin')
-    .sort((a, b) => String(a.nombre || '').localeCompare(String(b.nombre || '')))
-    .forEach(p => {
-      const o = document.createElement('option');
-      o.value = p.id;
-      const etiqueta = p.rol === 'admin' ? ` · ${nombreRol('admin')}` : '';
-      o.textContent = `${p.nombre || p.id}${etiqueta}`;
-      if (p.id === seleccionadoId) o.selected = true;
-      sel.appendChild(o);
-    });
+/**
+ * Deja la lista lista para un desplegable recién abierto. Se pide de nuevo
+ * cada vez (un asistente creado con la app abierta aparece sin recargar), pero
+ * si ya hay una en memoria no se espera por ella: se refresca por detrás.
+ */
+async function prepararSelectAsignar(sel, seleccionadoId) {
+  if (state.perfilesLista.length) {
+    // Se rellena con lo que el desplegable tenga en ese momento: no pisa una
+    // elección hecha mientras llegaba la respuesta.
+    cargarPerfilesLista().then(() => llenarSelectAsistentes(sel, sel.value));
+  } else {
+    await cargarPerfilesLista();
+  }
+  if (!llenarSelectAsistentes(sel, seleccionadoId)) {
+    showStatus('No se pudo cargar la lista de asistentes. Revisa la conexión; al tocar "Asignar" se vuelve a intentar.', 'error');
+  }
 }
 
 /* ------------------------------------------------------------------ *
@@ -672,8 +754,7 @@ async function abrirCrearCaso() {
   }
   llenarListasVehiculo();
 
-  if (!state.perfilesLista.length) await cargarPerfilesLista();
-  llenarSelectAsistentes(els.casoAsignar, '');
+  await prepararSelectAsignar(els.casoAsignar, '');
 
   mostrarPasoCaso(1);
 }
@@ -1779,8 +1860,7 @@ async function abrirCaso(caso) {
   }
   els.detalleEstado.value = caso.estado || 'REPORTADO';
 
-  if (!state.perfilesLista.length) await cargarPerfilesLista();
-  llenarSelectAsistentes(els.detalleAsignar, caso.asignado_a || '');
+  await prepararSelectAsignar(els.detalleAsignar, caso.asignado_a || '');
 
   await cargarHipotesis();
   if (els.detalleHipotesisBuscar) els.detalleHipotesisBuscar.value = ''; // limpia el buscador
