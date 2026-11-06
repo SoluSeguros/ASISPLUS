@@ -67,6 +67,7 @@ const state = {
   infraFiltroMes: '',          // '01'…'12': sale de tocar el gráfico de meses
   infraFiltroDia: '',          // '0'…'6' (0 = domingo): del gráfico de días
   infraFiltroFranja: '',       // 'madrugada'…'noche': del panel de horas
+  infraFiltroTipo: '',         // 'Infracción', 'Electrónico'…: del panel de tipos
   infraEditando: null,
   empresaVistaServicios: null, // servicios del usuario cuyo portal se está previsualizando
   empresaVistaAdmin: null,     // admin viendo un portal ajeno: lista de empresas que ve

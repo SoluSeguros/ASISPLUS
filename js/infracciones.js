@@ -19,10 +19,23 @@ const INFRA_POR_PAGINA = 50;
 /** Los dos únicos estados, como los guarda la base. */
 const INFRA_ESTADOS = ['SIN CANCELAR', 'CANCELADA'];
 
+/**
+ * Los tipos de comparendo, como los trae el reporte de Movilidad, con lo que
+ * significa cada uno. El histórico no traía la columna: esas quedan sin tipo.
+ */
+const INFRA_TIPOS = ['Infracción', 'Electrónico', 'Educativo', 'NN o Sticker'];
+const INFRA_TIPO_DETALLE = {
+  'Infracción': 'agente de tránsito',
+  'Electrónico': 'fotomulta',
+  'Educativo': 'pedagógico',
+  'NN o Sticker': 'sticker en el vehículo'
+};
+
 /** Columnas que se leen (todas: es el dueño de los datos quien mira). */
 const INFRA_COLUMNAS =
   'id, empresa, placa, numero_interno, fecha, hora, ruta, comparendo, codigo, infraccion, ' +
-  'cedula_conductor, conductor, estado, solidaridad, foto_multa, observaciones, origen, actualizado_en';
+  'tipo_comparendo, cedula_conductor, conductor, estado, solidaridad, foto_multa, ' +
+  'observaciones, origen, actualizado_en';
 
 /* ------------------------------------------------------------------ *
  *  Carga
@@ -66,6 +79,7 @@ async function cargarInfracciones() {
     state.infraFiltroMes = '';
     state.infraFiltroDia = '';
     state.infraFiltroFranja = '';
+    state.infraFiltroTipo = '';
     llenarFiltrosInfra();
     refrescarInfra();
   } catch (error) {
@@ -86,12 +100,18 @@ function _hayFiltroInfra() {
   return !!(((els.buscarInfra && els.buscarInfra.value) || '').trim() ||
     _valorFiltroInfra('filtroInfraAnio') || _valorFiltroInfra('filtroInfraEstado') ||
     _valorFiltroInfra('filtroInfraEmpresa') ||
-    state.infraFiltroMes || state.infraFiltroDia || state.infraFiltroFranja);
+    state.infraFiltroMes || state.infraFiltroDia || state.infraFiltroFranja ||
+    state.infraFiltroTipo);
 }
 
 /** El año de la infracción (la fecha llega como 'AAAA-MM-DD'). */
 function _anioInfra(r) {
   return String(r.fecha || '').slice(0, 4);
+}
+
+/** El tipo de comparendo ('' en las del histórico, que no lo traían). */
+function _tipoInfra(r) {
+  return String((r && r.tipo_comparendo) || '').trim();
 }
 
 /**
@@ -100,8 +120,8 @@ function _anioInfra(r) {
  *
  * `opciones` permite calcular un subconjunto distinto del que se está viendo:
  * `anio` reemplaza el año (para comparar con el anterior) y `sinMes`/`sinDia`/
- * `sinFranja` saltan ese filtro, que es lo que necesitan los paneles que a su
- * vez SON ese filtro para no quedarse con una sola columna en pie.
+ * `sinFranja`/`sinTipo` saltan ese filtro, que es lo que necesitan los paneles
+ * que a su vez SON ese filtro para no quedarse con una sola columna en pie.
  */
 function _infraccionesFiltradas(opciones) {
   const o = opciones || {};
@@ -121,6 +141,9 @@ function _infraccionesFiltradas(opciones) {
   if (!o.sinFranja && state.infraFiltroFranja) {
     filas = filas.filter(r => _franjaInfra(r) === state.infraFiltroFranja);
   }
+  if (!o.sinTipo && state.infraFiltroTipo) {
+    filas = filas.filter(r => _tipoInfra(r) === state.infraFiltroTipo);
+  }
 
   const q = normalizarBusqueda((els.buscarInfra && els.buscarInfra.value) || '').trim();
   if (!q) return filas;
@@ -130,7 +153,7 @@ function _infraccionesFiltradas(opciones) {
   return filas.filter(r => {
     if (qPlaca && normalizarBusqueda(r.placa).replace(/[^a-z0-9]/g, '').includes(qPlaca)) return true;
     return [r.conductor, r.cedula_conductor, r.comparendo, r.codigo, r.infraccion,
-            r.ruta, r.numero_interno, r.empresa, r.observaciones]
+            r.ruta, r.numero_interno, r.empresa, r.observaciones, r.tipo_comparendo]
       .some(c => normalizarBusqueda(c).includes(q));
   });
 }
@@ -241,6 +264,9 @@ function renderInfracciones() {
             ${variasEmpresas ? `<span class="evl-empresa">${escBandeja(r.empresa)}</span>` : ''}
             ${r.solidaridad ? '<span class="inf-flag" title="La empresa responde solidariamente">Solidaria</span>' : ''}
             ${r.foto_multa ? '<span class="inf-flag">Fotomulta</span>' : ''}
+            ${/* La fotomulta ya tiene su marca; el de agente es el caso normal. */
+              _tipoInfra(r) && !['Infracción', 'Electrónico'].includes(_tipoInfra(r))
+                ? `<span class="inf-flag">${escBandeja(_tipoInfra(r))}</span>` : ''}
           </span>
         </span>
       </button>`;
@@ -401,11 +427,40 @@ const MESES_LARGOS_INFRA = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio
  * Si no se pasan, se usa `filas` para todo, que es lo correcto cuando se
  * calcula sin pantalla (una prueba, una descarga).
  */
+/**
+ * Cuenta por `claveFn` y le pone a cada grupo la etiqueta que más se repite en
+ * él, como 'clave|etiqueta' (el formato que ya leen los paneles).
+ *
+ * El mismo código llega con textos distintos ("Estacionar un vehículo en sitios
+ * prohibidos" y "...en los siguientes sitios prohibidos:") y la misma placa con
+ * dos números internos. Contar por código+texto partía un código en dos barras.
+ */
+function _contarConEtiqueta(filas, claveFn, etiquetaFn, limite) {
+  const grupos = new Map();
+  filas.forEach(r => {
+    const k = claveFn(r);
+    if (!k) return;
+    let g = grupos.get(k);
+    if (!g) { g = { n: 0, etiquetas: new Map() }; grupos.set(k, g); }
+    g.n++;
+    const e = etiquetaFn(r);
+    if (e) g.etiquetas.set(e, (g.etiquetas.get(e) || 0) + 1);
+  });
+  const lista = [...grupos.entries()].map(([k, g]) => {
+    let mejor = '';
+    let max = 0;
+    g.etiquetas.forEach((n, e) => { if (n > max) { mejor = e; max = n; } });
+    return { nombre: mejor ? k + '|' + mejor : k, n: g.n, _clave: k };
+  }).sort((a, b) => b.n - a.n || a._clave.localeCompare(b._clave));
+  return limite ? lista.slice(0, limite) : lista;
+}
+
 function calcularEstadisticaInfra(filas, bases) {
   const b = bases || {};
   const baseMes = b.sinMes || filas;
   const baseDia = b.sinDia || filas;
   const baseFranja = b.sinFranja || filas;
+  const baseTipo = b.sinTipo || filas;
   const basePeriodo = b.periodo || filas;
 
   const total = filas.length;
@@ -450,14 +505,25 @@ function calcularEstadisticaInfra(filas, bases) {
     });
   }
 
-  const topCodigos = _contar(filas, r => {
-    const c = String(r.codigo || '').trim();
-    return c ? c + '|' + String(r.infraccion || '').trim() : '';
-  }, 10);
-  const topVehiculos = _contar(filas, r => {
-    const p = String(r.placa || '').trim();
-    return p ? p + (r.numero_interno ? '|' + r.numero_interno : '') : '';
-  }, 10);
+  // --- Tipo de comparendo. Solo lo traen los reportes nuevos: se cuenta sobre
+  // los que lo tienen y el panel dice cuántos son. Los cuatro conocidos van en
+  // su orden; uno que aparezca en un reporte futuro va detrás, no se pierde.
+  const conTipo = baseTipo.filter(r => _tipoInfra(r)).length;
+  const tipos = _contar(baseTipo, _tipoInfra)
+    .sort((a, b) => {
+      const ia = INFRA_TIPOS.indexOf(a.nombre);
+      const ib = INFRA_TIPOS.indexOf(b.nombre);
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || b.n - a.n;
+    })
+    .map(x => ({ nombre: x.nombre, n: x.n, drill: 'tipo', val: x.nombre,
+                 detalle: INFRA_TIPO_DETALLE[x.nombre] || '' }));
+
+  const topCodigos = _contarConEtiqueta(filas,
+    r => String(r.codigo || '').trim().toUpperCase(),
+    r => String(r.infraccion || '').trim(), 10);
+  const topVehiculos = _contarConEtiqueta(filas,
+    r => String(r.placa || '').trim(),
+    r => String(r.numero_interno || '').trim(), 10);
 
   // --- Lo que va en la frase de arriba: el pico de cada dimensión.
   const pico = lista => {
@@ -470,6 +536,7 @@ function calcularEstadisticaInfra(filas, bases) {
     conductores: porConductor.length,
     periodos: _periodosInfra(basePeriodo),
     mesesAnio, dias, franjas, horas, conHora, sinHora: total - conHora,
+    tipos, conTipo, baseTipo: baseTipo.length,
     picoMes: pico(mesesAnio), picoDia: pico(dias), picoFranja: pico(franjas),
     topCodigos,
     topConductores: porConductor.slice(0, 10),
@@ -569,6 +636,7 @@ function renderEstadisticaInfra() {
     sinMes: _infraccionesFiltradas({ sinMes: true }),
     sinDia: _infraccionesFiltradas({ sinDia: true }),
     sinFranja: _infraccionesFiltradas({ sinFranja: true }),
+    sinTipo: _infraccionesFiltradas({ sinTipo: true }),
     // Con un año elegido el panel de periodo muestra sus doce meses: tiene que
     // contarlos sin el filtro de mes o quedaría una sola columna en pie.
     periodo: anio ? _infraccionesFiltradas({ sinMes: true }) : filas
@@ -668,6 +736,21 @@ function renderEstadisticaInfra() {
          registres o corrijas de ahora en adelante van a aparecer acá, por franja y por
          hora exacta.</div>`);
 
+  // --- Tipo -----------------------------------------------------------------
+  // Sin ninguna con tipo (mirando solo el histórico) no se muestra: el panel de
+  // hora ya explica por qué el Excel viejo trae menos columnas.
+  const sinTipoN = m.baseTipo - m.conTipo;
+  const porTipo = m.conTipo
+    ? _panelInfra('📋 Tipo de comparendo',
+        `${formatNumber(m.conTipo)} de ${formatNumber(m.baseTipo)} traen el tipo` +
+        (sinTipoN ? ` · ${formatNumber(sinTipoN)} del histórico, que no lo traía` : ''),
+        _barrasInfra(m.tipos, {
+          rank: false, porcentaje: true, total: m.conTipo, seleccion: state.infraFiltroTipo,
+          etiqueta: x => `${escBandeja(x.nombre)}${x.detalle
+            ? ` <small class="fe-sub">${escBandeja(x.detalle)}</small>` : ''}`
+        }))
+    : '';
+
   // El top de códigos es el panel accionable: dice en qué capacitar.
   const codigos = _panelInfra(
     '🚦 Qué se está infringiendo',
@@ -722,7 +805,7 @@ function renderEstadisticaInfra() {
     ? `<p class="audio-nota">📸 ${formatNumber(m.fotomultas)} (${pct(m.fotomultas)}) se detectaron por fotomulta.</p>`
     : '';
 
-  cont.innerHTML = kpis + frase + porPeriodo + porMes + porDia + porHora +
+  cont.innerHTML = kpis + frase + porPeriodo + porMes + porDia + porHora + porTipo +
     codigos + conductores + vehiculos + rutas + empresas + nota;
 }
 
@@ -751,6 +834,10 @@ function onInfraDrill(evento) {
     state.infraFiltroDia = alternar(state.infraFiltroDia, val);
   } else if (tipo === 'franja') {
     state.infraFiltroFranja = alternar(state.infraFiltroFranja, val);
+  } else if (tipo === 'tipo') {
+    // Va como filtro y no al buscador: buscar "Infracción" encontraría también
+    // las descripciones que dicen "una infracción a las normas de…".
+    state.infraFiltroTipo = alternar(state.infraFiltroTipo, val);
   } else if (tipo === 'empresa' && els.filtroInfraEmpresa) {
     els.filtroInfraEmpresa.value = alternar(els.filtroInfraEmpresa.value, val);
   } else if (tipo === 'texto' && els.buscarInfra) {
@@ -785,6 +872,9 @@ function renderActivosInfra() {
     const f = FRANJAS.find(x => x.clave === state.infraFiltroFranja);
     chips.push(['franja', '🕐 ' + (f ? f.etiqueta : state.infraFiltroFranja)]);
   }
+  if (state.infraFiltroTipo) {
+    chips.push(['tipo', '📋 ' + state.infraFiltroTipo]);
+  }
   cont.innerHTML = chips.map(([campo, etiqueta]) =>
     `<button type="button" class="inf-activo" data-quitar="${campo}"` +
     ` title="Quitar este filtro">${escBandeja(etiqueta)} <span aria-hidden="true">✕</span></button>`).join('');
@@ -808,6 +898,7 @@ const INFRA_FORM = {
   cedula_conductor: 'infraCedula',
   conductor: 'infraConductor',
   estado: 'infraEstado',
+  tipo_comparendo: 'infraTipo',
   observaciones: 'infraObservaciones'
 };
 
@@ -843,6 +934,14 @@ function abrirInfraccion(fila) {
   if (els.infraEstado) {
     els.infraEstado.innerHTML = INFRA_ESTADOS
       .map(e => `<option value="${escBandeja(e)}">${escBandeja(e)}</option>`).join('');
+  }
+  if (els.infraTipo) {
+    // Un tipo que no está en la lista (llegó en un reporte) se conserva al editar.
+    const actual = _tipoInfra(fila);
+    const tipos = INFRA_TIPOS.concat(actual && !INFRA_TIPOS.includes(actual) ? [actual] : []);
+    els.infraTipo.innerHTML = '<option value="">— Sin tipo —</option>' + tipos
+      .map(t => `<option value="${escBandeja(t)}">${escBandeja(t)}${
+        INFRA_TIPO_DETALLE[t] ? ' (' + escBandeja(INFRA_TIPO_DETALLE[t]) + ')' : ''}</option>`).join('');
   }
 
   Object.keys(INFRA_FORM).forEach(campo => {
@@ -895,6 +994,7 @@ async function guardarInfraccion(evento) {
     // acepta la cadena vacía y el guardado fallaría con un error de tipos.
     hora: String((els.infraHora && els.infraHora.value) || '').trim() || null,
     estado: String((els.infraEstado && els.infraEstado.value) || 'SIN CANCELAR'),
+    tipo_comparendo: String((els.infraTipo && els.infraTipo.value) || '').trim() || null,
     solidaridad: !!(els.infraSolidaridad && els.infraSolidaridad.checked),
     foto_multa: !!(els.infraFotoMulta && els.infraFotoMulta.checked)
   };
@@ -925,7 +1025,10 @@ async function guardarInfraccion(evento) {
     if (els.infraAviso) {
       els.infraAviso.textContent = /row-level security/i.test(m)
         ? 'Tu usuario no tiene permiso para guardar en esa empresa.'
-        : m;
+        // El número de comparendo es único (índice infracciones_comparendo_unico).
+        : (error && error.code === '23505') || /comparendo_unico/i.test(m)
+          ? `El comparendo ${fila.comparendo} ya está registrado. Búscalo en la lista para corregirlo.`
+          : m;
     }
   } finally {
     showLoader(false);
@@ -960,7 +1063,8 @@ function descargarInfracciones() {
     HORA: horaBonitaInfra(r.hora),
     'DIA DE LA SEMANA': _DIAS_SEMANA[Number(_diaInfra(r))] || '',
     EMPRESA: r.empresa, PLACA: r.placa, 'NUMERO INTERNO': r.numero_interno || '',
-    RUTA: r.ruta || '', 'COMPARENDO': r.comparendo || '', 'CODIGO': r.codigo || '',
+    RUTA: r.ruta || '', 'COMPARENDO': r.comparendo || '',
+    'TIPO DE COMPARENDO': r.tipo_comparendo || '', 'CODIGO': r.codigo || '',
     'INFRACCION': r.infraccion || '', 'CEDULA CONDUCTOR': r.cedula_conductor || '',
     CONDUCTOR: r.conductor || '', ESTADO: r.estado,
     SOLIDARIDAD: r.solidaridad ? 'SI' : 'NO', FOTOMULTA: r.foto_multa ? 'SI' : 'NO',
@@ -1016,6 +1120,7 @@ function initInfracciones() {
       if (b.dataset.quitar === 'mes') state.infraFiltroMes = '';
       else if (b.dataset.quitar === 'dia') state.infraFiltroDia = '';
       else if (b.dataset.quitar === 'franja') state.infraFiltroFranja = '';
+      else if (b.dataset.quitar === 'tipo') state.infraFiltroTipo = '';
       refiltrar();
     });
   }
@@ -1027,7 +1132,14 @@ function initInfracciones() {
       state.infraFiltroMes = '';
       state.infraFiltroDia = '';
       state.infraFiltroFranja = '';
+      state.infraFiltroTipo = '';
       refiltrar();
+    });
+  }
+  // Elegir "Electrónico" es decir fotomulta: se marca sola (se puede desmarcar).
+  if (els.infraTipo) {
+    els.infraTipo.addEventListener('change', () => {
+      if (els.infraTipo.value === 'Electrónico' && els.infraFotoMulta) els.infraFotoMulta.checked = true;
     });
   }
   if (els.btnInfraPrev) els.btnInfraPrev.addEventListener('click', () => moverPaginaInfra(-1));

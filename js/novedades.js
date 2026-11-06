@@ -23,6 +23,33 @@ const NOVEDADES_KEY = 'asisplus-novedades-vista';
 // De la más nueva a la más vieja.
 const NOVEDADES = [
   {
+    version: '2.37.0',
+    titulo: 'Infracciones: llegó el reporte nuevo',
+    roles: ['empresa', 'admin'],
+    puntos: [
+      {
+        icono: '📥',
+        titulo: '22 comparendos más, de junio a septiembre',
+        texto: 'Ya están cargados los del reporte nuevo: <b>11</b> de COOINVETRANS, <b>6</b> de INVETRANS y <b>5</b> de COOMETROPOL. Con el histórico son <b>252</b>. Si un reporte que llegue después repite comparendos que ya estaban, no se duplican: el número de comparendo es único.'
+      },
+      {
+        icono: '📋',
+        titulo: 'Qué tipo de comparendo es',
+        texto: 'El reporte trae el tipo y la estadística tiene un panel nuevo: <b>13</b> de agente de tránsito, <b>5</b> fotomultas, <b>2</b> educativos y <b>2</b> con sticker en el vehículo. Toca una barra para ver solo esos. También está en el formulario y en el Excel que descargas.'
+      },
+      {
+        icono: '🕐',
+        titulo: 'Ya se ve a qué hora',
+        texto: 'Los 22 nuevos vienen con hora, así que el panel de horas por fin tiene datos: <b>13</b> en la mañana, <b>7</b> en la tarde, uno en la madrugada y uno en la noche. Los 230 del histórico siguen sin hora porque el Excel viejo no la traía.'
+      },
+      {
+        icono: '🚦',
+        titulo: 'Cada código, una sola barra',
+        texto: 'El mismo código venía escrito de dos maneras (por ejemplo, C02: "Estacionar un vehículo en sitios prohibidos" y "…en los siguientes sitios prohibidos:") y en "Qué se está infringiendo" salía partido en dos. Ahora se cuenta por código: el C02 suma sus <b>52</b> en una sola barra. Lo mismo con los vehículos.'
+      }
+    ]
+  },
+  {
     version: '2.36.0',
     titulo: 'El formulario de Equidad, adentro',
     roles: ['asistente', 'gestor', 'admin'],

@@ -68,6 +68,9 @@ PARQUE AUTOMOTOR*
 HISTORICO INFRACCIONES*
 carga_infracciones*.sql
 infracciones*.json
+# Los reportes nuevos de Movilidad (una hoja por empresa, mismos datos
+# personales). "nfracciones" cubre Infracciones e infracciones.
+BASE DE DATOS*nfracciones*
 
 # Bitácora de reclamaciones: nombres de propietarios, teléfonos, radicados y
 # montos de cada reclamación. Este repositorio es PÚBLICO: no puede subirse.

@@ -250,6 +250,7 @@ const els = {
   btnInfraEliminar: document.getElementById('btnInfraEliminar'),
   btnInfraGuardar: document.getElementById('btnInfraGuardar'),
   infraHora: document.getElementById('infraHora'),
+  infraTipo: document.getElementById('infraTipo'),
   infraActivos: document.getElementById('infraActivos'),
 
   // Mapa de siniestros (portal de empresa)
