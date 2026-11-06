@@ -23,6 +23,18 @@ const NOVEDADES_KEY = 'asisplus-novedades-vista';
 // De la más nueva a la más vieja.
 const NOVEDADES = [
   {
+    version: '2.37.1',
+    titulo: 'Infracciones, separadas por empresa',
+    roles: ['empresa', 'admin'],
+    puntos: [
+      {
+        icono: '🏢',
+        titulo: 'Igual que el historial de siniestros',
+        texto: 'Arriba de las infracciones hay ahora dos filas de totales: una <b>por empresa</b> (COOINVETRANS 132, INVETRANS 82, COOMETROPOL 34, TRANSLAMAYA GUAYABAL 4) y otra <b>por mes</b>. Toca una empresa o un mes para ver solo esas, en el listado y en la estadística. Se pueden sumar con el año y con los demás filtros.'
+      }
+    ]
+  },
+  {
     version: '2.37.0',
     titulo: 'Infracciones: llegó el reporte nuevo',
     roles: ['empresa', 'admin'],

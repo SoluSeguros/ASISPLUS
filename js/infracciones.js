@@ -119,9 +119,10 @@ function _tipoInfra(r) {
  * un gráfico (mes, día, franja) y, encima, el buscador.
  *
  * `opciones` permite calcular un subconjunto distinto del que se está viendo:
- * `anio` reemplaza el año (para comparar con el anterior) y `sinMes`/`sinDia`/
- * `sinFranja`/`sinTipo` saltan ese filtro, que es lo que necesitan los paneles
- * que a su vez SON ese filtro para no quedarse con una sola columna en pie.
+ * `anio` reemplaza el año (para comparar con el anterior) y `sinEmpresa`/
+ * `sinMes`/`sinDia`/`sinFranja`/`sinTipo` saltan ese filtro, que es lo que
+ * necesitan los paneles y chips que a su vez SON ese filtro para no quedarse
+ * con una sola columna en pie.
  */
 function _infraccionesFiltradas(opciones) {
   const o = opciones || {};
@@ -131,7 +132,7 @@ function _infraccionesFiltradas(opciones) {
   const emp = _valorFiltroInfra('filtroInfraEmpresa');
   if (anio) filas = filas.filter(r => _anioInfra(r) === anio);
   if (estado) filas = filas.filter(r => String(r.estado || '') === estado);
-  if (emp) filas = filas.filter(r => String(r.empresa || '').trim() === emp);
+  if (emp && !o.sinEmpresa) filas = filas.filter(r => String(r.empresa || '').trim() === emp);
   if (!o.sinMes && state.infraFiltroMes) {
     filas = filas.filter(r => _mesInfra(r) === state.infraFiltroMes);
   }
@@ -285,8 +286,52 @@ function renderInfracciones() {
  * se usan en las dos pestañas) y la estadística sólo si está abierta: calcular
  * seis tops en cada tecla del buscador no lo ve nadie.
  */
+/**
+ * Los totales separados por empresa y por mes, como en el historial de
+ * siniestros (la misma pieza, _filaResumenHist). Cada fila se cuenta sin su
+ * propio filtro y con todos los demás: el número de un chip es lo que queda al
+ * tocarlo, y cada fila suma su "todas".
+ */
+function renderResumenEmpInfra() {
+  const cont = els.infraResumenEmp;
+  if (!cont || typeof _filaResumenHist !== 'function') return;
+  const empresas = [...new Set((state.infraLista || [])
+    .map(r => String(r.empresa || '').trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'es'));
+  if (!(state.infraLista || []).length) { cont.classList.add('hidden'); return; }
+  const anio = _valorFiltroInfra('filtroInfraAnio');
+  const plural = n => `${formatNumber(n)} infracci${n === 1 ? 'ón' : 'ones'}`;
+  let html = '';
+
+  // Con una sola empresa no hay nada que separar.
+  if (empresas.length > 1) {
+    const base = _infraccionesFiltradas({ sinEmpresa: true });
+    html += _filaResumenHist('Empresa', 'emp', _valorFiltroInfra('filtroInfraEmpresa'),
+      base.length, 'Todas',
+      empresas.map(e => {
+        const n = base.filter(r => String(r.empresa || '').trim() === e).length;
+        return { valor: e, etiqueta: e, n, tip: `${e}: ${plural(n)}` };
+      }));
+  }
+
+  // Los doce meses siempre, con ceros: la posición fija se lee de un golpe.
+  const baseMes = _infraccionesFiltradas({ sinMes: true });
+  html += _filaResumenHist('Mes', 'mes', state.infraFiltroMes || '',
+    baseMes.length, 'Todos',
+    MESES_INFRA.map((etiqueta, i) => {
+      const valor = String(i + 1).padStart(2, '0');
+      const n = baseMes.filter(r => _mesInfra(r) === valor).length;
+      return { valor, etiqueta, n,
+               tip: `${etiqueta}${anio ? ' ' + anio : ' de todos los años'}: ${plural(n)}` };
+    }));
+
+  cont.innerHTML = html;
+  cont.classList.remove('hidden');
+}
+
 function refrescarInfra() {
   renderActivosInfra();
+  renderResumenEmpInfra();
   renderInfracciones();
   if (state.infraSubvista === 'estadistica') renderEstadisticaInfra();
 }
@@ -1111,6 +1156,19 @@ function initInfracciones() {
   if (els.infraEstadistica) {
     els.infraEstadistica.addEventListener('click', onInfraDrill);
     els.infraEstadistica.addEventListener('keydown', onInfraDrill);
+  }
+  // Los chips de empresa y de mes. La empresa va al selector, que sigue siendo
+  // el filtro de verdad (y queda a la vista); el mes, al mismo filtro que sale
+  // de tocar el gráfico de meses.
+  if (els.infraResumenEmp) {
+    els.infraResumenEmp.addEventListener('click', event => {
+      const chip = event.target.closest('.br-chip');
+      if (!chip) return;
+      const val = chip.dataset.val || '';
+      if (chip.dataset.campo === 'mes') state.infraFiltroMes = val;
+      else if (els.filtroInfraEmpresa) els.filtroInfraEmpresa.value = val;
+      refiltrar();
+    });
   }
   // Y la ✕ de cada chip quita ese filtro.
   if (els.infraActivos) {
