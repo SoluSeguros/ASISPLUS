@@ -22,6 +22,7 @@ function initEmpresaPortal() {
     els.empresaCasosBody.addEventListener('click', abrirDesdeFila);
     els.empresaCasosBody.addEventListener('keydown', abrirDesdeFila);
   }
+  if (els.btnEmpresaCasosExcel) els.btnEmpresaCasosExcel.addEventListener('click', descargarSiniestrosEmpresa);
   if (els.btnEmpresaCasosPrev) els.btnEmpresaCasosPrev.addEventListener('click', () => moverPaginaHistorialEmpresa(-1));
   if (els.btnEmpresaCasosNext) els.btnEmpresaCasosNext.addEventListener('click', () => moverPaginaHistorialEmpresa(1));
   // Al buscar se vuelve a la primera página: quedarse en la 7 de una lista que
@@ -1068,4 +1069,222 @@ function verDetalleCasoEmpresa(caso) {
 
 function cerrarDetalleCasoEmpresa() {
   if (els.empresaCasoModal) els.empresaCasoModal.classList.remove('show');
+}
+
+/* ------------------------------------------------------------------ *
+ *  Descarga del historial a Excel, normalizada
+ * ------------------------------------------------------------------ */
+
+/*
+ * Un volcado de `datos` tal cual no se puede leer: 97 campos distintos entre
+ * el histórico del AppSheet y la app, en desorden, con rutas de fotos y marcas
+ * de tiempo, y la fecha en cinco formatos (7/18/2026, 2026-07-18…). Esta hoja
+ * tiene SIEMPRE las mismas columnas, en el mismo orden, con los nombres de la
+ * ficha. La fecha va como fecha de Excel (ordena y filtra) y todo lo demás
+ * como texto: una cédula o un teléfono en número terminan en notación
+ * científica, que es justo lo que destruyó los comparendos del Excel viejo.
+ */
+
+// Las secciones de la ficha, en el orden de una tabla: primero quién y qué
+// vehículo, después el siniestro. Una sección nueva de la ficha va al final.
+const EXCEL_ORDEN_SECCIONES = ['Vehículo', 'Conductor', 'Siniestro', 'Versiones y daños',
+  'Afiliado', 'Gestión de la asistencia'];
+
+// Campos que la ficha deja en "Otros datos" pero que en la hoja tienen sitio.
+const EXCEL_CAMPOS_EXTRA = {
+  'Siniestro': [['CIUDAD DEL SINIESTRO', 'Ciudad'], ['LUGAR DE IMPACTO', 'Lugar de impacto'],
+                ['RUTA CIERRE', 'Ruta de cierre']],
+  'Versiones y daños': [['OBSERVACIONES', 'Observaciones']]
+};
+
+// Fuera de su sección, "Nombre" o "Placa" no dicen de quién son.
+const EXCEL_ENCABEZADOS = {
+  'PLACA VEHICULO': 'PLACA',
+  'NOMBRE CONDUCTOR': 'CONDUCTOR',
+  'CEDULA DEL CONDUCTOR': 'CÉDULA DEL CONDUCTOR',
+  'NUMERO DE CONTACTO': 'CONTACTO DEL CONDUCTOR',
+  'CORREO AFILIADO': 'CORREO DEL AFILIADO',
+  'CELULAR AFILIADO': 'CELULAR DEL AFILIADO'
+};
+const EXCEL_ENCABEZADOS_TERCERO = {
+  'PLACA': 'PLACA DEL TERCERO',
+  'TIPO DE VEHICULO': 'TIPO DE VEHÍCULO DEL TERCERO',
+  'MARCA': 'MARCA DEL VEHÍCULO',
+  'COLOR': 'COLOR DEL VEHÍCULO'
+};
+
+// La fecha y la hora salen normalizadas del caso; los campos crudos no se repiten.
+const EXCEL_SIN_REPETIR = new Set(['FECHA DEL SINIESTRO', 'HORA DEL SINIESTRO']);
+
+const MESES_LARGOS_EXCEL = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio',
+  'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+/** Las columnas de la hoja: [encabezado, clave en `datos`]. */
+function columnasExcelSiniestros() {
+  const porTitulo = {};
+  DETALLE_SECCIONES.forEach(s => { porTitulo[s.titulo] = s; });
+  const titulos = EXCEL_ORDEN_SECCIONES.filter(t => porTitulo[t])
+    .concat(DETALLE_SECCIONES.map(s => s.titulo).filter(t => !EXCEL_ORDEN_SECCIONES.includes(t)));
+  const cols = [];
+  const vistas = new Set();
+  titulos.forEach(t => {
+    porTitulo[t].campos.concat(EXCEL_CAMPOS_EXTRA[t] || []).forEach(([clave, etiqueta]) => {
+      if (vistas.has(clave) || EXCEL_SIN_REPETIR.has(clave) || CAMPOS_CON_SECCION_PROPIA.has(clave)) return;
+      vistas.add(clave);
+      cols.push([EXCEL_ENCABEZADOS[clave] || etiqueta.toUpperCase(), clave]);
+    });
+  });
+  return cols;
+}
+
+/** El valor como texto limpio: legible (fechas d/m/a, JSON) y sin espacios de más. */
+function _textoExcel(clave, valor) {
+  const v = valorLegible(clave, valor);
+  return String(v == null ? '' : v)
+    .replace(/\r\n?/g, '\n').replace(/[ \t]+/g, ' ')
+    .split('\n').map(l => l.trim()).join('\n').trim();
+}
+
+/** La KEY del caso (en los importados también viene dentro de `datos`). */
+function _claveCasoExcel(c) {
+  return c.key || (typeof getKey === 'function' ? getKey(c.datos || {}, 'KEY') : '');
+}
+
+/**
+ * Número de serie de Excel para un día. Se calcula con UTC a propósito: pasar
+ * el Date de JavaScript deja que la librería aplique la zona horaria, y con la
+ * de Colombia en 1899 (-4:56) la fecha puede caer al día anterior.
+ */
+function _serialExcel(dt) {
+  if (!dt) return '';
+  return Math.round((Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate()) -
+    Date.UTC(1899, 11, 30)) / 86400000);
+}
+
+/** Arma una hoja: encabezados, filas, fechas con formato, anchos y autofiltro. */
+function _hojaExcel(encabezados, filas, colFecha) {
+  const ws = XLSX.utils.aoa_to_sheet([encabezados].concat(filas));
+  if (colFecha >= 0) {
+    for (let i = 0; i < filas.length; i++) {
+      const celda = ws[XLSX.utils.encode_cell({ r: i + 1, c: colFecha })];
+      if (celda && celda.t === 'n') celda.z = 'dd/mm/yyyy';
+    }
+  }
+  ws['!cols'] = encabezados.map((h, c) => {
+    const largo = filas.reduce((m, f) => Math.max(m,
+      ...String(f[c] == null ? '' : f[c]).split('\n').map(l => l.length)), String(h).length);
+    return { wch: Math.min(Math.max(largo + 2, 10), 60) };
+  });
+  ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 },
+    e: { r: filas.length, c: encabezados.length - 1 } }) };
+  return ws;
+}
+
+/** Los terceros de esos casos, por KEY y en tandas (la URL tiene un límite). */
+async function _tercerosParaExcel(claves) {
+  const porClave = {};
+  const TANDA = 150;
+  for (let i = 0; i < claves.length; i += TANDA) {
+    const tanda = claves.slice(i, i + TANDA);
+    let desde = 0;
+    while (true) {
+      const { data, error } = await db.from('registro_terceros').select('key, datos')
+        .in('key', tanda).range(desde, desde + 999);
+      if (error) throw error;
+      (data || []).forEach(t => { (porClave[t.key] = porClave[t.key] || []).push(t.datos || {}); });
+      if (!data || data.length < 1000) break;
+      desde += 1000;
+    }
+  }
+  return porClave;
+}
+
+/**
+ * Descarga lo que se está viendo en el historial (con los filtros, los chips y
+ * el buscador puestos) en un Excel con tres hojas: los siniestros, sus
+ * terceros y qué filtros se aplicaron.
+ */
+async function descargarSiniestrosEmpresa() {
+  const casos = _casosEmpresaFiltrados();
+  if (!casos.length) { showStatus('No hay siniestros para descargar en lo que estás viendo.', 'error'); return; }
+
+  showLoader(true);
+  try {
+    const cols = columnasExcelSiniestros();
+    const fijas = ['N.º CASO', 'ESTADO', 'FECHA', 'HORA', 'AÑO', 'MES', 'DÍA DE LA SEMANA'];
+    const filas = casos.map(c => {
+      const d = c.datos || {};
+      const dt = _fechaCaso(c);
+      return [
+        String(c.numero_caso || ''),
+        (ESTADOS_CASO[c.estado] || {}).texto || String(c.estado || ''),
+        _serialExcel(dt),
+        _horaBonitaEmpresa(c),
+        dt ? dt.getFullYear() : '',
+        dt ? `${String(dt.getMonth() + 1).padStart(2, '0')} - ${MESES_LARGOS_EXCEL[dt.getMonth()]}` : '',
+        dt ? _DIAS_SEMANA[dt.getDay()] : ''
+      ].concat(cols.map(([, clave]) => _textoExcel(clave, d[clave])));
+    });
+
+    // Los terceros: si no se pueden traer (sin señal), la hoja de siniestros
+    // sale igual y la de filtros dice que faltan.
+    let porClave = null;
+    try {
+      porClave = await _tercerosParaExcel([...new Set(casos.map(_claveCasoExcel).filter(Boolean))]);
+    } catch (_) { porClave = null; }
+
+    const colsT = [['NOMBRE COMPLETO', 'NOMBRE DEL TERCERO']].concat(TERCERO_CAMPOS.map(([clave, etiqueta]) =>
+      [clave, EXCEL_ENCABEZADOS_TERCERO[clave] || etiqueta.toUpperCase()]));
+    const filasT = [];
+    if (porClave) {
+      casos.forEach(c => {
+        const d = c.datos || {};
+        (porClave[_claveCasoExcel(c)] || []).forEach(t => {
+          filasT.push([String(c.numero_caso || ''), _serialExcel(_fechaCaso(c)),
+            String(d['EMPRESA'] || '').trim(), String(d['PLACA VEHICULO'] || '').trim()]
+            .concat(colsT.map(([clave]) => _textoExcel(clave, t[clave]))));
+        });
+      });
+    }
+
+    const filtro = (titulo, valor) => [titulo, valor || 'Todos'];
+    const busqueda = ((els.buscarEmpresaCasos && els.buscarEmpresaCasos.value) || '').trim();
+    const info = [
+      ['Generado', formatDate(new Date())],
+      ['Empresas', state.empresaVistaAdmin ? state.empresaVistaAdmin.join(', ')
+        : ((state.perfil && state.perfil.empresas) || []).join(', ') || _nombreEmpresaActual()],
+      filtro('Empresa', state.empresaFiltroEmpresa),
+      filtro('Año', _valorFiltroEmpresa('filtroEmpresaAnio')),
+      filtro('Mes', state.empresaFiltroMes ? MESES_LARGOS_EXCEL[Number(state.empresaFiltroMes) - 1] : ''),
+      filtro('Gravedad', _valorFiltroEmpresa('filtroEmpresaGravedad')),
+      filtro('Estado', _valorFiltroEmpresa('filtroEmpresaEstado')),
+      ['Búsqueda', busqueda || '(ninguna)'],
+      ['Siniestros', casos.length],
+      ['Terceros', porClave ? filasT.length : 'No se pudieron traer (sin conexión): descarga de nuevo con señal']
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, _hojaExcel(fijas.concat(cols.map(([h]) => h)), filas, 2), 'SINIESTROS');
+    XLSX.utils.book_append_sheet(wb, _hojaExcel(
+      ['N.º CASO', 'FECHA DEL SINIESTRO', 'EMPRESA', 'PLACA DEL VEHÍCULO'].concat(colsT.map(([, h]) => h)),
+      filasT, 1), 'TERCEROS');
+    const wsInfo = XLSX.utils.aoa_to_sheet([['FILTRO', 'VALOR']].concat(info));
+    wsInfo['!cols'] = [{ wch: 14 }, { wch: 60 }];
+    XLSX.utils.book_append_sheet(wb, wsInfo, 'FILTROS');
+
+    const rotulo = String(state.empresaFiltroEmpresa || _nombreEmpresaActual() || 'EMPRESA')
+      .replace(/\+\s*\d+\s*más/i, 'GRUPO').replace(/[^A-Za-z0-9ÑñÁÉÍÓÚáéíóú]+/g, '_')
+      .replace(/^_+|_+$/g, '').toUpperCase();
+    const hoy = new Date();
+    const fecha = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
+    XLSX.writeFile(wb, `SINIESTROS_${rotulo}_${fecha}.xlsx`);
+    showStatus(porClave
+      ? `${formatNumber(casos.length)} siniestro(s) y ${formatNumber(filasT.length)} tercero(s) descargados.`
+      : `${formatNumber(casos.length)} siniestro(s) descargados. Los terceros no se pudieron traer: vuelve a descargar con señal.`,
+      porClave ? 'ok' : 'error');
+  } catch (error) {
+    showStatus('No se pudo armar el Excel: ' + ((error && error.message) || error), 'error');
+  } finally {
+    showLoader(false);
+  }
 }

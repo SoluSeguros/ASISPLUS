@@ -23,6 +23,28 @@ const NOVEDADES_KEY = 'asisplus-novedades-vista';
 // De la más nueva a la más vieja.
 const NOVEDADES = [
   {
+    version: '2.38.0',
+    titulo: 'Los siniestros, a Excel y en orden',
+    roles: ['empresa', 'admin'],
+    puntos: [
+      {
+        icono: '⬇️',
+        titulo: 'Descargar a Excel',
+        texto: 'En <b>Mi historial de casos</b> hay un botón para bajar los siniestros a Excel. Descarga lo que estás viendo: si elegiste una empresa, un año, un mes o buscaste algo, el archivo trae solo eso.'
+      },
+      {
+        icono: '📋',
+        titulo: 'Columnas fijas, con nombres claros',
+        texto: 'Siempre las mismas columnas y en el mismo orden, con los nombres de la ficha del caso (Empresa, Placa, Conductor, Gravedad, Hipótesis…). La <b>fecha</b> es una fecha de Excel de verdad, en día/mes/año, así que se ordena y se filtra bien. La hora va como HH:MM, y las cédulas y los teléfonos como texto, para que Excel no los convierta en números raros.'
+      },
+      {
+        icono: '👥',
+        titulo: 'Con los terceros',
+        texto: 'El archivo tiene tres hojas: <b>SINIESTROS</b>, <b>TERCEROS</b> (cada uno con su caso, su placa y si tuvo lesión) y <b>FILTROS</b>, que dice qué se descargó y cuándo. Los encabezados ya vienen con el filtro de Excel puesto.'
+      }
+    ]
+  },
+  {
     version: '2.37.1',
     titulo: 'Infracciones, separadas por empresa',
     roles: ['empresa', 'admin'],

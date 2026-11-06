@@ -286,6 +286,7 @@ const els = {
   filtroEmpresaEstado: document.getElementById('filtroEmpresaEstado'),
   btnEmpresaFiltrosLimpiar: document.getElementById('btnEmpresaFiltrosLimpiar'),
   empresaResumenHist: document.getElementById('empresaResumenHist'),
+  btnEmpresaCasosExcel: document.getElementById('btnEmpresaCasosExcel'),
   empresaResumenFicha: document.getElementById('empresaResumenFicha'),
   empresaCasosCount: document.getElementById('empresaCasosCount'),
   empresaCasosPager: document.getElementById('empresaCasosPager'),
