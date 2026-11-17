@@ -78,3 +78,7 @@ BITACORA DE RECLAMACIONES*
 REGISTRO DE RECLAMACIONES*
 carga_reclamaciones*.sql
 reclamaciones*.json
+
+# Videos de capacitación y lo que los genera (capturas, audios). Pesan mucho
+# y se regeneran con videos/guia-empresa/: no van al repositorio.
+videos/

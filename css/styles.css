@@ -4384,6 +4384,9 @@ th {
 .bn-crear { display: none; }
 body[data-rol="gestor"] .bn-crear,
 body[data-rol="admin"] .bn-crear { display: flex; }
+/* La empresa tiene su portal, sin bandeja: "Bandeja" le abría la de los
+   asistentes, con sus filtros internos (conciliados, reclamaciones…). */
+body[data-rol="empresa"] #bnBandeja { display: none; }
 
 @media (max-width: 720px) {
   body[data-rol] .bottom-nav {

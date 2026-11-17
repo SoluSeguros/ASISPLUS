@@ -346,6 +346,9 @@ async function abrirEmpresaPortal(empresas, opciones) {
   }
 
   marcarUbicacion('empresaCard', titulo);
+  // La empresa no tiene menú: "Panel principal › TEMSA · clic para volver" la
+  // llevaba a una pantalla en blanco. La miga de pan es solo de la vista previa.
+  if (!comoAdmin && els.ubicacion) els.ubicacion.classList.add('hidden');
   // El mapa se suelta al entrar: si el admin pasa del portal de una empresa al
   // de otra, se rearma con los casos y los filtros de la nueva en vez de
   // arrastrar los años y las gravedades de la anterior.
@@ -353,6 +356,21 @@ async function abrirEmpresaPortal(empresas, opciones) {
   cambiarVistaEmpresa('dashboard');
   await Promise.all([cargarMisVehiculos(), cargarMisCasos()]);
   renderFichaEmpresaPropia();
+}
+
+/**
+ * "Inicio" (la barra del celular y la miga de pan). Para los roles internos es
+ * el menú. La empresa no tiene menú: su inicio es su portal, en el Dashboard.
+ * Antes la dejaba en una pantalla en blanco, con su nombre y nada más.
+ */
+function irAlInicio() {
+  if (!(state.perfil && state.perfil.rol === 'empresa')) { ocultarPantallas(); return; }
+  if (els.empresaCard && !els.empresaCard.classList.contains('hidden')) {
+    cambiarVistaEmpresa('dashboard');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
+  abrirEmpresaPortal();
 }
 
 /* ------------------------------------------------------------------ *

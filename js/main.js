@@ -6,7 +6,8 @@
  */
 
 // --- Barra inferior de navegación (móvil): reutiliza los flujos existentes ---
-if (els.bnInicio) els.bnInicio.addEventListener('click', ocultarPantallas);
+// "Inicio" lleva al menú, o al portal si es una empresa (no tiene menú).
+if (els.bnInicio) els.bnInicio.addEventListener('click', irAlInicio);
 if (els.bnBandeja) els.bnBandeja.addEventListener('click', abrirBandeja);
 if (els.bnCrear) els.bnCrear.addEventListener('click', abrirCrearCaso);
 if (els.bnSalir) els.bnSalir.addEventListener('click', cerrarSesion);
@@ -337,7 +338,7 @@ els.btnNext.addEventListener('click', () => {
 els.btnVolverMenu.addEventListener('click', ocultarPantallas);
 
 // La barra de ubicación también vuelve al panel principal.
-els.ubicacion.addEventListener('click', ocultarPantallas);
+els.ubicacion.addEventListener('click', irAlInicio);
 
 // Detalle de asistencia (con mapa).
 els.btnCerrarDetalleAsis.addEventListener('click', cerrarDetalleAsistencia);
