@@ -2145,15 +2145,19 @@ input[type="password"]:focus {
   gap: 12px;
 }
 
+/* Bloque normal con el número a la izquierda. Con display:flex cada trozo de
+   texto y cada <b> del paso se volvía una columna: "Toca el / menú / ⋮ / en la
+   esquina…", ilegible justo en el celular, donde más se instala. */
 .instalar-pasos li {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  position: relative;
+  padding-left: 32px;
   line-height: 1.4;
 }
 
 .instalar-num {
-  flex: none;
+  position: absolute;
+  left: 0;
+  top: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2620,7 +2624,9 @@ input[type="password"]:focus {
   padding: 8px 0;
 }
 .nov-icono { font-size: 20px; line-height: 1.2; flex: 0 0 auto; }
-.nov-punto b { display: block; margin-bottom: 2px; }
+/* Solo el título del punto (hijo directo). Con `.nov-punto b` cada negrita del
+   texto también se iba a un renglón aparte: "En / Mi historial de casos / hay…". */
+.nov-punto > div > b { display: block; margin-bottom: 2px; }
 .nov-punto p { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--muted); }
 
 .nov-aviso {
